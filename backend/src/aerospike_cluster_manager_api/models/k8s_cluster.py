@@ -115,6 +115,61 @@ class MonitoringConfig(BaseModel):
     port: int = Field(default=9145, ge=1024, le=65535)
 
 
+class ACLRoleSpec(BaseModel):
+    """Aerospike role definition."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str = Field(min_length=1, max_length=63)
+    privileges: list[str] = Field(default_factory=lambda: ["read-write"])
+    whitelist: list[str] | None = Field(default=None, description="CIDR allowlist")
+
+
+class ACLUserSpec(BaseModel):
+    """Aerospike user definition."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str = Field(min_length=1, max_length=63)
+    secret_name: str = Field(alias="secretName", description="K8s Secret containing password")
+    roles: list[str] = Field(default_factory=lambda: ["user-admin"])
+
+
+class ACLConfig(BaseModel):
+    """Access control configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    enabled: bool = Field(default=False)
+    roles: list[ACLRoleSpec] = Field(default_factory=list)
+    users: list[ACLUserSpec] = Field(default_factory=list)
+    admin_policy_timeout: int = Field(default=2000, ge=100, le=30000, alias="adminPolicyTimeout")
+
+
+class RollingUpdateConfig(BaseModel):
+    """Rolling update strategy configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    batch_size: int | None = Field(default=None, ge=1, alias="batchSize", description="Pods to restart in parallel")
+    max_unavailable: str | None = Field(
+        default=None, alias="maxUnavailable", description="Max unavailable (e.g. '1' or '25%')"
+    )
+    disable_pdb: bool = Field(default=False, alias="disablePDB")
+
+
+class OperationStatusResponse(BaseModel):
+    """Current operation status from cluster status."""
+
+    model_config = {"populate_by_name": True}
+
+    id: str = ""
+    kind: str = ""
+    phase: str = ""
+    completed_pods: list[str] = Field(default_factory=list, alias="completedPods")
+    failed_pods: list[str] = Field(default_factory=list, alias="failedPods")
+
+
 class CreateK8sClusterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
     namespace: str = Field(
@@ -138,6 +193,8 @@ class CreateK8sClusterRequest(BaseModel):
     template_ref: str | None = Field(
         default=None, alias="templateRef", description="Name of AerospikeClusterTemplate to use"
     )
+    acl: ACLConfig | None = Field(default=None, alias="acl")
+    rolling_update: RollingUpdateConfig | None = Field(default=None, alias="rollingUpdate")
     enable_dynamic_config: bool = Field(default=False, alias="enableDynamicConfig")
     auto_connect: bool = Field(default=True, alias="autoConnect")
 
@@ -204,6 +261,8 @@ class K8sClusterCondition(BaseModel):
 
 
 class K8sClusterDetail(BaseModel):
+    model_config = {"populate_by_name": True}
+
     name: str
     namespace: str
     size: int
@@ -216,6 +275,9 @@ class K8sClusterDetail(BaseModel):
     pods: list[K8sPodStatus] = Field(default_factory=list)
     conditions: list[K8sClusterCondition] = Field(default_factory=list)
     connectionId: str | None = None
+    operation_status: OperationStatusResponse | None = Field(default=None, alias="operationStatus")
+    failed_reconcile_count: int = Field(default=0, alias="failedReconcileCount")
+    last_reconcile_error: str | None = Field(default=None, alias="lastReconcileError")
 
 
 class K8sClusterEvent(BaseModel):

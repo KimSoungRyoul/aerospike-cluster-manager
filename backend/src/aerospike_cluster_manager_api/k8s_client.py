@@ -259,6 +259,19 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
+    def _list_secrets_sync(self, namespace: str) -> list[str]:
+        logger.debug("_list_secrets_sync(namespace=%s)", namespace)
+        self._ensure_initialized()
+        try:
+            result = self._core_api.list_namespaced_secret(
+                namespace=namespace,
+                field_selector="type=Opaque",
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
+            return [s.metadata.name for s in result.items]
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
     def _list_events_sync(self, namespace: str, field_selector: str) -> list[dict[str, Any]]:
         logger.debug("_list_events_sync(namespace=%s)", namespace)
         self._ensure_initialized()
@@ -318,6 +331,10 @@ class K8sClient:
 
     async def get_template(self, namespace: str, name: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._get_template_sync, namespace, name)
+
+    async def list_secrets(self, namespace: str) -> list[str]:
+        """List Secret names in a namespace (Opaque type only)."""
+        return await asyncio.to_thread(self._list_secrets_sync, namespace)
 
     async def list_events(self, namespace: str, field_selector: str) -> list[dict[str, Any]]:
         return await asyncio.to_thread(self._list_events_sync, namespace, field_selector)

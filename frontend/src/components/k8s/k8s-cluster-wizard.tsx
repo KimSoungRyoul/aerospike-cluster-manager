@@ -27,11 +27,27 @@ import {
   parseMemoryBytes,
 } from "@/lib/validations/k8s";
 import { toast } from "sonner";
-import type { CreateK8sClusterRequest, MonitoringConfig } from "@/lib/api/types";
+import type {
+  CreateK8sClusterRequest,
+  MonitoringConfig,
+  ACLConfig,
+  ACLRoleSpec,
+  ACLUserSpec,
+  RollingUpdateConfig,
+} from "@/lib/api/types";
 
 const AEROSPIKE_IMAGES = ["aerospike:ce-8.1.1.1", "aerospike:ce-7.2.0.6"];
 
-const STEPS = ["Basic", "Namespace & Storage", "Monitoring & Options", "Resources", "Review"];
+const STEPS = ["Basic", "Namespace & Storage", "Monitoring & Options", "Resources", "Security (ACL)", "Rolling Update", "Review"];
+
+const AEROSPIKE_PRIVILEGES = [
+  "read",
+  "read-write",
+  "read-write-udf",
+  "sys-admin",
+  "data-admin",
+  "user-admin",
+];
 
 export function K8sClusterWizard() {
   const router = useRouter();
@@ -66,6 +82,8 @@ export function K8sClusterWizard() {
     templateRef: undefined as string | undefined,
     enableDynamicConfig: false,
     autoConnect: true,
+    acl: undefined as ACLConfig | undefined,
+    rollingUpdate: undefined as RollingUpdateConfig | undefined,
   });
 
   useEffect(() => {
@@ -153,6 +171,23 @@ export function K8sClusterWizard() {
       // Cross-field: limits must be >= requests
       if (parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu)) return false;
       if (parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory)) return false;
+      return true;
+    }
+    if (step === 4) {
+      // ACL step: if enabled, must have at least one user with admin role
+      if (form.acl?.enabled) {
+        if (form.acl.users.length === 0) return false;
+        for (const user of form.acl.users) {
+          if (!user.name.trim() || !user.secretName.trim() || user.roles.length === 0) return false;
+        }
+        for (const role of form.acl.roles) {
+          if (!role.name.trim() || role.privileges.length === 0) return false;
+        }
+      }
+      return true;
+    }
+    if (step === 5) {
+      // Rolling Update step - always valid (all fields optional)
       return true;
     }
     return true;
@@ -656,6 +691,308 @@ export function K8sClusterWizard() {
           )}
 
           {step === 4 && (
+            <>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="acl-enabled"
+                  checked={form.acl?.enabled ?? false}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      updateForm({
+                        acl: {
+                          enabled: true,
+                          roles: [],
+                          users: [],
+                          adminPolicyTimeout: 2000,
+                        },
+                      });
+                    } else {
+                      updateForm({ acl: undefined });
+                    }
+                  }}
+                />
+                <Label htmlFor="acl-enabled" className="text-sm font-normal">
+                  Enable ACL (Access Control)
+                </Label>
+              </div>
+
+              {form.acl?.enabled && (
+                <div className="space-y-6 pt-2">
+                  <div className="grid gap-2">
+                    <Label htmlFor="admin-timeout">Admin Policy Timeout (ms)</Label>
+                    <Input
+                      id="admin-timeout"
+                      type="number"
+                      min={500}
+                      max={30000}
+                      value={form.acl.adminPolicyTimeout}
+                      onChange={(e) =>
+                        updateForm({
+                          acl: {
+                            ...form.acl!,
+                            adminPolicyTimeout: parseInt(e.target.value) || 2000,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+
+                  {/* Roles Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Roles</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateForm({
+                            acl: {
+                              ...form.acl!,
+                              roles: [
+                                ...form.acl!.roles,
+                                { name: "", privileges: [], whitelist: [] },
+                              ],
+                            },
+                          })
+                        }
+                      >
+                        Add Role
+                      </Button>
+                    </div>
+                    {form.acl.roles.map((role, ri) => (
+                      <div key={ri} className="space-y-2 rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Role name"
+                            value={role.name}
+                            onChange={(e) => {
+                              const roles = [...form.acl!.roles];
+                              roles[ri] = { ...roles[ri], name: e.target.value };
+                              updateForm({ acl: { ...form.acl!, roles } });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const roles = form.acl!.roles.filter((_, i) => i !== ri);
+                              updateForm({ acl: { ...form.acl!, roles } });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs text-muted-foreground">Privileges</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {AEROSPIKE_PRIVILEGES.map((priv) => (
+                              <label key={priv} className="flex items-center gap-1 text-xs">
+                                <Checkbox
+                                  checked={role.privileges.includes(priv)}
+                                  onCheckedChange={(checked) => {
+                                    const roles = [...form.acl!.roles];
+                                    const privileges = checked
+                                      ? [...roles[ri].privileges, priv]
+                                      : roles[ri].privileges.filter((p) => p !== priv);
+                                    roles[ri] = { ...roles[ri], privileges };
+                                    updateForm({ acl: { ...form.acl!, roles } });
+                                  }}
+                                />
+                                {priv}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs text-muted-foreground">
+                            Whitelist CIDRs (comma-separated, optional)
+                          </Label>
+                          <Input
+                            placeholder="e.g. 10.0.0.0/8, 192.168.1.0/24"
+                            value={role.whitelist?.join(", ") ?? ""}
+                            onChange={(e) => {
+                              const roles = [...form.acl!.roles];
+                              const raw = e.target.value;
+                              roles[ri] = {
+                                ...roles[ri],
+                                whitelist: raw
+                                  ? raw.split(",").map((s) => s.trim()).filter(Boolean)
+                                  : [],
+                              };
+                              updateForm({ acl: { ...form.acl!, roles } });
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Users Section */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Users</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          updateForm({
+                            acl: {
+                              ...form.acl!,
+                              users: [
+                                ...form.acl!.users,
+                                { name: "", secretName: "", roles: [] },
+                              ],
+                            },
+                          })
+                        }
+                      >
+                        Add User
+                      </Button>
+                    </div>
+                    {form.acl.users.map((user, ui) => (
+                      <div key={ui} className="space-y-2 rounded-lg border p-3">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Username"
+                            value={user.name}
+                            onChange={(e) => {
+                              const users = [...form.acl!.users];
+                              users[ui] = { ...users[ui], name: e.target.value };
+                              updateForm({ acl: { ...form.acl!, users } });
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const users = form.acl!.users.filter((_, i) => i !== ui);
+                              updateForm({ acl: { ...form.acl!, users } });
+                            }}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs text-muted-foreground">
+                            K8s Secret Name (password)
+                          </Label>
+                          <Input
+                            placeholder="my-aerospike-secret"
+                            value={user.secretName}
+                            onChange={(e) => {
+                              const users = [...form.acl!.users];
+                              users[ui] = { ...users[ui], secretName: e.target.value };
+                              updateForm({ acl: { ...form.acl!, users } });
+                            }}
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label className="text-xs text-muted-foreground">Roles</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {[
+                              ...AEROSPIKE_PRIVILEGES.map((p) => p),
+                              ...form.acl!.roles.map((r) => r.name).filter(Boolean),
+                            ]
+                              .filter((v, i, a) => a.indexOf(v) === i)
+                              .map((roleName) => (
+                                <label key={roleName} className="flex items-center gap-1 text-xs">
+                                  <Checkbox
+                                    checked={user.roles.includes(roleName)}
+                                    onCheckedChange={(checked) => {
+                                      const users = [...form.acl!.users];
+                                      const roles = checked
+                                        ? [...users[ui].roles, roleName]
+                                        : users[ui].roles.filter((r) => r !== roleName);
+                                      users[ui] = { ...users[ui], roles };
+                                      updateForm({ acl: { ...form.acl!, users } });
+                                    }}
+                                  />
+                                  {roleName}
+                                </label>
+                              ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="batch-size">Batch Size (optional)</Label>
+                <Input
+                  id="batch-size"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 1"
+                  value={form.rollingUpdate?.batchSize ?? ""}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : undefined;
+                    updateForm({
+                      rollingUpdate: {
+                        batchSize: val,
+                        maxUnavailable: form.rollingUpdate?.maxUnavailable,
+                        disablePDB: form.rollingUpdate?.disablePDB ?? false,
+                      },
+                    });
+                  }}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Number of pods to update at a time during rolling restarts.
+                </p>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="max-unavailable">Max Unavailable (optional)</Label>
+                <Input
+                  id="max-unavailable"
+                  placeholder='e.g. "1" or "25%"'
+                  value={form.rollingUpdate?.maxUnavailable ?? ""}
+                  onChange={(e) =>
+                    updateForm({
+                      rollingUpdate: {
+                        batchSize: form.rollingUpdate?.batchSize,
+                        maxUnavailable: e.target.value || undefined,
+                        disablePDB: form.rollingUpdate?.disablePDB ?? false,
+                      },
+                    })
+                  }
+                />
+                <p className="text-muted-foreground text-xs">
+                  Maximum number or percentage of pods that can be unavailable during update.
+                </p>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="disable-pdb"
+                  checked={form.rollingUpdate?.disablePDB ?? false}
+                  onCheckedChange={(checked) =>
+                    updateForm({
+                      rollingUpdate: {
+                        batchSize: form.rollingUpdate?.batchSize,
+                        maxUnavailable: form.rollingUpdate?.maxUnavailable,
+                        disablePDB: checked === true,
+                      },
+                    })
+                  }
+                />
+                <Label htmlFor="disable-pdb" className="text-sm font-normal">
+                  Disable PodDisruptionBudget
+                </Label>
+              </div>
+            </>
+          )}
+
+          {step === 6 && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <span className="text-muted-foreground">Name</span>
@@ -709,6 +1046,33 @@ export function K8sClusterWizard() {
 
                 <span className="text-muted-foreground">Dynamic Config</span>
                 <span className="font-medium">{form.enableDynamicConfig ? "Enabled" : "Disabled"}</span>
+
+                <span className="text-muted-foreground">ACL</span>
+                <span className="font-medium">
+                  {form.acl?.enabled
+                    ? `Enabled (${form.acl.roles.length} role${form.acl.roles.length !== 1 ? "s" : ""}, ${form.acl.users.length} user${form.acl.users.length !== 1 ? "s" : ""})`
+                    : "Disabled"}
+                </span>
+
+                {form.acl?.enabled && (
+                  <>
+                    <span className="text-muted-foreground">ACL Timeout</span>
+                    <span className="font-medium">{form.acl.adminPolicyTimeout}ms</span>
+                  </>
+                )}
+
+                <span className="text-muted-foreground">Rolling Update</span>
+                <span className="font-medium">
+                  {form.rollingUpdate
+                    ? [
+                        form.rollingUpdate.batchSize != null && `batch: ${form.rollingUpdate.batchSize}`,
+                        form.rollingUpdate.maxUnavailable && `maxUnavail: ${form.rollingUpdate.maxUnavailable}`,
+                        form.rollingUpdate.disablePDB && "PDB disabled",
+                      ]
+                        .filter(Boolean)
+                        .join(", ") || "Default"
+                    : "Default"}
+                </span>
 
                 <span className="text-muted-foreground">Auto-connect</span>
                 <span className="font-medium">{form.autoConnect ? "Yes" : "No"}</span>

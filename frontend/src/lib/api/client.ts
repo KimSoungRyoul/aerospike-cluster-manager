@@ -245,6 +245,8 @@ export const api = {
     }),
   getK8sNamespaces: () => request<string[]>("/api/k8s/namespaces"),
   getK8sStorageClasses: () => request<string[]>("/api/k8s/storageclasses"),
+  getK8sSecrets: (namespace: string) =>
+    request<string[]>(`/api/k8s/secrets?namespace=${namespace}`),
 
   // K8s Templates
   getK8sTemplates: (namespace?: string) =>

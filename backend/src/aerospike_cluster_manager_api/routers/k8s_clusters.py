@@ -29,6 +29,7 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     K8sTemplateDetail,
     K8sTemplateSummary,
     OperationRequest,
+    OperationStatusResponse,
     ScaleK8sClusterRequest,
     UpdateK8sClusterRequest,
 )
@@ -220,6 +221,32 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     if req.enable_dynamic_config:
         cr["spec"]["enableDynamicConfigUpdate"] = True
 
+    # ACL / Access Control
+    if req.acl and req.acl.enabled:
+        acl_config = {
+            "roles": [
+                {"name": r.name, "privileges": r.privileges, **({"whitelist": r.whitelist} if r.whitelist else {})}
+                for r in req.acl.roles
+            ],
+            "users": [
+                {"name": u.name, "secretName": u.secret_name, "roles": u.roles}
+                for u in req.acl.users
+            ],
+            "adminPolicy": {"timeout": req.acl.admin_policy_timeout},
+        }
+        cr["spec"]["aerospikeAccessControl"] = acl_config
+        # Enable security in aerospike config
+        cr["spec"]["aerospikeConfig"]["security"] = {}
+
+    # Rolling update strategy
+    if req.rolling_update:
+        if req.rolling_update.batch_size is not None:
+            cr["spec"]["rollingUpdateBatchSize"] = req.rolling_update.batch_size
+        if req.rolling_update.max_unavailable is not None:
+            cr["spec"]["maxUnavailable"] = req.rolling_update.max_unavailable
+        if req.rolling_update.disable_pdb:
+            cr["spec"]["disablePDB"] = True
+
     return cr
 
 
@@ -254,6 +281,18 @@ async def get_k8s_cluster(
     )
     pods = [K8sPodStatus(**p) for p in pods_raw]
 
+    # Extract operation status
+    op_status_raw = status.get("operationStatus")
+    operation_status = None
+    if op_status_raw:
+        operation_status = OperationStatusResponse(
+            id=op_status_raw.get("id", ""),
+            kind=op_status_raw.get("kind", ""),
+            phase=op_status_raw.get("phase", ""),
+            completedPods=op_status_raw.get("completedPods", []),
+            failedPods=op_status_raw.get("failedPods", []),
+        )
+
     # Extract conditions from operator status
     conditions = []
     for cond in status.get("conditions", []):
@@ -279,6 +318,9 @@ async def get_k8s_cluster(
         status=status,
         pods=pods,
         conditions=conditions,
+        operationStatus=operation_status,
+        failedReconcileCount=status.get("failedReconcileCount", 0),
+        lastReconcileError=status.get("lastReconcileError"),
     )
 
 
@@ -421,6 +463,13 @@ async def list_k8s_namespaces() -> list[str]:
 async def list_k8s_storage_classes() -> list[str]:
     _require_k8s()
     return await k8s_client.list_storage_classes()
+
+
+@router.get("/secrets", summary="List K8s Secrets in a namespace")
+@_k8s_endpoint("list Kubernetes secrets")
+async def list_k8s_secrets(namespace: str = "aerospike") -> list[str]:
+    _require_k8s()
+    return await k8s_client.list_secrets(namespace)
 
 
 # ---------------------------------------------------------------------------

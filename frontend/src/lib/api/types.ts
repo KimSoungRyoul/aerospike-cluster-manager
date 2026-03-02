@@ -371,6 +371,40 @@ export interface CreateSampleDataResponse {
   elapsedMs: number;
 }
 
+// === K8s ACL & Rolling Update ===
+export interface ACLRoleSpec {
+  name: string;
+  privileges: string[];
+  whitelist?: string[];
+}
+
+export interface ACLUserSpec {
+  name: string;
+  secretName: string;
+  roles: string[];
+}
+
+export interface ACLConfig {
+  enabled: boolean;
+  roles: ACLRoleSpec[];
+  users: ACLUserSpec[];
+  adminPolicyTimeout: number;
+}
+
+export interface RollingUpdateConfig {
+  batchSize?: number;
+  maxUnavailable?: string;
+  disablePDB: boolean;
+}
+
+export interface OperationStatusResponse {
+  id: string;
+  kind: string;
+  phase: string;
+  completedPods: string[];
+  failedPods: string[];
+}
+
 // === K8s Cluster Management ===
 export type K8sClusterPhase =
   | "InProgress"
@@ -441,6 +475,9 @@ export interface K8sClusterDetail {
   pods: K8sPodStatus[];
   conditions: K8sClusterCondition[];
   connectionId: string | null;
+  operationStatus?: OperationStatusResponse;
+  failedReconcileCount: number;
+  lastReconcileError?: string;
 }
 
 export interface AerospikeNamespaceStorage {
@@ -489,6 +526,8 @@ export interface CreateK8sClusterRequest {
   templateRef?: string;
   enableDynamicConfig?: boolean;
   autoConnect: boolean;
+  acl?: ACLConfig;
+  rollingUpdate?: RollingUpdateConfig;
 }
 
 export interface UpdateK8sClusterRequest {

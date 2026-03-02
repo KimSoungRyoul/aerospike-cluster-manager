@@ -15,7 +15,7 @@ import { K8sDeleteDialog } from "@/components/k8s/k8s-delete-dialog";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
-import { TRANSITIONAL_PHASES, type K8sClusterEvent } from "@/lib/api/types";
+import { TRANSITIONAL_PHASES, type K8sClusterEvent, type K8sClusterPhase } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
 export default function K8sClusterDetailPage() {
@@ -165,6 +165,9 @@ export default function K8sClusterDetailPage() {
       />
 
       <InlineAlert message={error} />
+      {selectedCluster.failedReconcileCount > 0 && (
+        <InlineAlert message={`Reconcile errors: ${selectedCluster.failedReconcileCount} failures. ${selectedCluster.lastReconcileError || ""}`} />
+      )}
 
       {/* Overview */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -204,6 +207,31 @@ export default function K8sClusterDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Operation Status */}
+      {selectedCluster.operationStatus && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Active Operation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <span className="text-muted-foreground">Type</span>
+              <span className="font-medium">{selectedCluster.operationStatus.kind}</span>
+              <span className="text-muted-foreground">Phase</span>
+              <K8sClusterStatusBadge phase={selectedCluster.operationStatus.phase as K8sClusterPhase} />
+              <span className="text-muted-foreground">Completed</span>
+              <span className="font-medium">{selectedCluster.operationStatus.completedPods.length} pods</span>
+              {selectedCluster.operationStatus.failedPods.length > 0 && (
+                <>
+                  <span className="text-muted-foreground">Failed</span>
+                  <span className="font-medium text-destructive">{selectedCluster.operationStatus.failedPods.join(", ")}</span>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Conditions */}
       {selectedCluster.conditions && selectedCluster.conditions.length > 0 && (
