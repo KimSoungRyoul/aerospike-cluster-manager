@@ -137,6 +137,16 @@ def _build_rack_list(racks: list[RackConfig]) -> list[dict[str, Any]]:
     return result
 
 
+def _build_network_policy(policy) -> dict[str, Any]:
+    """Convert a network policy model into a CR-compatible dict."""
+    net_policy: dict[str, Any] = {"accessType": policy.access_type}
+    if policy.alternate_access_type:
+        net_policy["alternateAccessType"] = policy.alternate_access_type
+    if policy.fabric_type:
+        net_policy["fabricType"] = policy.fabric_type
+    return net_policy
+
+
 def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     """Convert CreateK8sClusterRequest to AerospikeCluster CR dict."""
     ns_configs = []
@@ -298,12 +308,7 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     # Network access policy
     if req.network_policy:
-        net_policy: dict[str, Any] = {"accessType": req.network_policy.access_type}
-        if req.network_policy.alternate_access_type:
-            net_policy["alternateAccessType"] = req.network_policy.alternate_access_type
-        if req.network_policy.fabric_type:
-            net_policy["fabricType"] = req.network_policy.fabric_type
-        cr["spec"]["aerospikeNetworkPolicy"] = net_policy
+        cr["spec"]["aerospikeNetworkPolicy"] = _build_network_policy(req.network_policy)
 
     # K8s node block list
     if req.k8s_node_block_list:
@@ -611,12 +616,7 @@ async def update_k8s_cluster(
         else:
             patch["spec"]["rackConfig"] = {"racks": []}
     if body.network_policy is not None:
-        net_policy: dict[str, Any] = {"accessType": body.network_policy.access_type}
-        if body.network_policy.alternate_access_type:
-            net_policy["alternateAccessType"] = body.network_policy.alternate_access_type
-        if body.network_policy.fabric_type:
-            net_policy["fabricType"] = body.network_policy.fabric_type
-        patch["spec"]["aerospikeNetworkPolicy"] = net_policy
+        patch["spec"]["aerospikeNetworkPolicy"] = _build_network_policy(body.network_policy)
     if body.k8s_node_block_list is not None:
         patch["spec"]["k8sNodeBlockList"] = body.k8s_node_block_list
     result = await k8s_client.patch_cluster(namespace, name, patch)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,7 +35,7 @@ export function K8sPodLogsDialog({
   const [tailLines, setTailLines] = useState("500");
   const logRef = useRef<HTMLPreElement>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.getK8sPodLogs(
@@ -50,13 +50,20 @@ export function K8sPodLogsDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [namespace, clusterName, podName, tailLines]);
 
   useEffect(() => {
     if (open && podName) {
       fetchLogs();
     }
-  }, [open, podName]);
+  }, [open, podName, fetchLogs]);
+
+  // Auto-scroll to bottom when logs update
+  useEffect(() => {
+    if (logRef.current && logs && !loading) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [logs, loading]);
 
   const handleCopy = async () => {
     try {
