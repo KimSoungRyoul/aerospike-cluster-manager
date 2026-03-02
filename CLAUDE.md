@@ -54,9 +54,9 @@ aerospike-cluster-manager/
 │       ├── main.py        # FastAPI app, CORS, router registration, /api/health
 │       ├── config.py      # Environment variable based configuration
 │       ├── store.py       # in-memory mock data store (for development)
-│       ├── models/        # Pydantic models (connection, cluster, record, index, admin, udf, metrics, query, terminal, k8s_cluster)
+│       ├── models/        # Pydantic models (connection, cluster, record, index, admin, udf, metrics, query, terminal, k8s_cluster incl. ACLRoleSpec, ACLUserSpec, ACLConfig, RollingUpdateConfig, OperationStatusResponse)
 │       ├── routers/       # REST endpoints (/api/* prefix, incl. k8s_clusters.py)
-│       ├── k8s_client.py  # Kubernetes API client (clusters, templates, pods, events, namespaces, storage classes)
+│       ├── k8s_client.py  # Kubernetes API client (clusters, templates, pods, events, namespaces, storage classes, secrets)
 │       └── mock_data/     # Mock data generators for development
 ├── frontend/          # Next.js 16 App Router (React 19, TypeScript)
 │   └── src/
@@ -132,7 +132,7 @@ Local dev with `compose.dev.yaml` requires setting `AEROSPIKE_HOST=localhost AER
 | `/udfs/[connId]` | UDF management |
 | `/terminal/[connId]` | AQL terminal |
 | `/k8s/clusters` | K8s AerospikeCluster list (auto-refresh for transitional phases) |
-| `/k8s/clusters/new` | K8s cluster creation wizard (5 steps) |
+| `/k8s/clusters/new` | K8s cluster creation wizard (7 steps: Basic, Namespace & Storage, Monitoring & Options, ACL / Security, Rolling Update, Resources, Review) |
 | `/k8s/clusters/[namespace]/[name]` | K8s cluster detail (status, conditions, pods, operations) |
 
 ## Code Style

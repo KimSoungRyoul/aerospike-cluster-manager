@@ -93,6 +93,12 @@ npm run dev                        # http://localhost:3000
 - **AQL Terminal** — Web-based AQL command execution
 - **Prometheus Metrics** — Cluster metrics export
 - **K8s Cluster Management** — Full lifecycle management of Aerospike clusters on Kubernetes (see below)
+  - ACL/Security configuration with role and user management via wizard
+  - Rolling update strategy (batch size, max unavailable, PDB control)
+  - Operation status tracking (WarmRestart/PodRestart progress, completed/failed pods)
+  - Reconciliation error monitoring
+  - K8s events timeline on cluster detail page
+  - K8s secrets listing for ACL credential management
 - **Light/Dark Mode** — System theme integration
 
 ## K8s Cluster Management
@@ -101,13 +107,15 @@ When running inside a Kubernetes cluster (or with `K8S_MANAGEMENT_ENABLED=true`)
 
 ### Cluster Lifecycle
 
-Create, scale, update, and delete Aerospike clusters through a guided 5-step wizard:
+Create, scale, update, and delete Aerospike clusters through a guided 7-step wizard:
 
 1. **Basic** — Cluster name, Kubernetes namespace, size (1-8 nodes), Aerospike image selection
 2. **Namespace & Storage** — Aerospike namespace configuration with in-memory or persistent (PVC) storage, replication factor, storage class selection
 3. **Monitoring & Options** — Enable Prometheus metrics exporter, select an AerospikeClusterTemplate, enable dynamic configuration updates
-4. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
-5. **Review** — Summary of all settings before creation
+4. **ACL / Security** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
+5. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
+6. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
+7. **Review** — Summary of all settings before creation
 
 ### Cluster Phases
 
@@ -176,6 +184,7 @@ When creating a cluster, the "Auto-connect" option (enabled by default) automati
 | `GET` | `/api/k8s/templates/{namespace}/{name}` | Get template detail |
 | `GET` | `/api/k8s/namespaces` | List available Kubernetes namespaces |
 | `GET` | `/api/k8s/storageclasses` | List available Kubernetes storage classes |
+| `GET` | `/api/k8s/secrets` | List K8s Secrets (for ACL picker) |
 
 All K8s endpoints are gated by the `K8S_MANAGEMENT_ENABLED` configuration flag. When disabled, a 404 is returned so the frontend can hide K8s features gracefully.
 
