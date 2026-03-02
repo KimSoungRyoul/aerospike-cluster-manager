@@ -3,7 +3,9 @@ import type {
   K8sClusterSummary,
   K8sClusterDetail,
   K8sTemplateSummary,
+  K8sTemplateDetail,
   CreateK8sClusterRequest,
+  CreateK8sTemplateRequest,
   UpdateK8sClusterRequest,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
@@ -13,6 +15,7 @@ interface K8sClusterState {
   clusters: K8sClusterSummary[];
   selectedCluster: K8sClusterDetail | null;
   templates: K8sTemplateSummary[];
+  selectedTemplate: K8sTemplateDetail | null;
   loading: boolean;
   error: string | null;
   k8sAvailable: boolean;
@@ -24,6 +27,9 @@ interface K8sClusterState {
   deleteCluster: (namespace: string, name: string) => Promise<void>;
   scaleCluster: (namespace: string, name: string, size: number) => Promise<void>;
   fetchTemplates: (namespace?: string) => Promise<void>;
+  fetchTemplate: (namespace: string, name: string) => Promise<void>;
+  createTemplate: (data: CreateK8sTemplateRequest) => Promise<K8sTemplateSummary>;
+  deleteTemplate: (namespace: string, name: string) => Promise<void>;
   triggerOperation: (
     namespace: string,
     name: string,
@@ -40,6 +46,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => ({
   clusters: [],
   selectedCluster: null,
   templates: [],
+  selectedTemplate: null,
   loading: false,
   error: null,
   k8sAvailable: false,
@@ -125,6 +132,41 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => ({
       set({ templates });
     } catch {
       // Don't set global error — template fetch failures should not block cluster pages
+    }
+  },
+
+  fetchTemplate: async (namespace: string, name: string) => {
+    set({ loading: true, error: null });
+    try {
+      const template = await api.getK8sTemplate(namespace, name);
+      set({ selectedTemplate: template, loading: false });
+    } catch (error) {
+      set({ error: getErrorMessage(error), loading: false });
+    }
+  },
+
+  createTemplate: async (data: CreateK8sTemplateRequest) => {
+    set({ loading: true, error: null });
+    try {
+      const result = await api.createK8sTemplate(data);
+      set({ loading: false });
+      await get().fetchTemplates();
+      return result;
+    } catch (error) {
+      set({ error: getErrorMessage(error), loading: false });
+      throw error;
+    }
+  },
+
+  deleteTemplate: async (namespace: string, name: string) => {
+    set({ loading: true, error: null });
+    try {
+      await api.deleteK8sTemplate(namespace, name);
+      set({ selectedTemplate: null, loading: false });
+      await get().fetchTemplates();
+    } catch (error) {
+      set({ error: getErrorMessage(error), loading: false });
+      throw error;
     }
   },
 

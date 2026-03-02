@@ -22,6 +22,7 @@ from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
     CreateK8sClusterRequest,
+    CreateK8sTemplateRequest,
     K8sClusterCondition,
     K8sClusterDetail,
     K8sClusterEvent,
@@ -728,8 +729,101 @@ async def get_k8s_template(
         name=metadata.get("name", ""),
         namespace=metadata.get("namespace", ""),
         spec=item.get("spec", {}),
+        status=item.get("status", {}),
         age=_calculate_age(metadata.get("creationTimestamp")),
     )
+
+
+def _build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
+    """Convert CreateK8sTemplateRequest to AerospikeClusterTemplate CR dict."""
+    cr: dict[str, Any] = {
+        "apiVersion": "acko.io/v1alpha1",
+        "kind": "AerospikeClusterTemplate",
+        "metadata": {
+            "name": req.name,
+            "namespace": req.namespace,
+        },
+        "spec": {},
+    }
+
+    if req.image:
+        cr["spec"]["image"] = req.image
+    if req.size is not None:
+        cr["spec"]["size"] = req.size
+    if req.resources:
+        cr["spec"]["resources"] = {
+            "requests": {"cpu": req.resources.requests.cpu, "memory": req.resources.requests.memory},
+            "limits": {"cpu": req.resources.limits.cpu, "memory": req.resources.limits.memory},
+        }
+    if req.monitoring:
+        cr["spec"]["monitoring"] = {"enabled": req.monitoring.enabled, "port": req.monitoring.port}
+    if req.scheduling:
+        scheduling: dict[str, Any] = {}
+        if req.scheduling.pod_anti_affinity_level:
+            scheduling["podAntiAffinityLevel"] = req.scheduling.pod_anti_affinity_level
+        if req.scheduling.pod_management_policy:
+            scheduling["podManagementPolicy"] = req.scheduling.pod_management_policy
+        if scheduling:
+            cr["spec"]["scheduling"] = scheduling
+    if req.storage:
+        storage: dict[str, Any] = {}
+        if req.storage.storage_class_name:
+            storage["storageClassName"] = req.storage.storage_class_name
+        if req.storage.volume_mode:
+            storage["volumeMode"] = req.storage.volume_mode
+        if req.storage.access_modes:
+            storage["accessModes"] = req.storage.access_modes
+        if req.storage.size:
+            storage["resources"] = {"requests": {"storage": req.storage.size}}
+        if storage:
+            cr["spec"]["storage"] = storage
+    if req.network_policy:
+        cr["spec"]["aerospikeNetworkPolicy"] = _build_network_policy(req.network_policy)
+    if req.aerospike_config:
+        cr["spec"]["aerospikeConfig"] = {"namespaceDefaults": req.aerospike_config}
+
+    return cr
+
+
+@router.post("/templates", status_code=201, summary="Create K8s AerospikeClusterTemplate")
+@_k8s_endpoint("create Kubernetes template")
+async def create_k8s_template(body: CreateK8sTemplateRequest) -> K8sTemplateSummary:
+    _require_k8s()
+    cr = _build_template_cr(body)
+    result = await k8s_client.create_template(body.namespace, cr)
+    metadata = result.get("metadata", {})
+    spec = result.get("spec", {})
+    return K8sTemplateSummary(
+        name=metadata.get("name", ""),
+        namespace=metadata.get("namespace", ""),
+        image=spec.get("image"),
+        size=spec.get("size"),
+        age=_calculate_age(metadata.get("creationTimestamp")),
+    )
+
+
+@router.delete("/templates/{namespace}/{name}", status_code=202, summary="Delete K8s AerospikeClusterTemplate")
+@_k8s_endpoint("delete Kubernetes template")
+async def delete_k8s_template(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> DeleteResponse:
+    _require_k8s()
+    # Check if any clusters reference this template
+    clusters = await k8s_client.list_clusters(namespace)
+    referencing = [
+        c.get("metadata", {}).get("name", "")
+        for c in clusters
+        if c.get("spec", {}).get("templateRef", {}).get("name") == name
+    ]
+    if referencing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Template '{name}' is referenced by cluster(s): {', '.join(referencing)}. "
+            "Remove the template reference from these clusters before deleting.",
+        )
+    await k8s_client.delete_template(namespace, name)
+    return DeleteResponse(message=f"Template {namespace}/{name} deletion initiated")
 
 
 # ---------------------------------------------------------------------------

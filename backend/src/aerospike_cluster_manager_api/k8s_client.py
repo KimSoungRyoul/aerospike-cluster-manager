@@ -259,6 +259,36 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
+    def _create_template_sync(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
+        logger.debug("_create_template_sync(namespace=%s)", namespace)
+        self._ensure_initialized()
+        try:
+            return self._custom_api.create_namespaced_custom_object(
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=TEMPLATE_PLURAL,
+                body=body,
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
+    def _delete_template_sync(self, namespace: str, name: str) -> dict[str, Any]:
+        logger.debug("_delete_template_sync(namespace=%s, name=%s)", namespace, name)
+        self._ensure_initialized()
+        try:
+            return self._custom_api.delete_namespaced_custom_object(
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=TEMPLATE_PLURAL,
+                name=name,
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
     def _list_secrets_sync(self, namespace: str) -> list[str]:
         logger.debug("_list_secrets_sync(namespace=%s)", namespace)
         self._ensure_initialized()
@@ -371,6 +401,12 @@ class K8sClient:
 
     async def get_template(self, namespace: str, name: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._get_template_sync, namespace, name)
+
+    async def create_template(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
+        return await asyncio.to_thread(self._create_template_sync, namespace, body)
+
+    async def delete_template(self, namespace: str, name: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._delete_template_sync, namespace, name)
 
     async def list_secrets(self, namespace: str) -> list[str]:
         """List Secret names in a namespace (Opaque type only)."""

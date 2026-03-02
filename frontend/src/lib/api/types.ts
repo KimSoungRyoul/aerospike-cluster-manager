@@ -639,7 +639,33 @@ export interface K8sTemplateDetail {
   name: string;
   namespace: string;
   spec: Record<string, unknown>;
+  status?: Record<string, unknown>;
   age?: string;
+}
+
+export interface TemplateSchedulingConfig {
+  podAntiAffinityLevel?: "none" | "preferred" | "required";
+  podManagementPolicy?: "OrderedReady" | "Parallel";
+}
+
+export interface TemplateStorageConfig {
+  storageClassName?: string;
+  volumeMode?: "Filesystem" | "Block";
+  accessModes?: string[];
+  size?: string;
+}
+
+export interface CreateK8sTemplateRequest {
+  name: string;
+  namespace: string;
+  image?: string;
+  size?: number;
+  resources?: ResourceConfig;
+  monitoring?: MonitoringConfig;
+  scheduling?: TemplateSchedulingConfig;
+  storage?: TemplateStorageConfig;
+  networkPolicy?: NetworkAccessConfig;
+  aerospikeConfig?: Record<string, unknown>;
 }
 
 export interface TemplateSnapshot {

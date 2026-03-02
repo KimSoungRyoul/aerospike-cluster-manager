@@ -255,6 +255,15 @@ export const api = {
     ),
   getK8sTemplate: (namespace: string, name: string) =>
     request<import("./types").K8sTemplateDetail>(`/api/k8s/templates/${namespace}/${name}`),
+  createK8sTemplate: (data: import("./types").CreateK8sTemplateRequest) =>
+    request<import("./types").K8sTemplateSummary>("/api/k8s/templates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  deleteK8sTemplate: (namespace: string, name: string) =>
+    request<{ message: string }>(`/api/k8s/templates/${namespace}/${name}`, {
+      method: "DELETE",
+    }),
 
   // K8s Template Resync
   resyncK8sClusterTemplate: (namespace: string, name: string) =>

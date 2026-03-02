@@ -392,7 +392,58 @@ class K8sTemplateDetail(BaseModel):
     name: str
     namespace: str
     spec: dict = Field(default_factory=dict)
+    status: dict = Field(default_factory=dict)
     age: str | None = None
+
+
+class TemplateSchedulingConfig(BaseModel):
+    """Scheduling defaults for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    pod_anti_affinity_level: Literal["none", "preferred", "required"] | None = Field(
+        default=None, alias="podAntiAffinityLevel"
+    )
+    pod_management_policy: Literal["OrderedReady", "Parallel"] | None = Field(
+        default=None, alias="podManagementPolicy"
+    )
+
+
+class TemplateStorageConfig(BaseModel):
+    """Storage defaults for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    storage_class_name: str | None = Field(default=None, alias="storageClassName")
+    volume_mode: Literal["Filesystem", "Block"] | None = Field(default=None, alias="volumeMode")
+    access_modes: list[str] | None = Field(default=None, alias="accessModes")
+    size: str | None = Field(default=None, description="Default volume size (e.g. 10Gi)")
+
+
+class CreateK8sTemplateRequest(BaseModel):
+    """Request to create an AerospikeClusterTemplate."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+    namespace: str = Field(
+        default="aerospike",
+        min_length=1,
+        max_length=253,
+        pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$",
+    )
+    image: str | None = Field(
+        default=None, pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$"
+    )
+    size: int | None = Field(default=None, ge=1, le=8)
+    resources: ResourceConfig | None = None
+    monitoring: MonitoringConfig | None = None
+    scheduling: TemplateSchedulingConfig | None = None
+    storage: TemplateStorageConfig | None = None
+    network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
+    aerospike_config: dict[str, Any] | None = Field(
+        default=None, alias="aerospikeConfig", description="Aerospike config defaults"
+    )
 
 
 class OperationRequest(BaseModel):
