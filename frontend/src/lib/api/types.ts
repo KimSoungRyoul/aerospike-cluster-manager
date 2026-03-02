@@ -397,6 +397,39 @@ export interface RollingUpdateConfig {
   disablePDB: boolean;
 }
 
+export interface RackConfig {
+  id: number;
+  zone?: string;
+  region?: string;
+  maxPodsPerNode?: number;
+  nodeName?: string;
+}
+
+export interface RackAwareConfig {
+  racks: RackConfig[];
+}
+
+export interface ClusterHealthSummary {
+  phase: K8sClusterPhase;
+  totalPods: number;
+  readyPods: number;
+  desiredPods: number;
+  migrating: boolean;
+  available: boolean;
+  configApplied: boolean;
+  aclSynced: boolean;
+  failedReconcileCount: number;
+  pendingRestartCount: number;
+  rackDistribution: { id: number; total: number; ready: number }[];
+}
+
+export interface K8sNodeInfo {
+  name: string;
+  zone: string;
+  region: string;
+  ready: boolean;
+}
+
 export interface OperationStatusResponse {
   id: string;
   kind: string;
@@ -514,6 +547,23 @@ export interface StorageVolumeConfig {
   storageClass: string;
   size: string;
   mountPath: string;
+  initMethod?: "none" | "deleteFiles" | "dd" | "blkdiscard" | "headerCleanup";
+  wipeMethod?:
+    | "none"
+    | "deleteFiles"
+    | "dd"
+    | "blkdiscard"
+    | "headerCleanup"
+    | "blkdiscardWithHeaderCleanup";
+  cascadeDelete?: boolean;
+}
+
+export type NetworkAccessType = "pod" | "hostInternal" | "hostExternal" | "configuredIP";
+
+export interface NetworkAccessConfig {
+  accessType: NetworkAccessType;
+  alternateAccessType?: NetworkAccessType;
+  fabricType?: NetworkAccessType;
 }
 
 export interface ResourceSpec {
@@ -546,6 +596,9 @@ export interface CreateK8sClusterRequest {
   autoConnect: boolean;
   acl?: ACLConfig;
   rollingUpdate?: RollingUpdateConfig;
+  rackConfig?: RackAwareConfig;
+  networkPolicy?: NetworkAccessConfig;
+  k8sNodeBlockList?: string[];
 }
 
 export interface UpdateK8sClusterRequest {
@@ -559,6 +612,9 @@ export interface UpdateK8sClusterRequest {
   rollingUpdateBatchSize?: number;
   maxUnavailable?: string;
   disablePDB?: boolean;
+  rackConfig?: RackAwareConfig;
+  networkPolicy?: NetworkAccessConfig;
+  k8sNodeBlockList?: string[];
 }
 
 export interface ScaleK8sClusterRequest {
@@ -583,7 +639,33 @@ export interface K8sTemplateDetail {
   name: string;
   namespace: string;
   spec: Record<string, unknown>;
+  status?: Record<string, unknown>;
   age?: string;
+}
+
+export interface TemplateSchedulingConfig {
+  podAntiAffinityLevel?: "none" | "preferred" | "required";
+  podManagementPolicy?: "OrderedReady" | "Parallel";
+}
+
+export interface TemplateStorageConfig {
+  storageClassName?: string;
+  volumeMode?: "Filesystem" | "Block";
+  accessModes?: string[];
+  size?: string;
+}
+
+export interface CreateK8sTemplateRequest {
+  name: string;
+  namespace: string;
+  image?: string;
+  size?: number;
+  resources?: ResourceConfig;
+  monitoring?: MonitoringConfig;
+  scheduling?: TemplateSchedulingConfig;
+  storage?: TemplateStorageConfig;
+  networkPolicy?: NetworkAccessConfig;
+  aerospikeConfig?: Record<string, unknown>;
 }
 
 export interface TemplateSnapshot {
@@ -598,4 +680,14 @@ export interface TemplateOverrides {
   image?: string;
   size?: number;
   resources?: ResourceConfig;
+}
+
+export interface PodLogsResponse {
+  pod: string;
+  logs: string;
+  tailLines: number;
+}
+
+export interface ClusterYamlResponse {
+  yaml: Record<string, unknown>;
 }

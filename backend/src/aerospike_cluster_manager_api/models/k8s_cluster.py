@@ -33,6 +33,29 @@ class StorageVolumeConfig(BaseModel):
     storage_class: str = Field(default="standard", alias="storageClass")
     size: str = Field(default="10Gi", pattern=r"^[0-9]+[KMGTPE]i$")
     mount_path: str = Field(default="/opt/aerospike/data", alias="mountPath")
+    init_method: Literal["none", "deleteFiles", "dd", "blkdiscard", "headerCleanup"] | None = Field(
+        default=None, alias="initMethod", description="Volume initialization method"
+    )
+    wipe_method: Literal[
+        "none", "deleteFiles", "dd", "blkdiscard", "headerCleanup", "blkdiscardWithHeaderCleanup"
+    ] | None = Field(default=None, alias="wipeMethod", description="Volume wipe method for dirty volumes")
+    cascade_delete: bool = Field(default=True, alias="cascadeDelete", description="Delete PVCs on CR deletion")
+
+
+class NetworkAccessConfig(BaseModel):
+    """Network access type configuration for clients."""
+
+    model_config = {"populate_by_name": True}
+
+    access_type: Literal["pod", "hostInternal", "hostExternal", "configuredIP"] = Field(
+        default="pod", alias="accessType", description="How clients access Aerospike service"
+    )
+    alternate_access_type: Literal["pod", "hostInternal", "hostExternal", "configuredIP"] | None = Field(
+        default=None, alias="alternateAccessType", description="Alternate network access type"
+    )
+    fabric_type: Literal["pod", "hostInternal", "hostExternal", "configuredIP"] | None = Field(
+        default=None, alias="fabricType", description="Network type for inter-node communication"
+    )
 
 
 def _parse_cpu_millis(cpu: str) -> float:
@@ -146,6 +169,34 @@ class ACLConfig(BaseModel):
     admin_policy_timeout: int = Field(default=2000, ge=100, le=30000, alias="adminPolicyTimeout")
 
 
+class RackConfig(BaseModel):
+    """Rack configuration for zone-aware deployment."""
+
+    model_config = {"populate_by_name": True}
+
+    id: int = Field(ge=1, le=100, description="Rack ID (must be unique)")
+    zone: str | None = Field(default=None, description="K8s zone for node affinity")
+    region: str | None = Field(default=None, description="K8s region for node affinity")
+    max_pods_per_node: int | None = Field(default=None, ge=1, alias="maxPodsPerNode")
+    node_name: str | None = Field(default=None, alias="nodeName", description="Specific node name")
+
+
+class RackAwareConfig(BaseModel):
+    """Multi-rack deployment configuration."""
+
+    model_config = {"populate_by_name": True}
+
+    racks: list[RackConfig] = Field(default_factory=list, max_length=10)
+
+    @field_validator("racks")
+    @classmethod
+    def unique_rack_ids(cls, v: list[RackConfig]) -> list[RackConfig]:
+        ids = [r.id for r in v]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Rack IDs must be unique")
+        return v
+
+
 class RollingUpdateConfig(BaseModel):
     """Rolling update strategy configuration."""
 
@@ -208,8 +259,11 @@ class CreateK8sClusterRequest(BaseModel):
     )
     acl: ACLConfig | None = Field(default=None, alias="acl")
     rolling_update: RollingUpdateConfig | None = Field(default=None, alias="rollingUpdate")
+    rack_config: RackAwareConfig | None = Field(default=None, alias="rackConfig")
     enable_dynamic_config: bool = Field(default=False, alias="enableDynamicConfig")
     auto_connect: bool = Field(default=True, alias="autoConnect")
+    network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
+    k8s_node_block_list: list[str] | None = Field(default=None, alias="k8sNodeBlockList")
 
     model_config = {"populate_by_name": True}
 
@@ -242,6 +296,9 @@ class UpdateK8sClusterRequest(BaseModel):
         default=None, alias="maxUnavailable", description="Max unavailable (e.g. '1' or '25%')"
     )
     disable_pdb: bool | None = Field(default=None, alias="disablePDB")
+    rack_config: RackAwareConfig | None = Field(default=None, alias="rackConfig")
+    network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
+    k8s_node_block_list: list[str] | None = Field(default=None, alias="k8sNodeBlockList")
 
     model_config = {"populate_by_name": True}
 
@@ -335,7 +392,58 @@ class K8sTemplateDetail(BaseModel):
     name: str
     namespace: str
     spec: dict = Field(default_factory=dict)
+    status: dict = Field(default_factory=dict)
     age: str | None = None
+
+
+class TemplateSchedulingConfig(BaseModel):
+    """Scheduling defaults for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    pod_anti_affinity_level: Literal["none", "preferred", "required"] | None = Field(
+        default=None, alias="podAntiAffinityLevel"
+    )
+    pod_management_policy: Literal["OrderedReady", "Parallel"] | None = Field(
+        default=None, alias="podManagementPolicy"
+    )
+
+
+class TemplateStorageConfig(BaseModel):
+    """Storage defaults for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    storage_class_name: str | None = Field(default=None, alias="storageClassName")
+    volume_mode: Literal["Filesystem", "Block"] | None = Field(default=None, alias="volumeMode")
+    access_modes: list[str] | None = Field(default=None, alias="accessModes")
+    size: str | None = Field(default=None, description="Default volume size (e.g. 10Gi)")
+
+
+class CreateK8sTemplateRequest(BaseModel):
+    """Request to create an AerospikeClusterTemplate."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+    namespace: str = Field(
+        default="aerospike",
+        min_length=1,
+        max_length=253,
+        pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$",
+    )
+    image: str | None = Field(
+        default=None, pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$"
+    )
+    size: int | None = Field(default=None, ge=1, le=8)
+    resources: ResourceConfig | None = None
+    monitoring: MonitoringConfig | None = None
+    scheduling: TemplateSchedulingConfig | None = None
+    storage: TemplateStorageConfig | None = None
+    network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
+    aerospike_config: dict[str, Any] | None = Field(
+        default=None, alias="aerospikeConfig", description="Aerospike config defaults"
+    )
 
 
 class OperationRequest(BaseModel):
@@ -356,3 +464,29 @@ class OperationRequest(BaseModel):
         default=None, min_length=1, max_length=20, description="Unique operation ID (auto-generated if omitted)"
     )
     pod_list: list[str] | None = Field(default=None, alias="podList", description="Specific pods (all if empty)")
+
+
+class RackDistribution(BaseModel):
+    """Per-rack pod distribution."""
+
+    id: int
+    total: int
+    ready: int
+
+
+class ClusterHealthResponse(BaseModel):
+    """Cluster health summary response."""
+
+    model_config = {"populate_by_name": True}
+
+    phase: str = "Unknown"
+    total_pods: int = Field(default=0, alias="totalPods")
+    ready_pods: int = Field(default=0, alias="readyPods")
+    desired_pods: int = Field(default=0, alias="desiredPods")
+    migrating: bool = False
+    available: bool = False
+    config_applied: bool = Field(default=False, alias="configApplied")
+    acl_synced: bool = Field(default=True, alias="aclSynced")
+    failed_reconcile_count: int = Field(default=0, alias="failedReconcileCount")
+    pending_restart_count: int = Field(default=0, alias="pendingRestartCount")
+    rack_distribution: list[RackDistribution] = Field(default_factory=list, alias="rackDistribution")

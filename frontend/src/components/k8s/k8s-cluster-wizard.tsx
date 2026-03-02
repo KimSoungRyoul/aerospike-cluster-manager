@@ -38,7 +38,12 @@ import type {
   ACLRoleSpec,
   ACLUserSpec,
   RollingUpdateConfig,
+  RackAwareConfig,
   TemplateOverrides,
+  K8sNodeInfo,
+  StorageVolumeConfig,
+  NetworkAccessConfig,
+  NetworkAccessType,
 } from "@/lib/api/types";
 
 const AEROSPIKE_IMAGES = ["aerospike:ce-8.1.1.1", "aerospike:ce-7.2.0.6"];
@@ -50,6 +55,7 @@ const STEPS = [
   "Resources",
   "Security (ACL)",
   "Rolling Update",
+  "Rack Config",
   "Review",
 ];
 
@@ -81,6 +87,12 @@ export function K8sClusterWizard() {
     limits: { cpu: "2", memory: "4Gi" },
   };
 
+  const DEFAULT_STORAGE: StorageVolumeConfig = {
+    storageClass: "standard",
+    size: "10Gi",
+    mountPath: "/opt/aerospike/data",
+  };
+
   const [form, setForm] = useState<CreateK8sClusterRequest>({
     name: "",
     namespace: "aerospike",
@@ -100,35 +112,32 @@ export function K8sClusterWizard() {
     autoConnect: true,
     acl: undefined as ACLConfig | undefined,
     rollingUpdate: undefined as RollingUpdateConfig | undefined,
+    rackConfig: { racks: [] },
   });
+
+  const [nodes, setNodes] = useState<K8sNodeInfo[]>([]);
 
   useEffect(() => {
     setFetchingOptions(true);
+    const errors: string[] = [];
     Promise.allSettled([
       api
         .getK8sNamespaces()
-        .then((ns) => {
-          setK8sNamespaces(ns);
-          setFetchError(null);
-        })
+        .then((ns) => setK8sNamespaces(ns))
         .catch((err) => {
-          setFetchError(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}. Using defaults.`);
+          errors.push(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}`);
         }),
       api
         .getK8sStorageClasses()
-        .then((sc) => {
-          setStorageClasses(sc);
-          setFetchError(null);
-        })
+        .then((sc) => setStorageClasses(sc))
         .catch((err) => {
-          setFetchError(
-            `Failed to fetch storage classes: ${getErrorMessage(err)}. Using defaults.`,
-          );
+          errors.push(`Failed to fetch storage classes: ${getErrorMessage(err)}`);
         }),
       fetchTemplates().catch(() => {
         // Templates are optional, silently ignore fetch failures
       }),
     ]).finally(() => {
+      setFetchError(errors.length > 0 ? `${errors.join(". ")}. Using defaults.` : null);
       setFetchingOptions(false);
     });
   }, [fetchTemplates]);
@@ -142,6 +151,19 @@ export function K8sClusterWizard() {
         .catch(() => setK8sSecrets([]));
     }
   }, [step, form.acl?.enabled, form.namespace]);
+
+  // Fetch K8s nodes when on the Rack Config step
+  useEffect(() => {
+    if (step === 6) {
+      api
+        .getK8sNodes()
+        .then(setNodes)
+        .catch((err) => {
+          console.error("Failed to fetch K8s nodes:", err);
+          toast.error("Failed to load node information for zone selection");
+        });
+    }
+  }, [step]);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
@@ -231,6 +253,10 @@ export function K8sClusterWizard() {
       // Rolling Update step - always valid (all fields optional)
       return true;
     }
+    if (step === 6) {
+      // Rack Config step - always valid (racks are optional)
+      return true;
+    }
     return true;
   };
 
@@ -245,6 +271,28 @@ export function K8sClusterWizard() {
         if (ru.batchSize == null && !ru.maxUnavailable && !ru.disablePDB) {
           payload.rollingUpdate = undefined;
         }
+      }
+      // Only include networkPolicy if non-default
+      if (
+        payload.networkPolicy &&
+        payload.networkPolicy.accessType === "pod" &&
+        !payload.networkPolicy.alternateAccessType &&
+        !payload.networkPolicy.fabricType
+      ) {
+        payload.networkPolicy = undefined;
+      }
+      // Include rackConfig only if racks are configured
+      if (payload.rackConfig && payload.rackConfig.racks.length > 0) {
+        payload.rackConfig = {
+          racks: payload.rackConfig.racks.map((r) => ({
+            id: r.id,
+            ...(r.zone ? { zone: r.zone } : {}),
+            ...(r.region ? { region: r.region } : {}),
+            ...(r.maxPodsPerNode != null ? { maxPodsPerNode: r.maxPodsPerNode } : {}),
+          })),
+        } as typeof payload.rackConfig;
+      } else {
+        payload.rackConfig = undefined;
       }
       await createCluster(payload);
       toast.success(`Cluster "${form.name}" creation initiated`);
@@ -402,14 +450,9 @@ export function K8sClusterWizard() {
               {form.namespaces.map((ns, ni) => {
                 const nsIsDevice = ns.storageEngine.type === "device";
                 return (
-                  <div
-                    key={`ns-${ni}`}
-                    className="space-y-3 rounded-lg border p-4"
-                  >
+                  <div key={`ns-${ni}`} className="space-y-3 rounded-lg border p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        Namespace {ni + 1}
-                      </span>
+                      <span className="text-sm font-medium">Namespace {ni + 1}</span>
                       {form.namespaces.length > 1 && (
                         <Button
                           type="button"
@@ -434,7 +477,8 @@ export function K8sClusterWizard() {
                       )}
                       {form.namespaces.length > 1 &&
                         ns.name.trim().length > 0 &&
-                        form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length > 1 && (
+                        form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length >
+                          1 && (
                           <p className="text-destructive text-xs">Namespace names must be unique</p>
                         )}
                     </div>
@@ -559,11 +603,7 @@ export function K8sClusterWizard() {
                     <Select
                       value={form.storage?.storageClass || "standard"}
                       onValueChange={(v) => {
-                        const base = form.storage ?? {
-                          storageClass: "standard",
-                          size: "10Gi",
-                          mountPath: "/opt/aerospike/data",
-                        };
+                        const base = form.storage ?? DEFAULT_STORAGE;
                         updateForm({ storage: { ...base, storageClass: v } });
                       }}
                     >
@@ -589,11 +629,7 @@ export function K8sClusterWizard() {
                     <Select
                       value={form.storage?.size || "10Gi"}
                       onValueChange={(v) => {
-                        const base = form.storage ?? {
-                          storageClass: "standard",
-                          size: "10Gi",
-                          mountPath: "/opt/aerospike/data",
-                        };
+                        const base = form.storage ?? DEFAULT_STORAGE;
                         updateForm({ storage: { ...base, size: v } });
                       }}
                     >
@@ -608,6 +644,92 @@ export function K8sClusterWizard() {
                         <SelectItem value="100Gi">100 GiB</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="init-method">Init Method</Label>
+                      <Select
+                        value={form.storage?.initMethod || "none"}
+                        onValueChange={(v) => {
+                          const base = form.storage ?? {
+                            storageClass: "standard",
+                            size: "10Gi",
+                            mountPath: "/opt/aerospike/data",
+                          };
+                          updateForm({
+                            storage: {
+                              ...base,
+                              initMethod:
+                                v === "none" ? undefined : (v as StorageVolumeConfig["initMethod"]),
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="init-method">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="deleteFiles">Delete Files</SelectItem>
+                          <SelectItem value="dd">DD (zero-fill)</SelectItem>
+                          <SelectItem value="blkdiscard">Block Discard</SelectItem>
+                          <SelectItem value="headerCleanup">Header Cleanup</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="wipe-method">Wipe Method</Label>
+                      <Select
+                        value={form.storage?.wipeMethod || "none"}
+                        onValueChange={(v) => {
+                          const base = form.storage ?? {
+                            storageClass: "standard",
+                            size: "10Gi",
+                            mountPath: "/opt/aerospike/data",
+                          };
+                          updateForm({
+                            storage: {
+                              ...base,
+                              wipeMethod:
+                                v === "none" ? undefined : (v as StorageVolumeConfig["wipeMethod"]),
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger id="wipe-method">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="deleteFiles">Delete Files</SelectItem>
+                          <SelectItem value="dd">DD (zero-fill)</SelectItem>
+                          <SelectItem value="blkdiscard">Block Discard</SelectItem>
+                          <SelectItem value="headerCleanup">Header Cleanup</SelectItem>
+                          <SelectItem value="blkdiscardWithHeaderCleanup">
+                            Block Discard + Header
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned
+                    on pod restart.
+                  </p>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="cascade-delete"
+                      checked={form.storage?.cascadeDelete ?? true}
+                      onCheckedChange={(checked) => {
+                        const base = form.storage ?? DEFAULT_STORAGE;
+                        updateForm({ storage: { ...base, cascadeDelete: checked === true } });
+                      }}
+                    />
+                    <Label htmlFor="cascade-delete" className="text-sm font-normal">
+                      Delete PVCs when cluster is deleted (cascade delete)
+                    </Label>
                   </div>
                 </div>
               )}
@@ -779,7 +901,10 @@ export function K8sClusterWizard() {
                         <Label className="text-xs">Resource Overrides</Label>
                         <div className="grid grid-cols-2 gap-2">
                           <div className="grid gap-1">
-                            <Label htmlFor="override-cpu-req" className="text-muted-foreground text-[10px]">
+                            <Label
+                              htmlFor="override-cpu-req"
+                              className="text-muted-foreground text-[10px]"
+                            >
                               CPU Request
                             </Label>
                             <Input
@@ -816,7 +941,10 @@ export function K8sClusterWizard() {
                             />
                           </div>
                           <div className="grid gap-1">
-                            <Label htmlFor="override-cpu-lim" className="text-muted-foreground text-[10px]">
+                            <Label
+                              htmlFor="override-cpu-lim"
+                              className="text-muted-foreground text-[10px]"
+                            >
                               CPU Limit
                             </Label>
                             <Input
@@ -853,7 +981,10 @@ export function K8sClusterWizard() {
                             />
                           </div>
                           <div className="grid gap-1">
-                            <Label htmlFor="override-mem-req" className="text-muted-foreground text-[10px]">
+                            <Label
+                              htmlFor="override-mem-req"
+                              className="text-muted-foreground text-[10px]"
+                            >
                               Memory Request
                             </Label>
                             <Input
@@ -890,7 +1021,10 @@ export function K8sClusterWizard() {
                             />
                           </div>
                           <div className="grid gap-1">
-                            <Label htmlFor="override-mem-lim" className="text-muted-foreground text-[10px]">
+                            <Label
+                              htmlFor="override-mem-lim"
+                              className="text-muted-foreground text-[10px]"
+                            >
                               Memory Limit
                             </Label>
                             <Input
@@ -944,6 +1078,68 @@ export function K8sClusterWizard() {
                 <Label htmlFor="dynamic-config" className="text-sm font-normal">
                   Enable dynamic config (apply config changes without restart)
                 </Label>
+              </div>
+
+              <div className="space-y-3 rounded-lg border p-4">
+                <span className="text-sm font-medium">Network Access</span>
+                <p className="text-muted-foreground text-xs">
+                  Configure how clients and nodes communicate with the Aerospike cluster.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="access-type" className="text-xs">
+                      Client Access Type
+                    </Label>
+                    <Select
+                      value={form.networkPolicy?.accessType || "pod"}
+                      onValueChange={(v) => {
+                        const current = form.networkPolicy ?? { accessType: "pod" as const };
+                        updateForm({
+                          networkPolicy:
+                            v === "pod" && !current.alternateAccessType && !current.fabricType
+                              ? undefined
+                              : { ...current, accessType: v as NetworkAccessType },
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="access-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pod">Pod IP (default)</SelectItem>
+                        <SelectItem value="hostInternal">Host Internal IP</SelectItem>
+                        <SelectItem value="hostExternal">Host External IP</SelectItem>
+                        <SelectItem value="configuredIP">Configured IP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="fabric-type" className="text-xs">
+                      Fabric Type (inter-node)
+                    </Label>
+                    <Select
+                      value={form.networkPolicy?.fabricType || "pod"}
+                      onValueChange={(v) => {
+                        const current = form.networkPolicy ?? { accessType: "pod" as const };
+                        updateForm({
+                          networkPolicy: {
+                            ...current,
+                            fabricType: v === "pod" ? undefined : (v as NetworkAccessType),
+                          },
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="fabric-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pod">Pod IP (default)</SelectItem>
+                        <SelectItem value="hostInternal">Host Internal IP</SelectItem>
+                        <SelectItem value="hostExternal">Host External IP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </>
           )}
@@ -1377,7 +1573,138 @@ export function K8sClusterWizard() {
             </>
           )}
 
-          {step === 6 && (
+          {step === 6 &&
+            (() => {
+              const racks = form.rackConfig?.racks ?? [];
+              return (
+                <div className="space-y-4">
+                  <p className="text-muted-foreground text-sm">
+                    Configure multi-rack deployment for zone-aware pod distribution. Each rack gets
+                    its own StatefulSet with optional zone affinity.
+                  </p>
+
+                  {racks.length === 0 ? (
+                    <div className="rounded-lg border border-dashed p-6 text-center">
+                      <p className="text-muted-foreground mb-3 text-sm">
+                        No racks configured. The cluster will use a single default rack.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          updateForm({
+                            rackConfig: {
+                              racks: [{ id: 1, zone: "", region: "" }],
+                            },
+                          });
+                        }}
+                      >
+                        Enable Multi-Rack
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {(() => {
+                        const uniqueZones = [...new Set(nodes.map((n) => n.zone).filter(Boolean))];
+                        return racks.map((rack, idx) => (
+                          <div key={idx} className="space-y-3 rounded-lg border p-4">
+                            <div className="flex items-center justify-between">
+                              <Label className="font-medium">Rack #{rack.id}</Label>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive h-7 px-2"
+                                onClick={() => {
+                                  const newRacks = racks.filter((_, i) => i !== idx);
+                                  updateForm({ rackConfig: { racks: newRacks } });
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="grid gap-1">
+                                <Label className="text-xs">Zone</Label>
+                                {uniqueZones.length > 0 ? (
+                                  <Select
+                                    value={rack.zone || ""}
+                                    onValueChange={(v) => {
+                                      const newRacks = [...racks];
+                                      newRacks[idx] = { ...rack, zone: v };
+                                      updateForm({ rackConfig: { racks: newRacks } });
+                                    }}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select zone" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {uniqueZones.map((z) => (
+                                        <SelectItem key={z} value={z}>
+                                          {z}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input
+                                    value={rack.zone || ""}
+                                    onChange={(e) => {
+                                      const newRacks = [...racks];
+                                      newRacks[idx] = { ...rack, zone: e.target.value };
+                                      updateForm({ rackConfig: { racks: newRacks } });
+                                    }}
+                                    placeholder="e.g. us-east-1a"
+                                  />
+                                )}
+                              </div>
+                              <div className="grid gap-1">
+                                <Label className="text-xs">Max Pods Per Node</Label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={rack.maxPodsPerNode ?? ""}
+                                  onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    const newRacks = [...racks];
+                                    newRacks[idx] = {
+                                      ...rack,
+                                      maxPodsPerNode: isNaN(val) ? undefined : Math.max(1, val),
+                                    };
+                                    updateForm({ rackConfig: { racks: newRacks } });
+                                  }}
+                                  placeholder="No limit"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const maxId = Math.max(0, ...racks.map((r) => r.id));
+                          updateForm({
+                            rackConfig: {
+                              racks: [...racks, { id: maxId + 1, zone: "", region: "" }],
+                            },
+                          });
+                        }}
+                      >
+                        + Add Rack
+                      </Button>
+                      <p className="text-muted-foreground text-xs">
+                        Tip: For {form.size} nodes across {racks.length} racks, approximately{" "}
+                        {`${Math.floor(form.size / racks.length)}-${Math.ceil(form.size / racks.length)}`}{" "}
+                        pods per rack.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+          {step === 7 && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 <span className="text-muted-foreground">Name</span>
@@ -1398,7 +1725,10 @@ export function K8sClusterWizard() {
                 <span className="font-medium">{form.namespaces.length}</span>
 
                 {form.namespaces.map((ns, ni) => (
-                  <div key={`review-ns-${ni}`} className="col-span-2 ml-2 rounded border p-2 text-xs">
+                  <div
+                    key={`review-ns-${ni}`}
+                    className="col-span-2 ml-2 rounded border p-2 text-xs"
+                  >
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                       <span className="text-muted-foreground">Name</span>
                       <span className="font-medium">{ns.name}</span>
@@ -1486,6 +1816,45 @@ export function K8sClusterWizard() {
                         .join(", ") || "Default"
                     : "Default"}
                 </span>
+
+                {(form.rackConfig?.racks ?? []).length > 0 && (
+                  <>
+                    <span className="text-muted-foreground">Racks</span>
+                    <div className="space-y-1">
+                      {form.rackConfig!.racks.map((rack) => (
+                        <span key={rack.id} className="block font-mono text-xs">
+                          Rack #{rack.id}
+                          {rack.zone ? ` (zone: ${rack.zone})` : ""}
+                          {rack.maxPodsPerNode ? ` max: ${rack.maxPodsPerNode}/node` : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                {form.networkPolicy && form.networkPolicy.accessType !== "pod" && (
+                  <>
+                    <span className="text-muted-foreground">Network Access</span>
+                    <span className="font-medium">
+                      {form.networkPolicy.accessType}
+                      {form.networkPolicy.fabricType
+                        ? `, fabric: ${form.networkPolicy.fabricType}`
+                        : ""}
+                    </span>
+                  </>
+                )}
+
+                {form.storage && (
+                  <>
+                    <span className="text-muted-foreground">Storage</span>
+                    <span className="font-medium">
+                      {form.storage.size} ({form.storage.storageClass})
+                      {form.storage.initMethod ? `, init: ${form.storage.initMethod}` : ""}
+                      {form.storage.wipeMethod ? `, wipe: ${form.storage.wipeMethod}` : ""}
+                      {form.storage.cascadeDelete === false ? ", no cascade delete" : ""}
+                    </span>
+                  </>
+                )}
 
                 <span className="text-muted-foreground">Auto-connect</span>
                 <span className="font-medium">{form.autoConnect ? "Yes" : "No"}</span>

@@ -16,7 +16,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { LoadingButton } from "@/components/common/loading-button";
 import { getErrorMessage } from "@/lib/utils";
-import type { K8sClusterDetail, UpdateK8sClusterRequest } from "@/lib/api/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { K8sClusterDetail, UpdateK8sClusterRequest, NetworkAccessType } from "@/lib/api/types";
 
 interface K8sEditDialogProps {
   open: boolean;
@@ -33,6 +40,10 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const [batchSize, setBatchSize] = useState<number | undefined>(undefined);
   const [maxUnavailable, setMaxUnavailable] = useState("");
   const [disablePDB, setDisablePDB] = useState(false);
+  const [accessType, setAccessType] = useState<NetworkAccessType>("pod");
+  const [fabricType, setFabricType] = useState<NetworkAccessType | "">("");
+  const [alternateAccessType, setAlternateAccessType] = useState<NetworkAccessType | "">("");
+  const [nodeBlockList, setNodeBlockList] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -41,9 +52,19 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const initialImage = cluster.image;
   const initialSize = cluster.size;
   const initialEnableDynamicConfig = Boolean(cluster.spec?.enableDynamicConfigUpdate);
-  const initialBatchSize = (cluster.spec?.rollingUpdateBatchSize as number | undefined) ?? undefined;
-  const initialMaxUnavailable = ((cluster.spec?.maxUnavailable as string | number) ?? "").toString();
+  const initialBatchSize =
+    (cluster.spec?.rollingUpdateBatchSize as number | undefined) ?? undefined;
+  const initialMaxUnavailable = (
+    (cluster.spec?.maxUnavailable as string | number) ?? ""
+  ).toString();
   const initialDisablePDB = Boolean(cluster.spec?.disablePDB);
+  const initialAccessType = ((cluster.spec?.aerospikeNetworkPolicy as Record<string, string>)
+    ?.accessType || "pod") as NetworkAccessType;
+  const initialFabricType = ((cluster.spec?.aerospikeNetworkPolicy as Record<string, string>)
+    ?.fabricType || "") as NetworkAccessType | "";
+  const initialAlternateAccessType = ((cluster.spec?.aerospikeNetworkPolicy as Record<string, string>)
+    ?.alternateAccessType || "") as NetworkAccessType | "";
+  const initialNodeBlockList = ((cluster.spec?.k8sNodeBlockList as string[]) ?? []).join(", ");
   const initialAerospikeConfig = useMemo(
     () => (cluster.spec?.aerospikeConfig as Record<string, unknown>) ?? {},
     [cluster.spec?.aerospikeConfig],
@@ -63,10 +84,27 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       setBatchSize(initialBatchSize);
       setMaxUnavailable(initialMaxUnavailable);
       setDisablePDB(initialDisablePDB);
+      setAccessType(initialAccessType);
+      setFabricType(initialFabricType);
+      setAlternateAccessType(initialAlternateAccessType);
+      setNodeBlockList(initialNodeBlockList);
       setError(null);
       setConfigError(null);
     }
-  }, [open, initialImage, initialSize, initialEnableDynamicConfig, initialAerospikeConfigText, initialBatchSize, initialMaxUnavailable, initialDisablePDB]);
+  }, [
+    open,
+    initialImage,
+    initialSize,
+    initialEnableDynamicConfig,
+    initialAerospikeConfigText,
+    initialBatchSize,
+    initialMaxUnavailable,
+    initialDisablePDB,
+    initialAccessType,
+    initialFabricType,
+    initialAlternateAccessType,
+    initialNodeBlockList,
+  ]);
 
   // Validate JSON on every keystroke
   useEffect(() => {
@@ -89,7 +127,11 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     aerospikeConfigText !== initialAerospikeConfigText ||
     batchSize !== initialBatchSize ||
     maxUnavailable !== initialMaxUnavailable ||
-    disablePDB !== initialDisablePDB;
+    disablePDB !== initialDisablePDB ||
+    accessType !== initialAccessType ||
+    fabricType !== initialFabricType ||
+    alternateAccessType !== initialAlternateAccessType ||
+    nodeBlockList !== initialNodeBlockList;
 
   const handleSave = async () => {
     setLoading(true);
@@ -118,6 +160,24 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       }
       if (disablePDB !== initialDisablePDB) {
         data.disablePDB = disablePDB;
+      }
+      if (
+        accessType !== initialAccessType ||
+        fabricType !== initialFabricType ||
+        alternateAccessType !== initialAlternateAccessType
+      ) {
+        data.networkPolicy = {
+          accessType,
+          ...(fabricType ? { fabricType: fabricType as NetworkAccessType } : {}),
+          ...(alternateAccessType ? { alternateAccessType: alternateAccessType as NetworkAccessType } : {}),
+        };
+      }
+      if (nodeBlockList !== initialNodeBlockList) {
+        const nodes = nodeBlockList
+          .split(",")
+          .map((n) => n.trim())
+          .filter(Boolean);
+        data.k8sNodeBlockList = nodes;
       }
 
       await onSave(data);
@@ -226,7 +286,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                     setMaxUnavailable(e.target.value);
                     setError(null);
                   }}
-                  placeholder='e.g. 1 or 25%'
+                  placeholder="e.g. 1 or 25%"
                   disabled={loading}
                 />
               </div>
@@ -245,6 +305,98 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 Disable PodDisruptionBudget (PDB)
               </Label>
             </div>
+          </div>
+
+          {/* Network Policy */}
+          <div className="grid gap-3">
+            <Label className="text-sm font-semibold">Network Policy</Label>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-1">
+                <Label htmlFor="edit-access-type" className="text-xs">
+                  Access Type
+                </Label>
+                <Select
+                  value={accessType}
+                  onValueChange={(v) => {
+                    setAccessType(v as NetworkAccessType);
+                    setError(null);
+                  }}
+                >
+                  <SelectTrigger id="edit-access-type" disabled={loading}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pod">Pod IP</SelectItem>
+                    <SelectItem value="hostInternal">Host Internal</SelectItem>
+                    <SelectItem value="hostExternal">Host External</SelectItem>
+                    <SelectItem value="configuredIP">Configured IP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="edit-fabric-type" className="text-xs">
+                  Fabric Type
+                </Label>
+                <Select
+                  value={fabricType || "default"}
+                  onValueChange={(v) => {
+                    setFabricType(v === "default" ? "" : (v as NetworkAccessType));
+                    setError(null);
+                  }}
+                >
+                  <SelectTrigger id="edit-fabric-type" disabled={loading}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default (same as access)</SelectItem>
+                    <SelectItem value="pod">Pod IP</SelectItem>
+                    <SelectItem value="hostInternal">Host Internal</SelectItem>
+                    <SelectItem value="hostExternal">Host External</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="edit-alt-access" className="text-xs">
+                  Alternate Access
+                </Label>
+                <Select
+                  value={alternateAccessType || "default"}
+                  onValueChange={(v) => {
+                    setAlternateAccessType(v === "default" ? "" : (v as NetworkAccessType));
+                    setError(null);
+                  }}
+                >
+                  <SelectTrigger id="edit-alt-access" disabled={loading}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">None</SelectItem>
+                    <SelectItem value="pod">Pod IP</SelectItem>
+                    <SelectItem value="hostInternal">Host Internal</SelectItem>
+                    <SelectItem value="hostExternal">Host External</SelectItem>
+                    <SelectItem value="configuredIP">Configured IP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Node Block List */}
+          <div className="grid gap-1">
+            <Label htmlFor="edit-node-blocklist" className="text-xs">
+              Node Block List
+            </Label>
+            <Input
+              id="edit-node-blocklist"
+              value={nodeBlockList}
+              onChange={(e) => {
+                setNodeBlockList(e.target.value);
+                setError(null);
+              }}
+              placeholder="node1, node2"
+              disabled={loading}
+            />
+            <p className="text-muted-foreground text-[10px]">Comma-separated K8s node names to exclude from scheduling</p>
           </div>
 
           {/* Aerospike Config */}

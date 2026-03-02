@@ -20,7 +20,9 @@ from aerospike_cluster_manager_api.client_manager import client_manager
 from aerospike_cluster_manager_api.k8s_client import K8sApiError, k8s_client
 from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 from aerospike_cluster_manager_api.models.k8s_cluster import (
+    ClusterHealthResponse,
     CreateK8sClusterRequest,
+    CreateK8sTemplateRequest,
     K8sClusterCondition,
     K8sClusterDetail,
     K8sClusterEvent,
@@ -30,6 +32,8 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     K8sTemplateSummary,
     OperationRequest,
     OperationStatusResponse,
+    RackConfig,
+    RackDistribution,
     ScaleK8sClusterRequest,
     UpdateK8sClusterRequest,
 )
@@ -117,6 +121,33 @@ def _extract_summary(item: dict[str, Any], connection_id: str | None = None) -> 
     )
 
 
+def _build_rack_list(racks: list[RackConfig]) -> list[dict[str, Any]]:
+    """Convert RackConfig models into CR-compatible dicts."""
+    result = []
+    for rack in racks:
+        r: dict[str, Any] = {"id": rack.id}
+        if rack.zone:
+            r["zone"] = rack.zone
+        if rack.region:
+            r["region"] = rack.region
+        if rack.max_pods_per_node is not None:
+            r["maxPodsPerNode"] = rack.max_pods_per_node
+        if rack.node_name:
+            r["nodeName"] = rack.node_name
+        result.append(r)
+    return result
+
+
+def _build_network_policy(policy) -> dict[str, Any]:
+    """Convert a network policy model into a CR-compatible dict."""
+    net_policy: dict[str, Any] = {"accessType": policy.access_type}
+    if policy.alternate_access_type:
+        net_policy["alternateAccessType"] = policy.alternate_access_type
+    if policy.fabric_type:
+        net_policy["fabricType"] = policy.fabric_type
+    return net_policy
+
+
 def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     """Convert CreateK8sClusterRequest to AerospikeCluster CR dict."""
     ns_configs = []
@@ -167,20 +198,25 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     # Storage volumes
     if req.storage:
+        data_vol: dict[str, Any] = {
+            "name": "data-vol",
+            "source": {
+                "persistentVolume": {
+                    "storageClass": req.storage.storage_class,
+                    "size": req.storage.size,
+                    "volumeMode": "Filesystem",
+                }
+            },
+            "aerospike": {"path": req.storage.mount_path},
+            "cascadeDelete": req.storage.cascade_delete,
+        }
+        if req.storage.init_method:
+            data_vol["initMethod"] = req.storage.init_method
+        if req.storage.wipe_method:
+            data_vol["wipeMethod"] = req.storage.wipe_method
         cr["spec"]["storage"] = {
             "volumes": [
-                {
-                    "name": "data-vol",
-                    "source": {
-                        "persistentVolume": {
-                            "storageClass": req.storage.storage_class,
-                            "size": req.storage.size,
-                            "volumeMode": "Filesystem",
-                        }
-                    },
-                    "aerospike": {"path": req.storage.mount_path},
-                    "cascadeDelete": True,
-                },
+                data_vol,
                 {
                     "name": "workdir",
                     "source": {"emptyDir": {}},
@@ -266,6 +302,18 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             cr["spec"]["maxUnavailable"] = req.rolling_update.max_unavailable
         if req.rolling_update.disable_pdb:
             cr["spec"]["disablePDB"] = True
+
+    # Rack config
+    if req.rack_config and req.rack_config.racks:
+        cr["spec"]["rackConfig"] = {"racks": _build_rack_list(req.rack_config.racks)}
+
+    # Network access policy
+    if req.network_policy:
+        cr["spec"]["aerospikeNetworkPolicy"] = _build_network_policy(req.network_policy)
+
+    # K8s node block list
+    if req.k8s_node_block_list:
+        cr["spec"]["k8sNodeBlockList"] = req.k8s_node_block_list
 
     return cr
 
@@ -372,6 +420,97 @@ async def get_k8s_cluster(
     )
 
 
+def _compute_rack_distribution(pods_status: dict) -> list[RackDistribution]:
+    """Group pods by rack ID for distribution display."""
+    racks: dict[int, dict[str, int]] = {}
+    for pod_info in pods_status.values():
+        rack_id = pod_info.get("rack", 0)
+        if rack_id not in racks:
+            racks[rack_id] = {"id": rack_id, "total": 0, "ready": 0}
+        racks[rack_id]["total"] += 1
+        if pod_info.get("isRunningAndReady"):
+            racks[rack_id]["ready"] += 1
+    return sorted([RackDistribution(**r) for r in racks.values()], key=lambda r: r.id)
+
+
+@router.get("/clusters/{namespace}/{name}/health", summary="Get cluster health summary")
+@_k8s_endpoint("get cluster health")
+async def get_k8s_cluster_health(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> ClusterHealthResponse:
+    _require_k8s()
+    item = await k8s_client.get_cluster(namespace, name)
+    status = item.get("status", {})
+    spec = item.get("spec", {})
+
+    pods_status = status.get("pods", {})
+    total_pods = len(pods_status)
+    ready_pods = sum(1 for p in pods_status.values() if p.get("isRunningAndReady"))
+
+    conditions = {c.get("type"): c.get("status") == "True" for c in status.get("conditions", [])}
+
+    return ClusterHealthResponse(
+        phase=status.get("phase", "Unknown"),
+        totalPods=total_pods,
+        readyPods=ready_pods,
+        desiredPods=spec.get("size", 0),
+        migrating=not conditions.get("MigrationComplete", True),
+        available=conditions.get("Available", False),
+        configApplied=conditions.get("ConfigApplied", False),
+        aclSynced=conditions.get("ACLSynced", True),
+        failedReconcileCount=status.get("failedReconcileCount", 0),
+        pendingRestartCount=len(status.get("pendingRestartPods", [])),
+        rackDistribution=_compute_rack_distribution(pods_status),
+    )
+
+
+@router.get("/clusters/{namespace}/{name}/pods/{pod}/logs", summary="Get pod logs")
+@_k8s_endpoint("get pod logs")
+async def get_k8s_pod_logs(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+    pod: str = Path(..., min_length=1, max_length=253),
+    tail: int = Query(default=500, ge=1, le=10000, description="Number of tail lines"),
+    container: str | None = Query(default=None, description="Container name"),
+) -> dict[str, Any]:
+    _require_k8s()
+    # Verify pod belongs to this cluster using label selector rather than name prefix
+    # (prefix matching is insecure: cluster "my" would match pods from "my-other-cluster")
+    cluster_pods = await k8s_client.list_pods(namespace, f"app.kubernetes.io/instance={name}")
+    pod_names = {p["name"] for p in cluster_pods}
+    if pod not in pod_names:
+        raise HTTPException(status_code=403, detail=f"Pod '{pod}' does not belong to cluster '{name}'")
+    logs = await k8s_client.read_pod_log(namespace, pod, container=container, tail_lines=tail)
+    return {"pod": pod, "logs": logs, "tailLines": tail}
+
+
+@router.get("/clusters/{namespace}/{name}/yaml", summary="Get cluster CR as YAML")
+@_k8s_endpoint("export cluster YAML")
+async def get_k8s_cluster_yaml(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> dict[str, Any]:
+    _require_k8s()
+    item = await k8s_client.get_cluster(namespace, name)
+    # Strip internal metadata fields for cleaner export
+    metadata = dict(item.get("metadata", {}))
+    for key in ("managedFields", "resourceVersion", "uid", "generation", "creationTimestamp"):
+        metadata.pop(key, None)
+    # Strip internal annotations that may contain sensitive data
+    annotations = metadata.get("annotations")
+    if annotations and isinstance(annotations, dict):
+        annotations = {k: v for k, v in annotations.items() if k != "kubectl.kubernetes.io/last-applied-configuration"}
+        metadata["annotations"] = annotations if annotations else None
+    clean_cr = {
+        "apiVersion": item.get("apiVersion", "acko.io/v1alpha1"),
+        "kind": item.get("kind", "AerospikeCluster"),
+        "metadata": metadata,
+        "spec": item.get("spec", {}),
+    }
+    return {"yaml": clean_cr}
+
+
 @router.post("/clusters", status_code=201, summary="Create K8s Aerospike cluster")
 @_k8s_endpoint("create Kubernetes cluster")
 async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary:
@@ -438,6 +577,9 @@ async def update_k8s_cluster(
         and body.rolling_update_batch_size is None
         and body.max_unavailable is None
         and body.disable_pdb is None
+        and body.rack_config is None
+        and body.network_policy is None
+        and body.k8s_node_block_list is None
     ):
         raise HTTPException(status_code=400, detail="At least one field must be provided")
 
@@ -472,6 +614,15 @@ async def update_k8s_cluster(
         patch["spec"]["maxUnavailable"] = body.max_unavailable
     if body.disable_pdb is not None:
         patch["spec"]["disablePDB"] = body.disable_pdb
+    if body.rack_config is not None:
+        if body.rack_config.racks:
+            patch["spec"]["rackConfig"] = {"racks": _build_rack_list(body.rack_config.racks)}
+        else:
+            patch["spec"]["rackConfig"] = {"racks": []}
+    if body.network_policy is not None:
+        patch["spec"]["aerospikeNetworkPolicy"] = _build_network_policy(body.network_policy)
+    if body.k8s_node_block_list is not None:
+        patch["spec"]["k8sNodeBlockList"] = body.k8s_node_block_list
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return _extract_summary(result)
 
@@ -519,6 +670,13 @@ async def scale_k8s_cluster(
 async def list_k8s_namespaces() -> list[str]:
     _require_k8s()
     return await k8s_client.list_namespaces()
+
+
+@router.get("/nodes", summary="List Kubernetes nodes with zone info")
+@_k8s_endpoint("list Kubernetes nodes")
+async def list_k8s_nodes() -> list[dict[str, Any]]:
+    _require_k8s()
+    return await k8s_client.list_nodes()
 
 
 @router.get("/storageclasses", summary="List Kubernetes storage classes")
@@ -574,8 +732,101 @@ async def get_k8s_template(
         name=metadata.get("name", ""),
         namespace=metadata.get("namespace", ""),
         spec=item.get("spec", {}),
+        status=item.get("status", {}),
         age=_calculate_age(metadata.get("creationTimestamp")),
     )
+
+
+def _build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
+    """Convert CreateK8sTemplateRequest to AerospikeClusterTemplate CR dict."""
+    cr: dict[str, Any] = {
+        "apiVersion": "acko.io/v1alpha1",
+        "kind": "AerospikeClusterTemplate",
+        "metadata": {
+            "name": req.name,
+            "namespace": req.namespace,
+        },
+        "spec": {},
+    }
+
+    if req.image:
+        cr["spec"]["image"] = req.image
+    if req.size is not None:
+        cr["spec"]["size"] = req.size
+    if req.resources:
+        cr["spec"]["resources"] = {
+            "requests": {"cpu": req.resources.requests.cpu, "memory": req.resources.requests.memory},
+            "limits": {"cpu": req.resources.limits.cpu, "memory": req.resources.limits.memory},
+        }
+    if req.monitoring:
+        cr["spec"]["monitoring"] = {"enabled": req.monitoring.enabled, "port": req.monitoring.port}
+    if req.scheduling:
+        scheduling: dict[str, Any] = {}
+        if req.scheduling.pod_anti_affinity_level:
+            scheduling["podAntiAffinityLevel"] = req.scheduling.pod_anti_affinity_level
+        if req.scheduling.pod_management_policy:
+            scheduling["podManagementPolicy"] = req.scheduling.pod_management_policy
+        if scheduling:
+            cr["spec"]["scheduling"] = scheduling
+    if req.storage:
+        storage: dict[str, Any] = {}
+        if req.storage.storage_class_name:
+            storage["storageClassName"] = req.storage.storage_class_name
+        if req.storage.volume_mode:
+            storage["volumeMode"] = req.storage.volume_mode
+        if req.storage.access_modes:
+            storage["accessModes"] = req.storage.access_modes
+        if req.storage.size:
+            storage["resources"] = {"requests": {"storage": req.storage.size}}
+        if storage:
+            cr["spec"]["storage"] = storage
+    if req.network_policy:
+        cr["spec"]["aerospikeNetworkPolicy"] = _build_network_policy(req.network_policy)
+    if req.aerospike_config:
+        cr["spec"]["aerospikeConfig"] = {"namespaceDefaults": req.aerospike_config}
+
+    return cr
+
+
+@router.post("/templates", status_code=201, summary="Create K8s AerospikeClusterTemplate")
+@_k8s_endpoint("create Kubernetes template")
+async def create_k8s_template(body: CreateK8sTemplateRequest) -> K8sTemplateSummary:
+    _require_k8s()
+    cr = _build_template_cr(body)
+    result = await k8s_client.create_template(body.namespace, cr)
+    metadata = result.get("metadata", {})
+    spec = result.get("spec", {})
+    return K8sTemplateSummary(
+        name=metadata.get("name", ""),
+        namespace=metadata.get("namespace", ""),
+        image=spec.get("image"),
+        size=spec.get("size"),
+        age=_calculate_age(metadata.get("creationTimestamp")),
+    )
+
+
+@router.delete("/templates/{namespace}/{name}", status_code=202, summary="Delete K8s AerospikeClusterTemplate")
+@_k8s_endpoint("delete Kubernetes template")
+async def delete_k8s_template(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> DeleteResponse:
+    _require_k8s()
+    # Check if any clusters reference this template
+    clusters = await k8s_client.list_clusters(namespace)
+    referencing = [
+        c.get("metadata", {}).get("name", "")
+        for c in clusters
+        if c.get("spec", {}).get("templateRef", {}).get("name") == name
+    ]
+    if referencing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Template '{name}' is referenced by cluster(s): {', '.join(referencing)}. "
+            "Remove the template reference from these clusters before deleting.",
+        )
+    await k8s_client.delete_template(namespace, name)
+    return DeleteResponse(message=f"Template {namespace}/{name} deletion initiated")
 
 
 # ---------------------------------------------------------------------------

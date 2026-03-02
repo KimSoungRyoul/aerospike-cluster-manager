@@ -20,6 +20,8 @@ PLURAL = "aerospikeclusters"
 TEMPLATE_PLURAL = "aerospikeclustertemplates"
 # Default timeout for K8s API calls (seconds)
 _K8S_API_TIMEOUT = 10
+# Longer timeout for streaming operations (pod logs)
+_K8S_LOG_TIMEOUT = 30
 
 
 class K8sApiError(Exception):
@@ -259,6 +261,36 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
+    def _create_template_sync(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
+        logger.debug("_create_template_sync(namespace=%s)", namespace)
+        self._ensure_initialized()
+        try:
+            return self._custom_api.create_namespaced_custom_object(
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=TEMPLATE_PLURAL,
+                body=body,
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
+    def _delete_template_sync(self, namespace: str, name: str) -> dict[str, Any]:
+        logger.debug("_delete_template_sync(namespace=%s, name=%s)", namespace, name)
+        self._ensure_initialized()
+        try:
+            return self._custom_api.delete_namespaced_custom_object(
+                group=GROUP,
+                version=VERSION,
+                namespace=namespace,
+                plural=TEMPLATE_PLURAL,
+                name=name,
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
     def _list_secrets_sync(self, namespace: str) -> list[str]:
         logger.debug("_list_secrets_sync(namespace=%s)", namespace)
         self._ensure_initialized()
@@ -269,6 +301,27 @@ class K8sClient:
                 _request_timeout=_K8S_API_TIMEOUT,
             )
             return [s.metadata.name for s in result.items]
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
+    def _list_nodes_sync(self) -> list[dict[str, Any]]:
+        """List K8s nodes with zone labels."""
+        logger.debug("_list_nodes_sync()")
+        self._ensure_initialized()
+        try:
+            result = self._core_api.list_node(_request_timeout=_K8S_API_TIMEOUT)
+            nodes = []
+            for node in result.items:
+                labels = node.metadata.labels or {}
+                nodes.append(
+                    {
+                        "name": node.metadata.name,
+                        "zone": labels.get("topology.kubernetes.io/zone", ""),
+                        "region": labels.get("topology.kubernetes.io/region", ""),
+                        "ready": any(c.status == "True" for c in (node.status.conditions or []) if c.type == "Ready"),
+                    }
+                )
+            return nodes
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -295,6 +348,25 @@ class K8sClient:
                     }
                 )
             return sorted(events, key=lambda e: e.get("lastTimestamp") or "", reverse=True)
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
+    def _read_pod_log_sync(
+        self, namespace: str, pod_name: str, container: str | None = None, tail_lines: int = 500
+    ) -> str:
+        """Read logs from a pod."""
+        logger.debug("_read_pod_log_sync(namespace=%s, pod=%s)", namespace, pod_name)
+        self._ensure_initialized()
+        try:
+            kwargs: dict[str, Any] = {
+                "namespace": namespace,
+                "name": pod_name,
+                "tail_lines": tail_lines,
+                "_request_timeout": _K8S_LOG_TIMEOUT,
+            }
+            if container:
+                kwargs["container"] = container
+            return self._core_api.read_namespaced_pod_log(**kwargs)
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -332,12 +404,26 @@ class K8sClient:
     async def get_template(self, namespace: str, name: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._get_template_sync, namespace, name)
 
+    async def create_template(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
+        return await asyncio.to_thread(self._create_template_sync, namespace, body)
+
+    async def delete_template(self, namespace: str, name: str) -> dict[str, Any]:
+        return await asyncio.to_thread(self._delete_template_sync, namespace, name)
+
     async def list_secrets(self, namespace: str) -> list[str]:
         """List Secret names in a namespace (Opaque type only)."""
         return await asyncio.to_thread(self._list_secrets_sync, namespace)
 
     async def list_events(self, namespace: str, field_selector: str) -> list[dict[str, Any]]:
         return await asyncio.to_thread(self._list_events_sync, namespace, field_selector)
+
+    async def list_nodes(self) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._list_nodes_sync)
+
+    async def read_pod_log(
+        self, namespace: str, pod_name: str, container: str | None = None, tail_lines: int = 500
+    ) -> str:
+        return await asyncio.to_thread(self._read_pod_log_sync, namespace, pod_name, container, tail_lines)
 
 
 k8s_client = K8sClient()
