@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import contextlib
 import logging
 import time
 
@@ -12,22 +11,32 @@ from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QU
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.expression_builder import build_expression
-from aerospike_cluster_manager_api.models.query import FilteredQueryRequest, FilteredQueryResponse, QueryPredicate
+from aerospike_cluster_manager_api.models.query import FilteredQueryRequest, FilteredQueryResponse
 from aerospike_cluster_manager_api.models.record import (
     AerospikeRecord,
     RecordListResponse,
     RecordWriteRequest,
 )
+from aerospike_cluster_manager_api.utils import build_predicate
 
 logger = logging.getLogger(__name__)
 
 
 def _auto_detect_pk(pk: str) -> str | int:
-    """Convert PK to int if possible, matching Aerospike's key type semantics."""
-    result: str | int = pk
-    with contextlib.suppress(ValueError):
-        result = int(pk)
-    return result
+    """Convert PK to int only when the round-trip is lossless (no leading zeros).
+
+    "1"     → 1    (integer key)
+    "00001" → "00001"  (string key — leading zeros preserved)
+    "-5"    → -5   (negative integer key)
+    "abc"   → "abc"  (string key)
+    """
+    try:
+        as_int = int(pk)
+        if str(as_int) == pk:
+            return as_int
+    except ValueError:
+        pass
+    return pk
 
 
 router = APIRouter(prefix="/api/records", tags=["records"])
@@ -106,31 +115,6 @@ async def delete_record(
     return Response(status_code=204)
 
 
-def _build_predicate_for_filter(pred: QueryPredicate) -> tuple[str, ...]:
-    """Convert a QueryPredicate model into an Aerospike predicate tuple.
-
-    Re-implements the logic from the query router to avoid circular imports.
-    """
-    import json
-
-    from aerospike_py import INDEX_TYPE_LIST, predicates
-
-    op = pred.operator
-    if op == "equals":
-        return predicates.equals(pred.bin, pred.value)
-    if op == "between":
-        return predicates.between(pred.bin, pred.value, pred.value2)
-    if op == "contains":
-        return predicates.contains(pred.bin, INDEX_TYPE_LIST, pred.value)
-    if op == "geo_within_region":
-        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
-        return predicates.geo_within_geojson_region(pred.bin, geo)
-    if op == "geo_contains_point":
-        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
-        return predicates.geo_contains_geojson_point(pred.bin, geo)
-    raise ValueError(f"Unknown predicate operator: {op}")
-
-
 @router.post(
     "/{conn_id}/filter",
     summary="Filtered record scan",
@@ -172,7 +156,7 @@ async def get_filtered_records(
     q = client.query(body.namespace, body.set or "")
 
     if body.predicate:
-        q.where(_build_predicate_for_filter(body.predicate))
+        q.where(build_predicate(body.predicate))
 
     if body.select_bins:
         q.select(*body.select_bins)

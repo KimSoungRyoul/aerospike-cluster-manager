@@ -95,7 +95,7 @@ export function K8sClusterWizard() {
 
   const [form, setForm] = useState<CreateK8sClusterRequest>({
     name: "",
-    namespace: "aerospike",
+    namespace: "",
     size: 1,
     image: AEROSPIKE_IMAGES[0],
     namespaces: [
@@ -123,7 +123,13 @@ export function K8sClusterWizard() {
     Promise.allSettled([
       api
         .getK8sNamespaces()
-        .then((ns) => setK8sNamespaces(ns))
+        .then((ns) => {
+          setK8sNamespaces(ns);
+          if (ns.length > 0) {
+            const preferred = ns.includes("default") ? "default" : ns[0];
+            setForm((prev) => ({ ...prev, namespace: preferred }));
+          }
+        })
         .catch((err) => {
           errors.push(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}`);
         }),
@@ -216,7 +222,7 @@ export function K8sClusterWizard() {
 
   const canProceed = () => {
     if (step === 0) {
-      return validateK8sName(form.name) === null;
+      return validateK8sName(form.name) === null && form.namespace.length > 0;
     }
     if (step === 1) {
       return validateNamespaces(form.namespaces, form.size) === null;
@@ -389,9 +395,14 @@ export function K8sClusterWizard() {
 
               <div className="grid gap-2">
                 <Label htmlFor="k8s-namespace">Namespace</Label>
-                <Select value={form.namespace} onValueChange={(v) => updateForm({ namespace: v })}>
-                  <SelectTrigger id="k8s-namespace">
-                    <SelectValue />
+                <Select
+                  value={form.namespace}
+                  onValueChange={(v) => updateForm({ namespace: v })}
+                >
+                  <SelectTrigger id="k8s-namespace" disabled={fetchingOptions}>
+                    <SelectValue
+                      placeholder={fetchingOptions ? "Loading namespaces…" : "Select a namespace"}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {k8sNamespaces.length > 0 ? (
@@ -401,10 +412,17 @@ export function K8sClusterWizard() {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="aerospike">aerospike</SelectItem>
+                      <SelectItem value="" disabled>
+                        No namespaces available
+                      </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
+                {!fetchingOptions && k8sNamespaces.length === 0 && (
+                  <p className="text-destructive text-xs">
+                    Failed to load namespaces. Check backend connectivity.
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-2">

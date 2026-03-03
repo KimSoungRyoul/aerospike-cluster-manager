@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
 
 from aerospike_cluster_manager_api.constants import INFO_NAMESPACES, info_sindex
@@ -65,7 +65,7 @@ async def create_index(body: CreateIndexRequest, client: AerospikeClient) -> Sec
     elif body.type == "geo2dsphere":
         await client.index_geo2dsphere_create(body.namespace, body.set, body.bin, body.name)
     else:
-        raise ValueError(f"Unsupported index type: {body.type}")
+        raise HTTPException(status_code=400, detail=f"Unsupported index type: {body.type}")
 
     return SecondaryIndex(
         name=body.name,

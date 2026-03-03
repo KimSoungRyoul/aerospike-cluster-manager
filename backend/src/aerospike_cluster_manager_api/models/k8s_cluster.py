@@ -36,9 +36,9 @@ class StorageVolumeConfig(BaseModel):
     init_method: Literal["none", "deleteFiles", "dd", "blkdiscard", "headerCleanup"] | None = Field(
         default=None, alias="initMethod", description="Volume initialization method"
     )
-    wipe_method: Literal[
-        "none", "deleteFiles", "dd", "blkdiscard", "headerCleanup", "blkdiscardWithHeaderCleanup"
-    ] | None = Field(default=None, alias="wipeMethod", description="Volume wipe method for dirty volumes")
+    wipe_method: (
+        Literal["none", "deleteFiles", "dd", "blkdiscard", "headerCleanup", "blkdiscardWithHeaderCleanup"] | None
+    ) = Field(default=None, alias="wipeMethod", description="Volume wipe method for dirty volumes")
     cascade_delete: bool = Field(default=True, alias="cascadeDelete", description="Delete PVCs on CR deletion")
 
 
@@ -214,9 +214,9 @@ class OperationStatusResponse(BaseModel):
 
     model_config = {"populate_by_name": True}
 
-    id: str = ""
-    kind: str = ""
-    phase: str = ""
+    id: str | None = None
+    kind: str | None = None
+    phase: str | None = None
     completed_pods: list[str] = Field(default_factory=list, alias="completedPods")
     failed_pods: list[str] = Field(default_factory=list, alias="failedPods")
 
@@ -404,9 +404,7 @@ class TemplateSchedulingConfig(BaseModel):
     pod_anti_affinity_level: Literal["none", "preferred", "required"] | None = Field(
         default=None, alias="podAntiAffinityLevel"
     )
-    pod_management_policy: Literal["OrderedReady", "Parallel"] | None = Field(
-        default=None, alias="podManagementPolicy"
-    )
+    pod_management_policy: Literal["OrderedReady", "Parallel"] | None = Field(default=None, alias="podManagementPolicy")
 
 
 class TemplateStorageConfig(BaseModel):
@@ -432,9 +430,7 @@ class CreateK8sTemplateRequest(BaseModel):
         max_length=253,
         pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$",
     )
-    image: str | None = Field(
-        default=None, pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$"
-    )
+    image: str | None = Field(default=None, pattern=r"^[a-z0-9]([a-z0-9._/-]*[a-z0-9])?:[a-zA-Z0-9._-]+$")
     size: int | None = Field(default=None, ge=1, le=8)
     resources: ResourceConfig | None = None
     monitoring: MonitoringConfig | None = None

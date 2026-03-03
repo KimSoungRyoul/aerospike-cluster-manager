@@ -86,8 +86,11 @@ class K8sClient:
         logger.error("Unexpected error in K8s operation: %s", e, exc_info=True)
         return K8sApiError(status=500, reason="InternalError", message="Internal server error")
 
-    def _list_clusters_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
-        logger.debug("_list_clusters_sync(namespace=%s)", namespace)
+    # ------------------------------------------------------------------
+    # Generic custom-object helpers (shared by cluster and template methods)
+    # ------------------------------------------------------------------
+
+    def _list_custom_objects_sync(self, plural: str, namespace: str | None = None) -> list[dict[str, Any]]:
         self._ensure_initialized()
         try:
             if namespace:
@@ -95,59 +98,56 @@ class K8sClient:
                     group=GROUP,
                     version=VERSION,
                     namespace=namespace,
-                    plural=PLURAL,
+                    plural=plural,
                     _request_timeout=_K8S_API_TIMEOUT,
                 )
             else:
                 result = self._custom_api.list_cluster_custom_object(
                     group=GROUP,
                     version=VERSION,
-                    plural=PLURAL,
+                    plural=plural,
                     _request_timeout=_K8S_API_TIMEOUT,
                 )
             return result.get("items", [])
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
-    def _get_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
-        logger.debug("_get_cluster_sync(namespace=%s, name=%s)", namespace, name)
+    def _get_custom_object_sync(self, plural: str, namespace: str, name: str) -> dict[str, Any]:
         self._ensure_initialized()
         try:
             return self._custom_api.get_namespaced_custom_object(
                 group=GROUP,
                 version=VERSION,
                 namespace=namespace,
-                plural=PLURAL,
+                plural=plural,
                 name=name,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
-    def _create_cluster_sync(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
-        logger.debug("_create_cluster_sync(namespace=%s)", namespace)
+    def _create_custom_object_sync(self, plural: str, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
         self._ensure_initialized()
         try:
             return self._custom_api.create_namespaced_custom_object(
                 group=GROUP,
                 version=VERSION,
                 namespace=namespace,
-                plural=PLURAL,
+                plural=plural,
                 body=body,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
-    def _patch_cluster_sync(self, namespace: str, name: str, body: dict[str, Any]) -> dict[str, Any]:
-        logger.debug("_patch_cluster_sync(namespace=%s, name=%s)", namespace, name)
+    def _patch_custom_object_sync(self, plural: str, namespace: str, name: str, body: dict[str, Any]) -> dict[str, Any]:
         self._ensure_initialized()
         try:
             return self._custom_api.patch_namespaced_custom_object(
                 group=GROUP,
                 version=VERSION,
                 namespace=namespace,
-                plural=PLURAL,
+                plural=plural,
                 name=name,
                 body=body,
                 _request_timeout=_K8S_API_TIMEOUT,
@@ -155,20 +155,43 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
-    def _delete_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
-        logger.debug("_delete_cluster_sync(namespace=%s, name=%s)", namespace, name)
+    def _delete_custom_object_sync(self, plural: str, namespace: str, name: str) -> dict[str, Any]:
         self._ensure_initialized()
         try:
             return self._custom_api.delete_namespaced_custom_object(
                 group=GROUP,
                 version=VERSION,
                 namespace=namespace,
-                plural=PLURAL,
+                plural=plural,
                 name=name,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
+
+    # ------------------------------------------------------------------
+    # Cluster-specific sync helpers
+    # ------------------------------------------------------------------
+
+    def _list_clusters_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
+        logger.debug("_list_clusters_sync(namespace=%s)", namespace)
+        return self._list_custom_objects_sync(PLURAL, namespace)
+
+    def _get_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
+        logger.debug("_get_cluster_sync(namespace=%s, name=%s)", namespace, name)
+        return self._get_custom_object_sync(PLURAL, namespace, name)
+
+    def _create_cluster_sync(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
+        logger.debug("_create_cluster_sync(namespace=%s)", namespace)
+        return self._create_custom_object_sync(PLURAL, namespace, body)
+
+    def _patch_cluster_sync(self, namespace: str, name: str, body: dict[str, Any]) -> dict[str, Any]:
+        logger.debug("_patch_cluster_sync(namespace=%s, name=%s)", namespace, name)
+        return self._patch_custom_object_sync(PLURAL, namespace, name, body)
+
+    def _delete_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
+        logger.debug("_delete_cluster_sync(namespace=%s, name=%s)", namespace, name)
+        return self._delete_custom_object_sync(PLURAL, namespace, name)
 
     def _list_namespaces_sync(self) -> list[str]:
         logger.debug("_list_namespaces_sync()")
@@ -243,73 +266,25 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
+    # ------------------------------------------------------------------
+    # Template-specific sync helpers
+    # ------------------------------------------------------------------
+
     def _list_templates_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
         logger.debug("_list_templates_sync(namespace=%s)", namespace)
-        self._ensure_initialized()
-        try:
-            if namespace:
-                result = self._custom_api.list_namespaced_custom_object(
-                    group=GROUP,
-                    version=VERSION,
-                    namespace=namespace,
-                    plural=TEMPLATE_PLURAL,
-                    _request_timeout=_K8S_API_TIMEOUT,
-                )
-            else:
-                result = self._custom_api.list_cluster_custom_object(
-                    group=GROUP,
-                    version=VERSION,
-                    plural=TEMPLATE_PLURAL,
-                    _request_timeout=_K8S_API_TIMEOUT,
-                )
-            return result.get("items", [])
-        except Exception as e:
-            raise self._wrap_api_exception(e) from e
+        return self._list_custom_objects_sync(TEMPLATE_PLURAL, namespace)
 
     def _get_template_sync(self, namespace: str, name: str) -> dict[str, Any]:
         logger.debug("_get_template_sync(namespace=%s, name=%s)", namespace, name)
-        self._ensure_initialized()
-        try:
-            return self._custom_api.get_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=TEMPLATE_PLURAL,
-                name=name,
-                _request_timeout=_K8S_API_TIMEOUT,
-            )
-        except Exception as e:
-            raise self._wrap_api_exception(e) from e
+        return self._get_custom_object_sync(TEMPLATE_PLURAL, namespace, name)
 
     def _create_template_sync(self, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
         logger.debug("_create_template_sync(namespace=%s)", namespace)
-        self._ensure_initialized()
-        try:
-            return self._custom_api.create_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=TEMPLATE_PLURAL,
-                body=body,
-                _request_timeout=_K8S_API_TIMEOUT,
-            )
-        except Exception as e:
-            raise self._wrap_api_exception(e) from e
+        return self._create_custom_object_sync(TEMPLATE_PLURAL, namespace, body)
 
     def _delete_template_sync(self, namespace: str, name: str) -> dict[str, Any]:
         logger.debug("_delete_template_sync(namespace=%s, name=%s)", namespace, name)
-        self._ensure_initialized()
-        try:
-            return self._custom_api.delete_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=TEMPLATE_PLURAL,
-                name=name,
-                _request_timeout=_K8S_API_TIMEOUT,
-            )
-        except Exception as e:
-            raise self._wrap_api_exception(e) from e
+        return self._delete_custom_object_sync(TEMPLATE_PLURAL, namespace, name)
 
     def _list_secrets_sync(self, namespace: str) -> list[str]:
         logger.debug("_list_secrets_sync(namespace=%s)", namespace)

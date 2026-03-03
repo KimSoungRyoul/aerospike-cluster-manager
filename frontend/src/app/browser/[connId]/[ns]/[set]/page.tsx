@@ -335,17 +335,24 @@ export default function BrowserPage({
       .join(",\n");
 
     return `import aerospike
-from aerospike_helpers.batch import records as br
+
+config = {"hosts": [("${host}", ${port})]}
+client = aerospike.client(config).connect()
 
 keys = [
 ${keysStr},
 ]
 
-client = aerospike.client({"hosts": [("${host}", ${port})]}).connect()
 batch_results = client.batch_read(keys)
 
-for result in batch_results:
-    print(result.key, result.bins)`;
+for br in batch_results.batch_records:
+    if br.result == 0:
+        (key, meta, bins) = br.record
+        print(key, meta, bins)
+    else:
+        print(f"Failed to read {br.key}: error code {br.result}")
+
+client.close()`;
   }, [displayRecords, selectedPKs, decodedNs, decodedSet, currentConnection]);
 
   // Export handlers for current records
