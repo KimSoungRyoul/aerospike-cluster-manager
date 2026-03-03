@@ -116,32 +116,47 @@ async def create_connection(conn: ConnectionProfile) -> None:
 
 
 async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | None:
-    existing = await get_connection(conn_id)
-    if not existing:
-        return None
-
-    merged = existing.model_dump()
-    merged.update(data)
-    merged["id"] = conn_id
-    merged["updatedAt"] = datetime.now(UTC).isoformat()
-
     pool = _get_pool()
-    await pool.execute(
-        """UPDATE connections
-           SET name = $1, hosts = $2::jsonb, port = $3, cluster_name = $4,
-               username = $5, password = $6, color = $7, updated_at = $8
-           WHERE id = $9""",
-        merged["name"],
-        json.dumps(merged["hosts"]),
-        merged["port"],
-        merged.get("clusterName"),
-        merged.get("username"),
-        merged.get("password"),
-        merged["color"],
-        merged["updatedAt"],
-        conn_id,
-    )
-    return await get_connection(conn_id)
+    async with pool.acquire() as conn, conn.transaction():
+        row = await conn.fetchrow("SELECT * FROM connections WHERE id = $1 FOR UPDATE", conn_id)
+        if not row:
+            return None
+
+        existing = _row_to_profile(row)
+        merged = existing.model_dump()
+        merged.update(data)
+        merged["updatedAt"] = datetime.now(UTC).isoformat()
+
+        await conn.execute(
+            """UPDATE connections
+                   SET name = $1, hosts = $2::jsonb, port = $3, cluster_name = $4,
+                       username = $5, password = $6, color = $7, updated_at = $8
+                   WHERE id = $9""",
+            merged["name"],
+            json.dumps(merged["hosts"]),
+            merged["port"],
+            merged.get("clusterName"),
+            merged.get("username"),
+            merged.get("password"),
+            merged["color"],
+            merged["updatedAt"],
+            conn_id,
+        )
+        merged["id"] = conn_id
+        return ConnectionProfile(
+            **{
+                "id": conn_id,
+                "name": merged["name"],
+                "hosts": merged["hosts"],
+                "port": merged["port"],
+                "clusterName": merged.get("clusterName"),
+                "username": merged.get("username"),
+                "password": merged.get("password"),
+                "color": merged["color"],
+                "createdAt": existing.createdAt,
+                "updatedAt": merged["updatedAt"],
+            }
+        )
 
 
 async def delete_connection(conn_id: str) -> bool:

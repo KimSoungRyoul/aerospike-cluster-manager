@@ -125,9 +125,9 @@ async def _execute(c, command: str) -> tuple[str, bool]:
     try:
         resp = await c.info_random_node(command)
         return resp.strip() if resp.strip() else "(empty response)", True
-    except Exception as e:
+    except Exception:
         logger.exception("Terminal command failed: %s", command)
-        return f"Error: {e}", False
+        return "Command failed. Check server logs for details.", False
 
 
 @router.post(

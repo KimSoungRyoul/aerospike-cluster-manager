@@ -372,9 +372,9 @@ async def get_k8s_cluster(
     operation_status = None
     if op_status_raw:
         operation_status = OperationStatusResponse(
-            id=op_status_raw.get("id", ""),
-            kind=op_status_raw.get("kind", ""),
-            phase=op_status_raw.get("phase", ""),
+            id=op_status_raw.get("id"),
+            kind=op_status_raw.get("kind"),
+            phase=op_status_raw.get("phase"),
             completedPods=op_status_raw.get("completedPods", []),
             failedPods=op_status_raw.get("failedPods", []),
         )
