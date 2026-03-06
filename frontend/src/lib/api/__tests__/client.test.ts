@@ -5,13 +5,16 @@ import { api } from "../client";
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
-function createResponse(status: number, body: unknown) {
+function createResponse(status: number, body: unknown, headers?: Record<string, string>) {
   const rawBody = typeof body === "string" ? body : JSON.stringify(body);
 
   return {
     ok: status >= 200 && status < 300,
     status,
     statusText: `Status ${status}`,
+    headers: {
+      get: (name: string) => headers?.[name] ?? null,
+    },
     text: vi.fn().mockResolvedValue(rawBody),
     json: vi.fn().mockResolvedValue(body),
   };
@@ -270,6 +273,31 @@ describe("api client", () => {
       expect(error.status).toBe(429);
       expect(error.message).toBe("Rate limited");
       expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("retries 408 Request Timeout up to MAX_RETRIES times", async () => {
+      vi.useFakeTimers();
+      mockFetch.mockResolvedValue(createResponse(408, { message: "Upstream timeout" }));
+
+      const error = await expectRejection(() => api.getConnections());
+
+      expect(error.status).toBe(408);
+      expect(error.message).toBe("Upstream timeout");
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it("respects Retry-After header delay for retryable responses", async () => {
+      vi.useFakeTimers();
+      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+      mockFetch
+        .mockResolvedValueOnce(createResponse(429, { message: "Rate limited" }, { "Retry-After": "3" }))
+        .mockResolvedValueOnce(createResponse(200, [{ id: "1" }]));
+
+      const promise = api.getConnections();
+      await vi.runAllTimersAsync();
+      await promise;
+
+      expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 3000);
     });
 
     it("retries 502 Bad Gateway", async () => {

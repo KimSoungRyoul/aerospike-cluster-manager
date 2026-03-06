@@ -5,6 +5,7 @@ const BASE_URL = "";
 const DEFAULT_TIMEOUT = 30_000;
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 1000;
+const MAX_RETRY_DELAY = 30_000;
 
 function withQuery(
   path: string,
@@ -27,7 +28,28 @@ function encodePathSegment(segment: string): string {
 }
 
 function isRetryable(status: number): boolean {
-  return status >= 500 || status === 429;
+  return status >= 500 || status === 429 || status === 408;
+}
+
+function getRetryDelay(attempt: number, retryAfter: string | null): number {
+  if (!retryAfter) {
+    return RETRY_BASE_DELAY * 2 ** attempt;
+  }
+
+  const seconds = Number.parseInt(retryAfter, 10);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.min(seconds * 1000, MAX_RETRY_DELAY);
+  }
+
+  const retryAt = Date.parse(retryAfter);
+  if (Number.isFinite(retryAt)) {
+    const delayMs = retryAt - Date.now();
+    if (delayMs > 0) {
+      return Math.min(delayMs, MAX_RETRY_DELAY);
+    }
+  }
+
+  return RETRY_BASE_DELAY * 2 ** attempt;
 }
 
 function toErrorMessage(detail: unknown): string | undefined {
@@ -111,7 +133,9 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
         // Only retry on server errors
         if (isRetryable(res.status) && attempt < MAX_RETRIES) {
           lastError = apiError;
-          await new Promise((r) => setTimeout(r, RETRY_BASE_DELAY * 2 ** attempt));
+          const retryAfter = typeof res.headers?.get === "function" ? res.headers.get("Retry-After") : null;
+          const delay = getRetryDelay(attempt, retryAfter);
+          await new Promise((r) => setTimeout(r, delay));
           continue;
         }
 
