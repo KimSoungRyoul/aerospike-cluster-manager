@@ -82,6 +82,30 @@ describe("api client", () => {
         }),
       );
     });
+
+    it("encodes record query parameters with special characters", async () => {
+      mockFetch.mockResolvedValueOnce(
+        createResponse(200, { records: [], total: 0, page: 1, pageSize: 25 }),
+      );
+
+      await api.getRecords("conn-1", "ns test", "set/a&b", 2, 10);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/records/conn-1?ns=ns+test&set=set%2Fa%26b&page=2&pageSize=10",
+        expect.any(Object),
+      );
+    });
+
+    it("omits optional pod logs container query parameter when undefined", async () => {
+      mockFetch.mockResolvedValueOnce(createResponse(200, { lines: [] }));
+
+      await api.getK8sPodLogs("team-a", "cluster-1", "pod-1", 250);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        "/api/k8s/clusters/team-a/cluster-1/pods/pod-1/logs?tail=250",
+        expect.any(Object),
+      );
+    });
   });
 
   describe("error responses", () => {

@@ -6,6 +6,22 @@ const DEFAULT_TIMEOUT = 30_000;
 const MAX_RETRIES = 2;
 const RETRY_BASE_DELAY = 1000;
 
+function withQuery(
+  path: string,
+  params: Record<string, string | number | boolean | undefined>,
+): string {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) {
+      query.set(key, String(value));
+    }
+  }
+
+  const queryString = query.toString();
+  return queryString ? `${path}?${queryString}` : path;
+}
+
 function isRetryable(status: number): boolean {
   return status >= 500 || status === 429;
 }
@@ -111,7 +127,7 @@ export const api = {
   // Records
   getRecords: (connId: string, ns: string, set: string, page = 1, pageSize = 25) =>
     request<import("./types").RecordListResponse>(
-      `/api/records/${connId}?ns=${ns}&set=${set}&page=${page}&pageSize=${pageSize}`,
+      withQuery(`/api/records/${connId}`, { ns, set, page, pageSize }),
     ),
   putRecord: (connId: string, data: import("./types").RecordWriteRequest) =>
     request<import("./types").AerospikeRecord>(`/api/records/${connId}`, {
@@ -119,7 +135,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   deleteRecord: (connId: string, ns: string, set: string, pk: string) =>
-    request<void>(`/api/records/${connId}?ns=${ns}&set=${set}&pk=${pk}`, {
+    request<void>(withQuery(`/api/records/${connId}`, { ns, set, pk }), {
       method: "DELETE",
     }),
   getFilteredRecords: (
@@ -147,7 +163,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   deleteIndex: (connId: string, name: string, ns: string) =>
-    request<void>(`/api/indexes/${connId}?name=${name}&ns=${ns}`, {
+    request<void>(withQuery(`/api/indexes/${connId}`, { name, ns }), {
       method: "DELETE",
     }),
 
@@ -165,7 +181,7 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }),
   deleteUser: (connId: string, username: string) =>
-    request<void>(`/api/admin/${connId}/users?username=${username}`, {
+    request<void>(withQuery(`/api/admin/${connId}/users`, { username }), {
       method: "DELETE",
     }),
   getRoles: (connId: string) =>
@@ -176,7 +192,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   deleteRole: (connId: string, name: string) =>
-    request<void>(`/api/admin/${connId}/roles?name=${name}`, {
+    request<void>(withQuery(`/api/admin/${connId}/roles`, { name }), {
       method: "DELETE",
     }),
 
@@ -188,7 +204,7 @@ export const api = {
       body: JSON.stringify(data),
     }),
   deleteUDF: (connId: string, filename: string) =>
-    request<void>(`/api/udfs/${connId}?filename=${filename}`, {
+    request<void>(withQuery(`/api/udfs/${connId}`, { filename }), {
       method: "DELETE",
     }),
 
@@ -214,7 +230,7 @@ export const api = {
   // K8s Clusters
   getK8sClusters: (namespace?: string) =>
     request<import("./types").K8sClusterSummary[]>(
-      `/api/k8s/clusters${namespace ? `?namespace=${namespace}` : ""}`,
+      withQuery("/api/k8s/clusters", { namespace }),
     ),
   getK8sCluster: (namespace: string, name: string) =>
     request<import("./types").K8sClusterDetail>(`/api/k8s/clusters/${namespace}/${name}`),
@@ -246,12 +262,12 @@ export const api = {
   getK8sNamespaces: () => request<string[]>("/api/k8s/namespaces"),
   getK8sStorageClasses: () => request<string[]>("/api/k8s/storageclasses"),
   getK8sSecrets: (namespace: string) =>
-    request<string[]>(`/api/k8s/secrets?namespace=${namespace}`),
+    request<string[]>(withQuery("/api/k8s/secrets", { namespace })),
 
   // K8s Templates
   getK8sTemplates: (namespace?: string) =>
     request<import("./types").K8sTemplateSummary[]>(
-      `/api/k8s/templates${namespace ? `?namespace=${namespace}` : ""}`,
+      withQuery("/api/k8s/templates", { namespace }),
     ),
   getK8sTemplate: (namespace: string, name: string) =>
     request<import("./types").K8sTemplateDetail>(`/api/k8s/templates/${namespace}/${name}`),
@@ -275,7 +291,7 @@ export const api = {
   // K8s Cluster Events
   getK8sClusterEvents: (namespace: string, name: string, limit = 50) =>
     request<import("./types").K8sClusterEvent[]>(
-      `/api/k8s/clusters/${namespace}/${name}/events?limit=${limit}`,
+      withQuery(`/api/k8s/clusters/${namespace}/${name}/events`, { limit }),
     ),
 
   // K8s Cluster Health
@@ -293,7 +309,10 @@ export const api = {
     container?: string,
   ) =>
     request<import("./types").PodLogsResponse>(
-      `/api/k8s/clusters/${namespace}/${clusterName}/pods/${pod}/logs?tail=${tail}${container ? `&container=${container}` : ""}`,
+      withQuery(`/api/k8s/clusters/${namespace}/${clusterName}/pods/${pod}/logs`, {
+        tail,
+        container,
+      }),
     ),
 
   // K8s Cluster YAML Export
