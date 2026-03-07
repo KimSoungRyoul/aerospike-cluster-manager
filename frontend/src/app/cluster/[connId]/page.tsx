@@ -282,10 +282,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
           ACKO 클러스터 전용 레이아웃 — Overview | ACKO INFO 탭
           ══════════════════════════════════════════════ */}
       {isK8s && k8sDetail && (
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "overview" | "acko-info")}
-        >
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "acko-info")}>
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="acko-info">ACKO INFO</TabsTrigger>

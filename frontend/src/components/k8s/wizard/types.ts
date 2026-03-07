@@ -30,7 +30,10 @@ export interface WizardMonitoringStepProps extends WizardStepProps {
 }
 
 export interface WizardResourcesStepProps extends WizardStepProps {
-  defaultResources: { requests: { cpu: string; memory: string }; limits: { cpu: string; memory: string } };
+  defaultResources: {
+    requests: { cpu: string; memory: string };
+    limits: { cpu: string; memory: string };
+  };
 }
 
 export interface WizardAclStepProps extends WizardStepProps {

@@ -112,11 +112,13 @@ export default function K8sTemplatesPage() {
                     setDeleteTarget(tmpl);
                   }}
                 >
-                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  <Trash2 className="text-destructive h-3.5 w-3.5" />
                 </Button>
               </div>
               {tmpl.description && (
-                <p className="text-muted-foreground mt-2 line-clamp-2 text-xs">{tmpl.description}</p>
+                <p className="text-muted-foreground mt-2 line-clamp-2 text-xs">
+                  {tmpl.description}
+                </p>
               )}
               <div className="mt-3 flex gap-4 text-xs">
                 {tmpl.image && (

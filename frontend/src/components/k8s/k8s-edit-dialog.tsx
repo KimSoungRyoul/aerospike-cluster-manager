@@ -58,7 +58,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const networkPolicy = cluster.spec?.aerospikeNetworkPolicy;
   const initialAccessType = (networkPolicy?.accessType || "pod") as NetworkAccessType;
   const initialFabricType = (networkPolicy?.fabricType || "") as NetworkAccessType | "";
-  const initialAlternateAccessType = (networkPolicy?.alternateAccessType || "") as NetworkAccessType | "";
+  const initialAlternateAccessType = (networkPolicy?.alternateAccessType || "") as
+    | NetworkAccessType
+    | "";
   const initialNodeBlockList = (cluster.spec?.k8sNodeBlockList ?? []).join(", ");
   const initialAerospikeConfig = useMemo(
     () => cluster.spec?.aerospikeConfig ?? {},
@@ -164,7 +166,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
         data.networkPolicy = {
           accessType,
           ...(fabricType ? { fabricType: fabricType as NetworkAccessType } : {}),
-          ...(alternateAccessType ? { alternateAccessType: alternateAccessType as NetworkAccessType } : {}),
+          ...(alternateAccessType
+            ? { alternateAccessType: alternateAccessType as NetworkAccessType }
+            : {}),
         };
       }
       if (nodeBlockList !== initialNodeBlockList) {
@@ -391,7 +395,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
               placeholder="node1, node2"
               disabled={loading}
             />
-            <p className="text-muted-foreground text-[10px]">Comma-separated K8s node names to exclude from scheduling</p>
+            <p className="text-muted-foreground text-[10px]">
+              Comma-separated K8s node names to exclude from scheduling
+            </p>
           </div>
 
           {/* Aerospike Config */}

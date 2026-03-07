@@ -7,6 +7,7 @@ on connection profiles.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock, patch
 
 import asyncpg
 import pytest
@@ -34,6 +35,49 @@ class TestInitDb:
         await db._seed_if_empty()
         after = await db.get_all_connections()
         assert len(after) == len(initial)
+
+    async def test_init_db_closes_new_pool_when_seeding_fails(self):
+        """A failed init should not leave a half-initialized pool behind."""
+
+        class _AcquireContext:
+            def __init__(self, connection):
+                self._connection = connection
+
+            async def __aenter__(self):
+                return self._connection
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return False
+
+        class _FakePool:
+            def __init__(self, connection):
+                self._connection = connection
+                self.close = AsyncMock()
+
+            def acquire(self):
+                return _AcquireContext(self._connection)
+
+        connection = AsyncMock()
+        pool = _FakePool(connection)
+        original_pool = db._pool
+        db._pool = None
+
+        try:
+            with (
+                patch("aerospike_cluster_manager_api.db.asyncpg.create_pool", AsyncMock(return_value=pool)),
+                patch(
+                    "aerospike_cluster_manager_api.db._seed_if_empty",
+                    AsyncMock(side_effect=RuntimeError("seed failed")),
+                ),
+                pytest.raises(RuntimeError, match="seed failed"),
+            ):
+                await db.init_db()
+
+            connection.execute.assert_awaited_once()
+            pool.close.assert_awaited_once()
+            assert db._pool is None
+        finally:
+            db._pool = original_pool
 
 
 class TestGetAllConnections:

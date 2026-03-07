@@ -1,13 +1,5 @@
 import { useState } from "react";
-import {
-  Activity,
-  AlertTriangle,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Layers,
-  X,
-} from "lucide-react";
+import { Activity, AlertTriangle, ChevronDown, ChevronRight, Clock, Layers, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -129,7 +121,7 @@ export function ClusterAckoInfoTab({
                   {health.pendingRestartCount > 0 && (
                     <Badge
                       variant="outline"
-                      className="ml-auto text-[11px] bg-warning/10 text-warning border-warning/20"
+                      className="bg-warning/10 text-warning border-warning/20 ml-auto text-[11px]"
                     >
                       <AlertTriangle className="mr-1 h-3 w-3" />
                       {health.pendingRestartCount} pending restart
@@ -274,7 +266,7 @@ export function ClusterAckoInfoTab({
           {k8sDetail.pendingRestartPods.length > 0 && (
             <Badge
               variant="outline"
-              className="px-1.5 text-[10px] bg-warning/10 text-warning border-warning/20"
+              className="bg-warning/10 text-warning border-warning/20 px-1.5 text-[10px]"
             >
               <AlertTriangle className="mr-1 h-3 w-3" />
               {k8sDetail.pendingRestartPods.length} pending restart
@@ -321,12 +313,7 @@ export function ClusterAckoInfoTab({
             <Badge variant="secondary" className="gap-1 px-2 py-1">
               {selectedPods.length} pod{selectedPods.length > 1 ? "s" : ""} selected
             </Badge>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onSelectPods([])}
-              className="h-7 px-2"
-            >
+            <Button variant="ghost" size="sm" onClick={() => onSelectPods([])} className="h-7 px-2">
               <X className="mr-1 h-3 w-3" />
               Clear
             </Button>
@@ -400,10 +387,7 @@ export function ClusterAckoInfoTab({
         ) : (
           <div className="space-y-2">
             {events.map((event, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 rounded-lg border p-3 text-sm"
-              >
+              <div key={i} className="flex items-start gap-3 rounded-lg border p-3 text-sm">
                 <span
                   className={cn(
                     "mt-0.5 h-2 w-2 shrink-0 rounded-full",

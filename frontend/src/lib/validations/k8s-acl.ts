@@ -22,9 +22,7 @@ const MIN_PASSWORD_LENGTH = 6;
 
 export const aclRoleSpecSchema = z.object({
   name: z.string().min(1, "Role name is required"),
-  privileges: z
-    .array(z.enum(AEROSPIKE_PRIVILEGES))
-    .min(1, "At least one privilege is required"),
+  privileges: z.array(z.enum(AEROSPIKE_PRIVILEGES)).min(1, "At least one privilege is required"),
   whitelist: z.array(z.string()).optional(),
 });
 
@@ -39,7 +37,9 @@ export const aclUserSpecSchema = z.object({
 export const aclConfigSchema = z.object({
   enabled: z.boolean(),
   roles: z.array(aclRoleSpecSchema),
-  users: z.array(aclUserSpecSchema).max(MAX_CE_ACL_USERS, `CE supports at most ${MAX_CE_ACL_USERS} ACL users`),
+  users: z
+    .array(aclUserSpecSchema)
+    .max(MAX_CE_ACL_USERS, `CE supports at most ${MAX_CE_ACL_USERS} ACL users`),
   adminPolicyTimeout: z.number().int().min(0).optional(),
 });
 
@@ -60,7 +60,9 @@ export function validateACLConfig(acl: ACLConfig): string | null {
 
   // At least one admin user (with sys-admin or user-admin role, or named 'admin')
   const adminRoleNames = new Set(
-    acl.roles.filter((r) => r.privileges.some((p) => p === "sys-admin" || p === "user-admin")).map((r) => r.name),
+    acl.roles
+      .filter((r) => r.privileges.some((p) => p === "sys-admin" || p === "user-admin"))
+      .map((r) => r.name),
   );
 
   const hasAdminUser = acl.users.some(

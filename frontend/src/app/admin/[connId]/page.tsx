@@ -347,7 +347,9 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
           <p className="text-muted-foreground mt-2 max-w-md">
             User and role management requires security to be enabled. Add a{" "}
             <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">security {"{ }"}</code>{" "}
-            block to your <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">aerospike.conf</code> to enable this feature.
+            block to your{" "}
+            <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">aerospike.conf</code>{" "}
+            to enable this feature.
           </p>
         </div>
       ) : (

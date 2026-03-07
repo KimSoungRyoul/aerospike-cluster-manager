@@ -38,10 +38,7 @@ export function WizardBasicStep({
 
       <div className="grid gap-2">
         <Label htmlFor="k8s-namespace">Namespace</Label>
-        <Select
-          value={form.namespace}
-          onValueChange={(v) => updateForm({ namespace: v })}
-        >
+        <Select value={form.namespace} onValueChange={(v) => updateForm({ namespace: v })}>
           <SelectTrigger id="k8s-namespace" disabled={fetchingOptions}>
             <SelectValue
               placeholder={fetchingOptions ? "Loading namespaces…" : "Select a namespace"}

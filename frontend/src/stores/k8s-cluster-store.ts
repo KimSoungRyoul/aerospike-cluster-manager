@@ -43,147 +43,197 @@ interface K8sClusterState {
   resumeCluster: (namespace: string, name: string) => Promise<void>;
 }
 
-export const useK8sClusterStore = create<K8sClusterState>()((set, get) => ({
-  clusters: [],
-  selectedCluster: null,
-  templates: [],
-  selectedTemplate: null,
-  loading: false,
-  error: null,
-  k8sAvailable: false,
+export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
+  const fetchClustersData = (namespace?: string) => api.getK8sClusters(namespace);
 
-  checkAvailability: async () => {
-    try {
-      await api.getK8sClusters();
-      set({ k8sAvailable: true });
-    } catch {
-      set({ k8sAvailable: false });
-    }
-  },
+  const loadClusters = async (namespace?: string) => {
+    const clusters = await fetchClustersData(namespace);
+    set({ clusters, k8sAvailable: true, error: null });
+  };
 
-  fetchClusters: async (namespace?: string) => {
-    if (get().loading) return;
-    set({ loading: true, error: null });
-    try {
-      const clusters = await api.getK8sClusters(namespace);
-      // Single atomic set so consumers see `loading: false` and updated clusters simultaneously,
-      // preventing a race where a subscriber re-renders with new clusters but loading still true.
-      set({ clusters, k8sAvailable: true, loading: false, error: null });
-    } catch (error) {
-      set({ error: getErrorMessage(error), loading: false });
-    }
-  },
+  const loadCluster = async (namespace: string, name: string) => {
+    const cluster = await api.getK8sCluster(namespace, name);
+    set({ selectedCluster: cluster });
+  };
 
-  fetchCluster: async (namespace: string, name: string) => {
-    if (get().loading) return;
-    await withLoading(set, async () => {
-      const cluster = await api.getK8sCluster(namespace, name);
-      set({ selectedCluster: cluster });
-    });
-  },
+  return {
+    clusters: [],
+    selectedCluster: null,
+    templates: [],
+    selectedTemplate: null,
+    loading: false,
+    error: null,
+    k8sAvailable: false,
 
-  createCluster: async (data: CreateK8sClusterRequest) => {
-    if (get().loading) return {} as K8sClusterSummary;
-    const result = await withLoading(set, async () => {
-      const res = await api.createK8sCluster(data);
-      await get().fetchClusters();
-      return res;
-    }, { rethrow: true });
-    return result as K8sClusterSummary;
-  },
-
-  deleteCluster: async (namespace: string, name: string) => {
-    if (get().loading) return;
-    await withLoading(set, async () => {
-      await api.deleteK8sCluster(namespace, name);
-      set({ selectedCluster: null });
-      await get().fetchClusters();
-    }, { rethrow: true });
-  },
-
-  scaleCluster: async (namespace: string, name: string, size: number) => {
-    if (get().loading) return;
-    await withLoading(set, async () => {
-      await api.scaleK8sCluster(namespace, name, { size });
-      await get().fetchClusters();
-      const { selectedCluster } = get();
-      if (selectedCluster?.name === name && selectedCluster?.namespace === namespace) {
-        await get().fetchCluster(namespace, name);
+    checkAvailability: async () => {
+      try {
+        await api.getK8sClusters();
+        set({ k8sAvailable: true });
+      } catch {
+        set({ k8sAvailable: false });
       }
-    }, { rethrow: true });
-  },
+    },
 
-  fetchTemplates: async (namespace?: string) => {
-    try {
-      const templates = await api.getK8sTemplates(namespace);
-      set({ templates });
-    } catch {
-      // Don't set global error — template fetch failures should not block cluster pages
-    }
-  },
+    fetchClusters: async (namespace?: string) => {
+      if (get().loading) return;
+      set({ loading: true, error: null });
+      try {
+        const clusters = await fetchClustersData(namespace);
+        // Single atomic set so consumers see `loading: false` and updated clusters simultaneously.
+        set({ clusters, k8sAvailable: true, loading: false, error: null });
+      } catch (error) {
+        set({ error: getErrorMessage(error), loading: false });
+      }
+    },
 
-  fetchTemplate: async (namespace: string, name: string) => {
-    await withLoading(set, async () => {
-      const template = await api.getK8sTemplate(namespace, name);
-      set({ selectedTemplate: template });
-    });
-  },
+    fetchCluster: async (namespace: string, name: string) => {
+      if (get().loading) return;
+      await withLoading(set, async () => loadCluster(namespace, name));
+    },
 
-  createTemplate: async (data: CreateK8sTemplateRequest) => {
-    const result = await withLoading(set, async () => {
-      const res = await api.createK8sTemplate(data);
-      await get().fetchTemplates();
-      return res;
-    }, { rethrow: true });
-    return result as K8sTemplateSummary;
-  },
+    createCluster: async (data: CreateK8sClusterRequest) => {
+      if (get().loading) throw new Error("Another operation is in progress");
+      const result = await withLoading(
+        set,
+        async () => {
+          const res = await api.createK8sCluster(data);
+          await loadClusters();
+          return res;
+        },
+        { rethrow: true },
+      );
+      return result as K8sClusterSummary;
+    },
 
-  deleteTemplate: async (namespace: string, name: string) => {
-    await withLoading(set, async () => {
-      await api.deleteK8sTemplate(namespace, name);
-      set({ selectedTemplate: null });
-      await get().fetchTemplates();
-    }, { rethrow: true });
-  },
+    deleteCluster: async (namespace: string, name: string) => {
+      if (get().loading) return;
+      await withLoading(
+        set,
+        async () => {
+          await api.deleteK8sCluster(namespace, name);
+          set({ selectedCluster: null });
+          await loadClusters();
+        },
+        { rethrow: true },
+      );
+    },
 
-  triggerOperation: async (
-    namespace: string,
-    name: string,
-    kind: "WarmRestart" | "PodRestart",
-    podList?: string[],
-  ) => {
-    await withLoading(set, async () => {
-      await api.triggerK8sClusterOperation(namespace, name, { kind, podList });
-      await get().fetchCluster(namespace, name);
-    }, { rethrow: true });
-  },
+    scaleCluster: async (namespace: string, name: string, size: number) => {
+      if (get().loading) return;
+      await withLoading(
+        set,
+        async () => {
+          await api.scaleK8sCluster(namespace, name, { size });
+          await loadClusters();
+          const { selectedCluster } = get();
+          if (selectedCluster?.name === name && selectedCluster?.namespace === namespace) {
+            await loadCluster(namespace, name);
+          }
+        },
+        { rethrow: true },
+      );
+    },
 
-  updateCluster: async (namespace: string, name: string, data: UpdateK8sClusterRequest) => {
-    await withLoading(set, async () => {
-      await api.updateK8sCluster(namespace, name, data);
-      await get().fetchClusters();
-      await get().fetchCluster(namespace, name);
-    }, { rethrow: true });
-  },
+    fetchTemplates: async (namespace?: string) => {
+      try {
+        const templates = await api.getK8sTemplates(namespace);
+        set({ templates });
+      } catch {
+        // Don't set global error — template fetch failures should not block cluster pages
+      }
+    },
 
-  resyncTemplate: async (namespace: string, name: string) => {
-    await withLoading(set, async () => {
-      await api.resyncK8sClusterTemplate(namespace, name);
-      await get().fetchCluster(namespace, name);
-    }, { rethrow: true });
-  },
+    fetchTemplate: async (namespace: string, name: string) => {
+      await withLoading(set, async () => {
+        const template = await api.getK8sTemplate(namespace, name);
+        set({ selectedTemplate: template });
+      });
+    },
 
-  pauseCluster: async (namespace: string, name: string) => {
-    await withLoading(set, async () => {
-      await api.updateK8sCluster(namespace, name, { paused: true });
-      await get().fetchCluster(namespace, name);
-    }, { rethrow: true });
-  },
+    createTemplate: async (data: CreateK8sTemplateRequest) => {
+      const result = await withLoading(
+        set,
+        async () => {
+          const res = await api.createK8sTemplate(data);
+          await get().fetchTemplates();
+          return res;
+        },
+        { rethrow: true },
+      );
+      return result as K8sTemplateSummary;
+    },
 
-  resumeCluster: async (namespace: string, name: string) => {
-    await withLoading(set, async () => {
-      await api.updateK8sCluster(namespace, name, { paused: false });
-      await get().fetchCluster(namespace, name);
-    }, { rethrow: true });
-  },
-}));
+    deleteTemplate: async (namespace: string, name: string) => {
+      await withLoading(
+        set,
+        async () => {
+          await api.deleteK8sTemplate(namespace, name);
+          set({ selectedTemplate: null });
+          await get().fetchTemplates();
+        },
+        { rethrow: true },
+      );
+    },
+
+    triggerOperation: async (
+      namespace: string,
+      name: string,
+      kind: "WarmRestart" | "PodRestart",
+      podList?: string[],
+    ) => {
+      await withLoading(
+        set,
+        async () => {
+          await api.triggerK8sClusterOperation(namespace, name, { kind, podList });
+          await loadCluster(namespace, name);
+        },
+        { rethrow: true },
+      );
+    },
+
+    updateCluster: async (namespace: string, name: string, data: UpdateK8sClusterRequest) => {
+      await withLoading(
+        set,
+        async () => {
+          await api.updateK8sCluster(namespace, name, data);
+          await loadClusters();
+          await loadCluster(namespace, name);
+        },
+        { rethrow: true },
+      );
+    },
+
+    resyncTemplate: async (namespace: string, name: string) => {
+      await withLoading(
+        set,
+        async () => {
+          await api.resyncK8sClusterTemplate(namespace, name);
+          await loadCluster(namespace, name);
+        },
+        { rethrow: true },
+      );
+    },
+
+    pauseCluster: async (namespace: string, name: string) => {
+      await withLoading(
+        set,
+        async () => {
+          await api.updateK8sCluster(namespace, name, { paused: true });
+          await loadCluster(namespace, name);
+        },
+        { rethrow: true },
+      );
+    },
+
+    resumeCluster: async (namespace: string, name: string) => {
+      await withLoading(
+        set,
+        async () => {
+          await api.updateK8sCluster(namespace, name, { paused: false });
+          await loadCluster(namespace, name);
+        },
+        { rethrow: true },
+      );
+    },
+  };
+});

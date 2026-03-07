@@ -10,19 +10,15 @@ import {
 } from "@/components/ui/select";
 import type { WizardRackConfigStepProps } from "./types";
 
-export function WizardRackConfigStep({
-  form,
-  updateForm,
-  nodes,
-}: WizardRackConfigStepProps) {
+export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConfigStepProps) {
   const racks = form.rackConfig?.racks ?? [];
   const uniqueZones = [...new Set(nodes.map((n) => n.zone).filter(Boolean))];
 
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground text-sm">
-        Configure multi-rack deployment for zone-aware pod distribution. Each rack gets
-        its own StatefulSet with optional zone affinity.
+        Configure multi-rack deployment for zone-aware pod distribution. Each rack gets its own
+        StatefulSet with optional zone affinity.
       </p>
 
       {racks.length === 0 ? (
@@ -134,8 +130,8 @@ export function WizardRackConfigStep({
           </Button>
           <p className="text-muted-foreground text-xs">
             Tip: For {form.size} nodes across {racks.length} racks, approximately{" "}
-            {`${Math.floor(form.size / racks.length)}-${Math.ceil(form.size / racks.length)}`}{" "}
-            pods per rack.
+            {`${Math.floor(form.size / racks.length)}-${Math.ceil(form.size / racks.length)}`} pods
+            per rack.
           </p>
         </div>
       )}

@@ -12,11 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AEROSPIKE_PRIVILEGES } from "@/lib/validations/k8s-acl";
 import type { WizardAclStepProps } from "./types";
 
-export function WizardAclStep({
-  form,
-  updateForm,
-  k8sSecrets,
-}: WizardAclStepProps) {
+export function WizardAclStep({ form, updateForm, k8sSecrets }: WizardAclStepProps) {
   return (
     <>
       <div className="flex items-center space-x-2">
@@ -76,10 +72,7 @@ export function WizardAclStep({
                   updateForm({
                     acl: {
                       ...form.acl!,
-                      roles: [
-                        ...form.acl!.roles,
-                        { name: "", privileges: [], whitelist: [] },
-                      ],
+                      roles: [...form.acl!.roles, { name: "", privileges: [], whitelist: [] }],
                     },
                   })
                 }

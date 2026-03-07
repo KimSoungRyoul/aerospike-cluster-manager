@@ -90,22 +90,17 @@ export function WizardResourcesStep({
       </div>
 
       {(() => {
-        const cpuValid =
-          !validateK8sCpu(res.requests.cpu) && !validateK8sCpu(res.limits.cpu);
+        const cpuValid = !validateK8sCpu(res.requests.cpu) && !validateK8sCpu(res.limits.cpu);
         const memValid =
           !validateK8sMemory(res.requests.memory) && !validateK8sMemory(res.limits.memory);
         return (
           <>
-            {cpuValid &&
-              parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu) && (
-                <p className="text-destructive text-xs">CPU limit must be &gt;= request</p>
-              )}
+            {cpuValid && parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu) && (
+              <p className="text-destructive text-xs">CPU limit must be &gt;= request</p>
+            )}
             {memValid &&
-              parseMemoryBytes(res.limits.memory) <
-                parseMemoryBytes(res.requests.memory) && (
-                <p className="text-destructive text-xs">
-                  Memory limit must be &gt;= request
-                </p>
+              parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory) && (
+                <p className="text-destructive text-xs">Memory limit must be &gt;= request</p>
               )}
           </>
         );

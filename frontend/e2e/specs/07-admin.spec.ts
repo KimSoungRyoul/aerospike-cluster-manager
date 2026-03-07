@@ -29,7 +29,9 @@ test.describe("07 - Admin (Security Disabled Handling)", () => {
     await screenshot(page, "07-01-admin-page");
   });
 
-  test("2. Admin shows security notice or users when security disabled/enabled", async ({ page }) => {
+  test("2. Admin shows security notice or users when security disabled/enabled", async ({
+    page,
+  }) => {
     await adminPage.goto(connId);
 
     await expect(
@@ -42,7 +44,9 @@ test.describe("07 - Admin (Security Disabled Handling)", () => {
     await screenshot(page, "07-02-users-ce-error");
   });
 
-  test("3. Admin shows security notice or roles when security disabled/enabled", async ({ page }) => {
+  test("3. Admin shows security notice or roles when security disabled/enabled", async ({
+    page,
+  }) => {
     await adminPage.goto(connId);
 
     await expect(

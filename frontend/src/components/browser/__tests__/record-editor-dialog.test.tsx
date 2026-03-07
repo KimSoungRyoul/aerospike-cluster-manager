@@ -155,16 +155,16 @@ describe("RecordEditorDialog", () => {
   it("shows remove button only when multiple bins exist", () => {
     // Single bin: no trash button
     const { rerender } = render(<RecordEditorDialog {...defaultProps} bins={makeBins(1)} />);
-    const singleBinTrashButtons = screen.queryAllByRole("button").filter((btn) =>
-      btn.querySelector(".lucide-trash-2"),
-    );
+    const singleBinTrashButtons = screen
+      .queryAllByRole("button")
+      .filter((btn) => btn.querySelector(".lucide-trash-2"));
     expect(singleBinTrashButtons).toHaveLength(0);
 
     // Multiple bins: trash buttons appear
     rerender(<RecordEditorDialog {...defaultProps} bins={makeBins(2)} />);
-    const multiBinTrashButtons = screen.queryAllByRole("button", { hidden: true }).filter((btn) =>
-      btn.querySelector(".lucide-trash-2"),
-    );
+    const multiBinTrashButtons = screen
+      .queryAllByRole("button", { hidden: true })
+      .filter((btn) => btn.querySelector(".lucide-trash-2"));
     expect(multiBinTrashButtons.length).toBeGreaterThan(0);
   });
 

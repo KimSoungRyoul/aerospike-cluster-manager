@@ -50,7 +50,7 @@ export function parseBinValue(value: string, type: BinType): BinValue {
   }
 }
 
-export function detectBinType(value: BinValue): BinType {
+export function detectBinType(value: BinValue | undefined): BinType {
   if (value === null || value === undefined) return "string";
   if (typeof value === "boolean") return "bool";
   if (typeof value === "number") return Number.isInteger(value) ? "integer" : "float";
@@ -210,7 +210,10 @@ export function RecordEditorDialog({
                         value={bin.type}
                         onValueChange={(v) => onUpdateBin(bin.id, "type", v)}
                       >
-                        <SelectTrigger className="border-border/40 h-8 w-[110px] font-mono text-xs" disabled={saving}>
+                        <SelectTrigger
+                          className="border-border/40 h-8 w-[110px] font-mono text-xs"
+                          disabled={saving}
+                        >
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>

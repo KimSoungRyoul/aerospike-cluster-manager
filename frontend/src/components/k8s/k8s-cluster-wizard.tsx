@@ -351,31 +351,14 @@ export function K8sClusterWizard() {
           )}
 
           {step === 4 && (
-            <WizardAclStep
-              form={form}
-              updateForm={updateForm}
-              k8sSecrets={k8sSecrets}
-            />
+            <WizardAclStep form={form} updateForm={updateForm} k8sSecrets={k8sSecrets} />
           )}
 
-          {step === 5 && (
-            <WizardRollingUpdateStep
-              form={form}
-              updateForm={updateForm}
-            />
-          )}
+          {step === 5 && <WizardRollingUpdateStep form={form} updateForm={updateForm} />}
 
-          {step === 6 && (
-            <WizardRackConfigStep
-              form={form}
-              updateForm={updateForm}
-              nodes={nodes}
-            />
-          )}
+          {step === 6 && <WizardRackConfigStep form={form} updateForm={updateForm} nodes={nodes} />}
 
-          {step === 7 && (
-            <WizardReviewStep form={form} formatBytes={formatBytes} />
-          )}
+          {step === 7 && <WizardReviewStep form={form} formatBytes={formatBytes} />}
         </CardContent>
       </Card>
 

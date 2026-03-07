@@ -44,15 +44,23 @@ export default function CreateTemplatePage() {
   const [enableMonitoring, setEnableMonitoring] = useState(false);
   const [monitoringPort, setMonitoringPort] = useState(9145);
   const [antiAffinity, setAntiAffinity] = useState<"none" | "preferred" | "required">("none");
-  const [podManagementPolicy, setPodManagementPolicy] = useState<"OrderedReady" | "Parallel">("OrderedReady");
+  const [podManagementPolicy, setPodManagementPolicy] = useState<"OrderedReady" | "Parallel">(
+    "OrderedReady",
+  );
   const [includeStorage, setIncludeStorage] = useState(false);
   const [storageClass, setStorageClass] = useState("standard");
   const [volumeSize, setVolumeSize] = useState("10Gi");
   const [accessType, setAccessType] = useState("pod");
 
   useEffect(() => {
-    api.getK8sNamespaces().then(setNamespaces).catch(() => {});
-    api.getK8sStorageClasses().then(setStorageClasses).catch(() => {});
+    api
+      .getK8sNamespaces()
+      .then(setNamespaces)
+      .catch(() => {});
+    api
+      .getK8sStorageClasses()
+      .then(setStorageClasses)
+      .catch(() => {});
   }, []);
 
   const handleSubmit = async () => {
@@ -81,7 +89,8 @@ export default function CreateTemplatePage() {
       if (antiAffinity !== "none" || podManagementPolicy !== "OrderedReady") {
         data.scheduling = {};
         if (antiAffinity !== "none") data.scheduling.podAntiAffinityLevel = antiAffinity;
-        if (podManagementPolicy !== "OrderedReady") data.scheduling.podManagementPolicy = podManagementPolicy;
+        if (podManagementPolicy !== "OrderedReady")
+          data.scheduling.podManagementPolicy = podManagementPolicy;
       }
       if (includeStorage) {
         data.storage = {
@@ -92,7 +101,9 @@ export default function CreateTemplatePage() {
         };
       }
       if (accessType !== "pod") {
-        data.networkPolicy = { accessType: accessType as "pod" | "hostInternal" | "hostExternal" | "configuredIP" };
+        data.networkPolicy = {
+          accessType: accessType as "pod" | "hostInternal" | "hostExternal" | "configuredIP",
+        };
       }
 
       await createTemplate(data);
@@ -157,7 +168,9 @@ export default function CreateTemplatePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {namespaces.map((ns) => (
-                    <SelectItem key={ns} value={ns}>{ns}</SelectItem>
+                    <SelectItem key={ns} value={ns}>
+                      {ns}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -197,7 +210,10 @@ export default function CreateTemplatePage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>Pod Anti-Affinity</Label>
-              <Select value={antiAffinity} onValueChange={(v) => setAntiAffinity(v as typeof antiAffinity)}>
+              <Select
+                value={antiAffinity}
+                onValueChange={(v) => setAntiAffinity(v as typeof antiAffinity)}
+              >
                 <SelectTrigger disabled={loading}>
                   <SelectValue />
                 </SelectTrigger>
@@ -210,7 +226,10 @@ export default function CreateTemplatePage() {
             </div>
             <div className="grid gap-2">
               <Label>Pod Management Policy</Label>
-              <Select value={podManagementPolicy} onValueChange={(v) => setPodManagementPolicy(v as typeof podManagementPolicy)}>
+              <Select
+                value={podManagementPolicy}
+                onValueChange={(v) => setPodManagementPolicy(v as typeof podManagementPolicy)}
+              >
                 <SelectTrigger disabled={loading}>
                   <SelectValue />
                 </SelectTrigger>
@@ -240,19 +259,35 @@ export default function CreateTemplatePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label className="text-xs">CPU Request</Label>
-                <Input value={cpuReq} onChange={(e) => setCpuReq(e.target.value)} disabled={loading} />
+                <Input
+                  value={cpuReq}
+                  onChange={(e) => setCpuReq(e.target.value)}
+                  disabled={loading}
+                />
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs">Memory Request</Label>
-                <Input value={memReq} onChange={(e) => setMemReq(e.target.value)} disabled={loading} />
+                <Input
+                  value={memReq}
+                  onChange={(e) => setMemReq(e.target.value)}
+                  disabled={loading}
+                />
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs">CPU Limit</Label>
-                <Input value={cpuLim} onChange={(e) => setCpuLim(e.target.value)} disabled={loading} />
+                <Input
+                  value={cpuLim}
+                  onChange={(e) => setCpuLim(e.target.value)}
+                  disabled={loading}
+                />
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs">Memory Limit</Label>
-                <Input value={memLim} onChange={(e) => setMemLim(e.target.value)} disabled={loading} />
+                <Input
+                  value={memLim}
+                  onChange={(e) => setMemLim(e.target.value)}
+                  disabled={loading}
+                />
               </div>
             </div>
           )}
@@ -281,14 +316,21 @@ export default function CreateTemplatePage() {
                   </SelectTrigger>
                   <SelectContent>
                     {storageClasses.map((sc) => (
-                      <SelectItem key={sc} value={sc}>{sc}</SelectItem>
+                      <SelectItem key={sc} value={sc}>
+                        {sc}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid gap-2">
                 <Label className="text-xs">Volume Size</Label>
-                <Input value={volumeSize} onChange={(e) => setVolumeSize(e.target.value)} placeholder="10Gi" disabled={loading} />
+                <Input
+                  value={volumeSize}
+                  onChange={(e) => setVolumeSize(e.target.value)}
+                  placeholder="10Gi"
+                  disabled={loading}
+                />
               </div>
             </div>
           )}
@@ -339,7 +381,11 @@ export default function CreateTemplatePage() {
 
         {/* Actions */}
         <div className="flex justify-end gap-3">
-          <Button variant="outline" onClick={() => router.push("/k8s/templates")} disabled={loading}>
+          <Button
+            variant="outline"
+            onClick={() => router.push("/k8s/templates")}
+            disabled={loading}
+          >
             Cancel
           </Button>
           <LoadingButton onClick={handleSubmit} loading={loading} disabled={!name.trim()}>

@@ -9,10 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  validateNamespaces,
-  MAX_CE_NAMESPACES,
-} from "@/lib/validations/k8s";
+import { validateNamespaces, MAX_CE_NAMESPACES } from "@/lib/validations/k8s";
 import type { AerospikeNamespaceConfig, StorageVolumeConfig } from "@/lib/api/types";
 import type { WizardNamespaceStorageStepProps } from "./types";
 
@@ -22,10 +19,7 @@ export function WizardNamespaceStorageStep({
   storageClasses,
   defaultStorage,
 }: WizardNamespaceStorageStepProps) {
-  const updateNamespace = (
-    index: number,
-    updates: Partial<AerospikeNamespaceConfig>,
-  ) => {
+  const updateNamespace = (index: number, updates: Partial<AerospikeNamespaceConfig>) => {
     const namespaces = [...form.namespaces];
     namespaces[index] = { ...namespaces[index], ...updates };
     updateForm({ namespaces });
@@ -61,12 +55,7 @@ export function WizardNamespaceStorageStep({
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Namespace {ni + 1}</span>
               {form.namespaces.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeNamespace(ni)}
-                >
+                <Button type="button" variant="ghost" size="sm" onClick={() => removeNamespace(ni)}>
                   Remove
                 </Button>
               )}
@@ -84,8 +73,7 @@ export function WizardNamespaceStorageStep({
               )}
               {form.namespaces.length > 1 &&
                 ns.name.trim().length > 0 &&
-                form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length >
-                  1 && (
+                form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length > 1 && (
                   <p className="text-destructive text-xs">Namespace names must be unique</p>
                 )}
             </div>
@@ -159,9 +147,7 @@ export function WizardNamespaceStorageStep({
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor={`repl-factor-${ni}`}>
-                Replication Factor (1 - {form.size})
-              </Label>
+              <Label htmlFor={`repl-factor-${ni}`}>Replication Factor (1 - {form.size})</Label>
               <Input
                 id={`repl-factor-${ni}`}
                 type="number"
@@ -195,9 +181,7 @@ export function WizardNamespaceStorageStep({
       )}
 
       {validateNamespaces(form.namespaces, form.size) && (
-        <p className="text-destructive text-xs">
-          {validateNamespaces(form.namespaces, form.size)}
-        </p>
+        <p className="text-destructive text-xs">{validateNamespaces(form.namespaces, form.size)}</p>
       )}
 
       {/* Shared persistent storage settings (shown when any namespace uses device) */}
@@ -321,8 +305,8 @@ export function WizardNamespaceStorageStep({
             </div>
           </div>
           <p className="text-muted-foreground text-xs">
-            Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned
-            on pod restart.
+            Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned on pod
+            restart.
           </p>
 
           <div className="flex items-center space-x-2">

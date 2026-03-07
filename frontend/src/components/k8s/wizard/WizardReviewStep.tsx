@@ -22,10 +22,7 @@ export function WizardReviewStep({ form, formatBytes }: WizardReviewStepProps) {
         <span className="font-medium">{form.namespaces.length}</span>
 
         {form.namespaces.map((ns, ni) => (
-          <div
-            key={`review-ns-${ni}`}
-            className="col-span-2 ml-2 rounded border p-2 text-xs"
-          >
+          <div key={`review-ns-${ni}`} className="col-span-2 ml-2 rounded border p-2 text-xs">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               <span className="text-muted-foreground">Name</span>
               <span className="font-medium">{ns.name}</span>
@@ -69,8 +66,7 @@ export function WizardReviewStep({ form, formatBytes }: WizardReviewStepProps) {
             <span className="font-medium">
               {[
                 form.templateOverrides.image && `Image: ${form.templateOverrides.image}`,
-                form.templateOverrides.size != null &&
-                  `Size: ${form.templateOverrides.size}`,
+                form.templateOverrides.size != null && `Size: ${form.templateOverrides.size}`,
                 form.templateOverrides.resources &&
                   `Resources: CPU ${form.templateOverrides.resources.requests.cpu || "-"}/${form.templateOverrides.resources.limits.cpu || "-"}, Mem ${form.templateOverrides.resources.requests.memory || "-"}/${form.templateOverrides.resources.limits.memory || "-"}`,
               ]
@@ -81,9 +77,7 @@ export function WizardReviewStep({ form, formatBytes }: WizardReviewStepProps) {
         )}
 
         <span className="text-muted-foreground">Dynamic Config</span>
-        <span className="font-medium">
-          {form.enableDynamicConfig ? "Enabled" : "Disabled"}
-        </span>
+        <span className="font-medium">{form.enableDynamicConfig ? "Enabled" : "Disabled"}</span>
 
         <span className="text-muted-foreground">ACL</span>
         <span className="font-medium">
@@ -103,8 +97,7 @@ export function WizardReviewStep({ form, formatBytes }: WizardReviewStepProps) {
         <span className="font-medium">
           {form.rollingUpdate
             ? [
-                form.rollingUpdate.batchSize != null &&
-                  `batch: ${form.rollingUpdate.batchSize}`,
+                form.rollingUpdate.batchSize != null && `batch: ${form.rollingUpdate.batchSize}`,
                 form.rollingUpdate.maxUnavailable &&
                   `maxUnavail: ${form.rollingUpdate.maxUnavailable}`,
                 form.rollingUpdate.disablePDB && "PDB disabled",
@@ -134,9 +127,7 @@ export function WizardReviewStep({ form, formatBytes }: WizardReviewStepProps) {
             <span className="text-muted-foreground">Network Access</span>
             <span className="font-medium">
               {form.networkPolicy.accessType}
-              {form.networkPolicy.fabricType
-                ? `, fabric: ${form.networkPolicy.fabricType}`
-                : ""}
+              {form.networkPolicy.fabricType ? `, fabric: ${form.networkPolicy.fabricType}` : ""}
             </span>
           </>
         )}

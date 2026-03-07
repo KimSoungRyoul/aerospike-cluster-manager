@@ -528,7 +528,6 @@ export default function ConnectionsPage() {
         onConfirm={handleDelete}
         loading={deleting}
       />
-
     </div>
   );
 }

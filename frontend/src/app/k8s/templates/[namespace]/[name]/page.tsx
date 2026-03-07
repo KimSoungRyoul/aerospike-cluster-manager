@@ -173,7 +173,9 @@ export default function TemplateDetailPage() {
                   <button
                     className="text-accent hover:underline"
                     onClick={() => {
-                      const parts = cluster.includes("/") ? cluster.split("/") : [selectedTemplate.namespace, cluster];
+                      const parts = cluster.includes("/")
+                        ? cluster.split("/")
+                        : [selectedTemplate.namespace, cluster];
                       router.push(`/k8s/clusters/${parts[0]}/${parts[1]}`);
                     }}
                   >

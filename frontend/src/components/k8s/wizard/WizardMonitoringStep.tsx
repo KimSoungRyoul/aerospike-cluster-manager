@@ -121,8 +121,8 @@ export function WizardMonitoringStep({
           {overridesOpen && (
             <div className="mt-3 space-y-3">
               <p className="text-muted-foreground text-xs">
-                Override specific fields from the template. These values take precedence
-                over the template defaults.
+                Override specific fields from the template. These values take precedence over the
+                template defaults.
               </p>
               <div className="grid gap-2">
                 <Label htmlFor="override-image" className="text-xs">
@@ -187,10 +187,7 @@ export function WizardMonitoringStep({
                 <Label className="text-xs">Resource Overrides</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="grid gap-1">
-                    <Label
-                      htmlFor="override-cpu-req"
-                      className="text-muted-foreground text-[10px]"
-                    >
+                    <Label htmlFor="override-cpu-req" className="text-muted-foreground text-[10px]">
                       CPU Request
                     </Label>
                     <Input
@@ -227,10 +224,7 @@ export function WizardMonitoringStep({
                     />
                   </div>
                   <div className="grid gap-1">
-                    <Label
-                      htmlFor="override-cpu-lim"
-                      className="text-muted-foreground text-[10px]"
-                    >
+                    <Label htmlFor="override-cpu-lim" className="text-muted-foreground text-[10px]">
                       CPU Limit
                     </Label>
                     <Input
@@ -267,10 +261,7 @@ export function WizardMonitoringStep({
                     />
                   </div>
                   <div className="grid gap-1">
-                    <Label
-                      htmlFor="override-mem-req"
-                      className="text-muted-foreground text-[10px]"
-                    >
+                    <Label htmlFor="override-mem-req" className="text-muted-foreground text-[10px]">
                       Memory Request
                     </Label>
                     <Input
@@ -307,10 +298,7 @@ export function WizardMonitoringStep({
                     />
                   </div>
                   <div className="grid gap-1">
-                    <Label
-                      htmlFor="override-mem-lim"
-                      className="text-muted-foreground text-[10px]"
-                    >
+                    <Label htmlFor="override-mem-lim" className="text-muted-foreground text-[10px]">
                       Memory Limit
                     </Label>
                     <Input
@@ -357,9 +345,7 @@ export function WizardMonitoringStep({
         <Checkbox
           id="dynamic-config"
           checked={form.enableDynamicConfig ?? false}
-          onCheckedChange={(checked) =>
-            updateForm({ enableDynamicConfig: checked === true })
-          }
+          onCheckedChange={(checked) => updateForm({ enableDynamicConfig: checked === true })}
         />
         <Label htmlFor="dynamic-config" className="text-sm font-normal">
           Enable dynamic config (apply config changes without restart)

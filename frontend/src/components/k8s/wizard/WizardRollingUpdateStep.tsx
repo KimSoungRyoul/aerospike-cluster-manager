@@ -3,10 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { WizardRollingUpdateStepProps } from "./types";
 
-export function WizardRollingUpdateStep({
-  form,
-  updateForm,
-}: WizardRollingUpdateStepProps) {
+export function WizardRollingUpdateStep({ form, updateForm }: WizardRollingUpdateStepProps) {
   return (
     <>
       <div className="grid gap-2">
