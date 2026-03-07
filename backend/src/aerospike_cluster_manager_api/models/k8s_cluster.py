@@ -437,7 +437,9 @@ class CreateK8sTemplateRequest(BaseModel):
     monitoring: MonitoringConfig | None = None
     scheduling: TemplateSchedulingConfig | None = None
     storage: TemplateStorageConfig | None = None
-    description: str | None = Field(default=None, max_length=500, description="Human-readable description of this template")
+    description: str | None = Field(
+        default=None, max_length=500, description="Human-readable description of this template"
+    )
     network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
     aerospike_config: dict[str, Any] | None = Field(
         default=None, alias="aerospikeConfig", description="Aerospike config defaults"

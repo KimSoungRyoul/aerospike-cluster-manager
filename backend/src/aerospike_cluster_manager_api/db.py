@@ -162,4 +162,3 @@ async def delete_connection(conn_id: str) -> bool:
     pool = _get_pool()
     result = await pool.execute("DELETE FROM connections WHERE id = $1", conn_id)
     return result == "DELETE 1"
-
