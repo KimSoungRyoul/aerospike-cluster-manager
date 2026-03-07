@@ -13,9 +13,13 @@ import type {
 export function buildFormUpdatesFromTemplate(
   spec: Record<string, unknown>,
   templateName: string,
+  templateNamespace?: string,
 ): Partial<CreateK8sClusterRequest> {
   const updates: Partial<CreateK8sClusterRequest> = {
-    templateRef: templateName,
+    templateRef: {
+      name: templateName,
+      ...(templateNamespace ? { namespace: templateNamespace } : {}),
+    },
     templateOverrides: undefined,
   };
 

@@ -34,7 +34,7 @@ export async function createK8sClusterViaApi(
     namespace?: string;
     size?: number;
     image?: string;
-    templateRef?: string;
+    templateRef?: { name: string; namespace?: string };
   } = {},
 ) {
   const res = await page.request.post(`${BASE_URL}/api/k8s/clusters`, {

@@ -62,5 +62,7 @@ export interface WizardAdvancedStepProps extends WizardStepProps {
 
 export interface WizardReviewStepProps {
   form: CreateK8sClusterRequest;
+  updateForm?: (updates: Partial<CreateK8sClusterRequest>) => void;
   formatBytes: (bytes: number) => string;
+  isTemplateMode?: boolean;
 }

@@ -231,6 +231,15 @@ class TemplateOverrides(BaseModel):
     resources: ResourceConfig | None = None
 
 
+class TemplateRefConfig(BaseModel):
+    """Reference to an AerospikeClusterTemplate."""
+
+    name: str
+    namespace: str | None = None
+
+    model_config = {"populate_by_name": True}
+
+
 class CreateK8sClusterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
     namespace: str = Field(
@@ -251,9 +260,17 @@ class CreateK8sClusterRequest(BaseModel):
     storage: StorageVolumeConfig | None = None
     resources: ResourceConfig | None = None
     monitoring: MonitoringConfig | None = None
-    template_ref: str | None = Field(
-        default=None, alias="templateRef", description="Name of AerospikeClusterTemplate to use"
+    template_ref: TemplateRefConfig | None = Field(
+        default=None, alias="templateRef", description="Reference to AerospikeClusterTemplate (name + optional namespace)"
     )
+
+    @field_validator("template_ref", mode="before")
+    @classmethod
+    def _normalize_template_ref(cls, v: Any) -> Any:
+        """Accept a plain string for backward compatibility."""
+        if isinstance(v, str):
+            return TemplateRefConfig(name=v)
+        return v
     template_overrides: TemplateOverrides | None = Field(
         default=None, alias="templateOverrides", description="Fields to override from template"
     )

@@ -251,7 +251,10 @@ def _build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     # Template reference and overrides
     if req.template_ref:
-        cr["spec"]["templateRef"] = {"name": req.template_ref}
+        ref: dict[str, str] = {"name": req.template_ref.name}
+        if req.template_ref.namespace:
+            ref["namespace"] = req.template_ref.namespace
+        cr["spec"]["templateRef"] = ref
         if req.template_overrides:
             overrides: dict[str, Any] = {}
             if req.template_overrides.image:

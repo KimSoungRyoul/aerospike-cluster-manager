@@ -590,7 +590,7 @@ export interface CreateK8sClusterRequest {
   storage?: StorageVolumeConfig;
   resources?: ResourceConfig;
   monitoring?: MonitoringConfig;
-  templateRef?: string;
+  templateRef?: { name: string; namespace?: string };
   templateOverrides?: TemplateOverrides;
   enableDynamicConfig?: boolean;
   autoConnect: boolean;

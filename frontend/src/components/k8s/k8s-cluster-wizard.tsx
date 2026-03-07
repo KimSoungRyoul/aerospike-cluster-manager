@@ -95,7 +95,7 @@ export function K8sClusterWizard() {
     ],
     resources: DEFAULT_RESOURCES,
     monitoring: undefined as MonitoringConfig | undefined,
-    templateRef: undefined as string | undefined,
+    templateRef: undefined as { name: string; namespace?: string } | undefined,
     enableDynamicConfig: false,
     autoConnect: true,
     acl: undefined as ACLConfig | undefined,
@@ -169,7 +169,7 @@ export function K8sClusterWizard() {
     try {
       const detail = await api.getK8sTemplate(ns, name);
       setTemplateDetail(detail);
-      const updates = buildFormUpdatesFromTemplate(detail.spec, name);
+      const updates = buildFormUpdatesFromTemplate(detail.spec, name, ns);
       updateForm(updates);
     } catch (err) {
       toast.error(`Failed to load template: ${getErrorMessage(err)}`);
@@ -393,7 +393,14 @@ export function K8sClusterWizard() {
             />
           )}
 
-          {step === STEPS.length - 1 && <WizardReviewStep form={form} formatBytes={formatBytes} />}
+          {step === STEPS.length - 1 && (
+            <WizardReviewStep
+              form={form}
+              updateForm={updateForm}
+              formatBytes={formatBytes}
+              isTemplateMode={isTemplateMode}
+            />
+          )}
         </CardContent>
       </Card>
 
