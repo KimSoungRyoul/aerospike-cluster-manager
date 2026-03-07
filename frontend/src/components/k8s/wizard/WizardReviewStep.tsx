@@ -56,22 +56,8 @@ export function WizardReviewStep({ form, formatBytes }: WizardReviewStepProps) {
         {form.templateRef && (
           <>
             <span className="text-muted-foreground">Template</span>
-            <span className="font-medium">{form.templateRef}</span>
-          </>
-        )}
-
-        {form.templateRef && form.templateOverrides && (
-          <>
-            <span className="text-muted-foreground">Template Overrides</span>
             <span className="font-medium">
-              {[
-                form.templateOverrides.image && `Image: ${form.templateOverrides.image}`,
-                form.templateOverrides.size != null && `Size: ${form.templateOverrides.size}`,
-                form.templateOverrides.resources &&
-                  `Resources: CPU ${form.templateOverrides.resources.requests.cpu || "-"}/${form.templateOverrides.resources.limits.cpu || "-"}, Mem ${form.templateOverrides.resources.requests.memory || "-"}/${form.templateOverrides.resources.limits.memory || "-"}`,
-              ]
-                .filter(Boolean)
-                .join(", ")}
+              Created from <span className="text-accent">{form.templateRef}</span>
             </span>
           </>
         )}

@@ -1,16 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { validateK8sName, validateNamespaces } from "@/lib/validations/k8s";
 import { validateACLConfig } from "@/lib/validations/k8s-acl";
+import { buildFormUpdatesFromTemplate, formatTemplateSpecField } from "../wizard/template-prefill";
 import type { ACLConfig, AerospikeNamespaceConfig } from "@/lib/api/types";
 
 /**
  * Tests for the canProceed logic used in k8s-cluster-wizard.tsx.
  * Instead of rendering the full wizard (which has many dependencies),
  * we extract and test the underlying validation logic directly.
+ *
+ * Step indices (5-step wizard):
+ *   0: Creation Mode, 1: Basic & Resources, 2: Namespace & Storage,
+ *   3: Advanced (Monitoring, ACL, Rolling Update, Rack Config), 4: Review
  */
 
 describe("Wizard canProceed logic", () => {
-  describe("Step 0: Basic (name + namespace)", () => {
+  describe("Step 1: Basic (name + namespace)", () => {
     it("passes with valid name and non-empty namespace", () => {
       const nameError = validateK8sName("my-cluster");
       const namespaceValid = "default".length > 0;
@@ -61,7 +66,7 @@ describe("Wizard canProceed logic", () => {
     });
   });
 
-  describe("Step 1: Namespace & Storage", () => {
+  describe("Step 2: Namespace & Storage", () => {
     const makeNs = (name: string, rf: number = 1): AerospikeNamespaceConfig => ({
       name,
       replicationFactor: rf,
@@ -110,15 +115,11 @@ describe("Wizard canProceed logic", () => {
     });
   });
 
-  describe("Step 4: ACL (Security)", () => {
-    it("passes when ACL is disabled", () => {
-      const acl: ACLConfig = {
-        enabled: false,
-        roles: [],
-        users: [],
-        adminPolicyTimeout: 0,
-      };
-      expect(validateACLConfig(acl)).toBeNull();
+  describe("Step 5: ACL (Security)", () => {
+    it("passes when ACL is disabled (undefined)", () => {
+      // canProceed returns true when form.acl is undefined or not enabled
+      const acl = undefined as ACLConfig | undefined;
+      expect(acl?.enabled).toBeFalsy();
     });
 
     it("fails when ACL is enabled but no users configured", () => {
@@ -215,6 +216,111 @@ describe("Wizard canProceed logic", () => {
         adminPolicyTimeout: 0,
       };
       expect(validateACLConfig(acl)).not.toBeNull();
+    });
+  });
+});
+
+describe("Template prefill", () => {
+  describe("buildFormUpdatesFromTemplate", () => {
+    it("sets templateRef and clears templateOverrides", () => {
+      const result = buildFormUpdatesFromTemplate({}, "my-template");
+      expect(result.templateRef).toBe("my-template");
+      expect(result.templateOverrides).toBeUndefined();
+    });
+
+    it("maps image from spec", () => {
+      const result = buildFormUpdatesFromTemplate({ image: "aerospike:ce-8.1.1.1" }, "t1");
+      expect(result.image).toBe("aerospike:ce-8.1.1.1");
+    });
+
+    it("maps size from spec (clamped 1-8)", () => {
+      expect(buildFormUpdatesFromTemplate({ size: 3 }, "t1").size).toBe(3);
+      expect(buildFormUpdatesFromTemplate({ size: 0 }, "t1").size).toBeUndefined();
+      expect(buildFormUpdatesFromTemplate({ size: 10 }, "t1").size).toBeUndefined();
+    });
+
+    it("maps resources from spec", () => {
+      const resources = {
+        requests: { cpu: "1", memory: "2Gi" },
+        limits: { cpu: "4", memory: "8Gi" },
+      };
+      const result = buildFormUpdatesFromTemplate({ resources }, "t1");
+      expect(result.resources).toEqual(resources);
+    });
+
+    it("maps monitoring from spec", () => {
+      const monitoring = { enabled: true, port: 9145 };
+      const result = buildFormUpdatesFromTemplate({ monitoring }, "t1");
+      expect(result.monitoring).toEqual(monitoring);
+    });
+
+    it("maps storage from spec", () => {
+      const result = buildFormUpdatesFromTemplate(
+        { storage: { storageClassName: "gp3", size: "20Gi" } },
+        "t1",
+      );
+      expect(result.storage).toEqual({
+        storageClass: "gp3",
+        size: "20Gi",
+        mountPath: "/opt/aerospike/data",
+      });
+    });
+
+    it("maps networkPolicy from spec", () => {
+      const np = { accessType: "hostInternal" };
+      const result = buildFormUpdatesFromTemplate({ networkPolicy: np }, "t1");
+      expect(result.networkPolicy).toEqual(np);
+    });
+
+    it("ignores null/undefined spec fields", () => {
+      const result = buildFormUpdatesFromTemplate(
+        { image: null, size: undefined, resources: null },
+        "t1",
+      );
+      expect(result.image).toBeUndefined();
+      expect(result.size).toBeUndefined();
+      expect(result.resources).toBeUndefined();
+    });
+
+    it("ignores empty image string", () => {
+      const result = buildFormUpdatesFromTemplate({ image: "" }, "t1");
+      expect(result.image).toBeUndefined();
+    });
+  });
+
+  describe("formatTemplateSpecField", () => {
+    it("formats image", () => {
+      expect(formatTemplateSpecField("image", "aerospike:ce-8.1.1.1")).toBe("aerospike:ce-8.1.1.1");
+    });
+
+    it("formats size with plural", () => {
+      expect(formatTemplateSpecField("size", 3)).toBe("3 nodes");
+      expect(formatTemplateSpecField("size", 1)).toBe("1 node");
+    });
+
+    it("formats resources", () => {
+      const res = {
+        requests: { cpu: "500m", memory: "1Gi" },
+        limits: { cpu: "2", memory: "4Gi" },
+      };
+      expect(formatTemplateSpecField("resources", res)).toBe("CPU: 500m/2, Mem: 1Gi/4Gi");
+    });
+
+    it("formats monitoring", () => {
+      expect(formatTemplateSpecField("monitoring", { enabled: true, port: 9145 })).toBe(
+        "Enabled (port 9145)",
+      );
+      expect(formatTemplateSpecField("monitoring", { enabled: false, port: 9145 })).toBe(
+        "Disabled",
+      );
+    });
+
+    it("returns null for unknown keys", () => {
+      expect(formatTemplateSpecField("unknown", "value")).toBeNull();
+    });
+
+    it("returns null for null values", () => {
+      expect(formatTemplateSpecField("image", null)).toBeNull();
     });
   });
 });

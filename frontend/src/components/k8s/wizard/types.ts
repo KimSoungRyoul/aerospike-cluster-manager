@@ -1,9 +1,9 @@
 import type {
   CreateK8sClusterRequest,
   K8sNodeInfo,
-  StorageVolumeConfig,
-  TemplateOverrides,
+  K8sTemplateDetail,
   K8sTemplateSummary,
+  StorageVolumeConfig,
 } from "@/lib/api/types";
 
 export interface WizardStepProps {
@@ -11,9 +11,24 @@ export interface WizardStepProps {
   updateForm: (updates: Partial<CreateK8sClusterRequest>) => void;
 }
 
+export interface WizardCreationModeStepProps extends WizardStepProps {
+  k8sNamespaces: string[];
+  templates: K8sTemplateSummary[];
+  creationMode: "scratch" | "template";
+  setCreationMode: (mode: "scratch" | "template") => void;
+  selectedTemplateName: string | null;
+  onTemplateSelect: (ns: string, name: string) => void;
+  templateDetail: K8sTemplateDetail | null;
+  templateLoading: boolean;
+}
+
 export interface WizardBasicStepProps extends WizardStepProps {
   k8sNamespaces: string[];
   fetchingOptions: boolean;
+  defaultResources: {
+    requests: { cpu: string; memory: string };
+    limits: { cpu: string; memory: string };
+  };
 }
 
 export interface WizardNamespaceStorageStepProps extends WizardStepProps {
@@ -21,13 +36,7 @@ export interface WizardNamespaceStorageStepProps extends WizardStepProps {
   defaultStorage: StorageVolumeConfig;
 }
 
-export interface WizardMonitoringStepProps extends WizardStepProps {
-  templates: K8sTemplateSummary[];
-  overridesOpen: boolean;
-  setOverridesOpen: (open: boolean) => void;
-  templateOverrides: TemplateOverrides;
-  setTemplateOverrides: (overrides: TemplateOverrides) => void;
-}
+export type WizardMonitoringStepProps = WizardStepProps;
 
 export interface WizardResourcesStepProps extends WizardStepProps {
   defaultResources: {
@@ -43,6 +52,11 @@ export interface WizardAclStepProps extends WizardStepProps {
 export type WizardRollingUpdateStepProps = WizardStepProps;
 
 export interface WizardRackConfigStepProps extends WizardStepProps {
+  nodes: K8sNodeInfo[];
+}
+
+export interface WizardAdvancedStepProps extends WizardStepProps {
+  k8sSecrets: string[];
   nodes: K8sNodeInfo[];
 }
 

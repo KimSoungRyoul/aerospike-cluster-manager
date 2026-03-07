@@ -28,6 +28,10 @@ export default defineConfig({
       testMatch: /0[2-9]-.*\.spec\.ts|1[0-1]-.*\.spec\.ts/,
       dependencies: ["setup"],
     },
+    {
+      name: "k8s",
+      testMatch: /k8s-.*\.spec\.ts/,
+    },
   ],
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",

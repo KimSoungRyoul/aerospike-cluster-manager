@@ -1,3 +1,4 @@
+export { WizardCreationModeStep } from "./WizardCreationModeStep";
 export { WizardBasicStep } from "./WizardBasicStep";
 export { WizardNamespaceStorageStep } from "./WizardNamespaceStorageStep";
 export { WizardMonitoringStep } from "./WizardMonitoringStep";
@@ -5,4 +6,6 @@ export { WizardResourcesStep } from "./WizardResourcesStep";
 export { WizardAclStep } from "./WizardAclStep";
 export { WizardRollingUpdateStep } from "./WizardRollingUpdateStep";
 export { WizardRackConfigStep } from "./WizardRackConfigStep";
+export { WizardAdvancedStep } from "./WizardAdvancedStep";
+export { WizardTemplateNameStep } from "./WizardTemplateNameStep";
 export { WizardReviewStep } from "./WizardReviewStep";

@@ -1,0 +1,208 @@
+import { useState } from "react";
+import Link from "next/link";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FileText, PenLine, Loader2 } from "lucide-react";
+import { formatTemplateSpecField } from "./template-prefill";
+import type { WizardCreationModeStepProps } from "./types";
+
+const PREVIEW_FIELDS = [
+  { key: "image", label: "Image" },
+  { key: "size", label: "Size" },
+  { key: "resources", label: "Resources" },
+  { key: "monitoring", label: "Monitoring" },
+  { key: "storage", label: "Storage" },
+  { key: "networkPolicy", label: "Network" },
+  { key: "scheduling", label: "Scheduling" },
+] as const;
+
+export function WizardCreationModeStep({
+  updateForm,
+  k8sNamespaces,
+  templates,
+  creationMode,
+  setCreationMode,
+  selectedTemplateName,
+  onTemplateSelect,
+  templateDetail,
+  templateLoading,
+}: WizardCreationModeStepProps) {
+  const [browseNamespace, setBrowseNamespace] = useState<string>("");
+
+  const filteredTemplates = browseNamespace
+    ? templates.filter((t) => t.namespace === browseNamespace)
+    : templates;
+
+  const handleModeChange = (mode: "scratch" | "template") => {
+    setCreationMode(mode);
+    if (mode === "scratch") {
+      updateForm({ templateRef: undefined, templateOverrides: undefined });
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <p className="text-muted-foreground text-sm">How would you like to create your cluster?</p>
+
+      {/* Mode selection cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => handleModeChange("scratch")}
+          className={`flex flex-col items-center gap-2 rounded-lg border-2 p-5 text-center transition-colors ${
+            creationMode === "scratch"
+              ? "border-accent bg-accent/5"
+              : "border-border hover:border-accent/50"
+          }`}
+        >
+          <PenLine
+            className={`h-8 w-8 ${creationMode === "scratch" ? "text-accent" : "text-muted-foreground"}`}
+          />
+          <span className="text-sm font-medium">Start from Scratch</span>
+          <span className="text-muted-foreground text-xs">Configure every setting manually</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => handleModeChange("template")}
+          className={`flex flex-col items-center gap-2 rounded-lg border-2 p-5 text-center transition-colors ${
+            creationMode === "template"
+              ? "border-accent bg-accent/5"
+              : "border-border hover:border-accent/50"
+          }`}
+        >
+          <FileText
+            className={`h-8 w-8 ${creationMode === "template" ? "text-accent" : "text-muted-foreground"}`}
+          />
+          <span className="text-sm font-medium">Start from Template</span>
+          <span className="text-muted-foreground text-xs">Pre-fill settings from a template</span>
+        </button>
+      </div>
+
+      {/* Template browser */}
+      {creationMode === "template" && (
+        <div className="space-y-3">
+          <div className="grid gap-2">
+            <Label htmlFor="browse-namespace" className="text-xs">
+              Filter by Namespace
+            </Label>
+            <Select
+              value={browseNamespace || "__all__"}
+              onValueChange={(v) => {
+                const ns = v === "__all__" ? "" : v;
+                setBrowseNamespace(ns);
+                if (ns) updateForm({ namespace: ns });
+              }}
+            >
+              <SelectTrigger id="browse-namespace">
+                <SelectValue placeholder="All namespaces" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All namespaces</SelectItem>
+                {k8sNamespaces.map((ns) => (
+                  <SelectItem key={ns} value={ns}>
+                    {ns}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {filteredTemplates.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
+              <FileText className="text-muted-foreground h-10 w-10" />
+              <p className="text-muted-foreground text-sm">No templates found</p>
+              <Link
+                href="/k8s/templates/new"
+                className="text-accent text-xs underline underline-offset-2"
+              >
+                Create a template
+              </Link>
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {filteredTemplates.map((t) => (
+                <button
+                  key={`${t.namespace}/${t.name}`}
+                  type="button"
+                  onClick={() => onTemplateSelect(t.namespace, t.name)}
+                  disabled={templateLoading}
+                  className={`flex items-start justify-between rounded-lg border p-3 text-left transition-colors ${
+                    selectedTemplateName === t.name
+                      ? "border-accent bg-accent/5"
+                      : "hover:border-accent/50"
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">{t.name}</span>
+                      <span className="text-muted-foreground text-[10px]">{t.namespace}</span>
+                    </div>
+                    {t.description && (
+                      <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                        {t.description}
+                      </p>
+                    )}
+                    <div className="text-muted-foreground mt-1 flex gap-3 text-[10px]">
+                      {t.image && <span>{t.image}</span>}
+                      {t.size != null && (
+                        <span>
+                          {t.size} node{t.size !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {templateLoading && selectedTemplateName === t.name && (
+                    <Loader2 className="text-accent h-4 w-4 animate-spin" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Template preview */}
+          {templateDetail && selectedTemplateName && !templateLoading && (
+            <div className="rounded-lg border p-4">
+              <h4 className="mb-3 text-sm font-medium">
+                Template Preview: <span className="text-accent">{templateDetail.name}</span>
+              </h4>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
+                {PREVIEW_FIELDS.map(({ key, label }) => {
+                  const formatted = formatTemplateSpecField(key, templateDetail.spec[key]);
+                  if (!formatted) return null;
+                  return (
+                    <div key={key} className="contents">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className="font-medium">{formatted}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {templateDetail.status &&
+                Array.isArray((templateDetail.status as Record<string, unknown>).usedBy) &&
+                ((templateDetail.status as Record<string, unknown>).usedBy as string[]).length >
+                  0 && (
+                  <div className="mt-2 text-[10px]">
+                    <span className="text-muted-foreground">Used by: </span>
+                    <span>
+                      {((templateDetail.status as Record<string, unknown>).usedBy as string[]).join(
+                        ", ",
+                      )}
+                    </span>
+                  </div>
+                )}
+              <p className="text-muted-foreground mt-3 text-[10px]">
+                These values will pre-fill the wizard. You can modify them in subsequent steps.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

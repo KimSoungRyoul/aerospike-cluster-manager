@@ -25,31 +25,29 @@ import type {
   MonitoringConfig,
   ACLConfig,
   RollingUpdateConfig,
-  TemplateOverrides,
   K8sNodeInfo,
+  K8sTemplateDetail,
   StorageVolumeConfig,
 } from "@/lib/api/types";
+import { buildFormUpdatesFromTemplate } from "./wizard/template-prefill";
 import {
+  WizardCreationModeStep,
   WizardBasicStep,
   WizardNamespaceStorageStep,
-  WizardMonitoringStep,
-  WizardResourcesStep,
-  WizardAclStep,
-  WizardRollingUpdateStep,
-  WizardRackConfigStep,
+  WizardAdvancedStep,
   WizardReviewStep,
+  WizardTemplateNameStep,
 } from "./wizard";
 
-const STEPS = [
-  "Basic",
+const SCRATCH_STEPS = [
+  "Creation Mode",
+  "Basic & Resources",
   "Namespace & Storage",
-  "Monitoring & Options",
-  "Resources",
-  "Security (ACL)",
-  "Rolling Update",
-  "Rack Config",
+  "Advanced",
   "Review",
 ];
+
+const TEMPLATE_STEPS = ["Creation Mode", "Name & Namespace", "Review"];
 
 export function K8sClusterWizard() {
   const router = useRouter();
@@ -62,8 +60,15 @@ export function K8sClusterWizard() {
   const [fetchingOptions, setFetchingOptions] = useState(true);
   const [creationError, setCreationError] = useState<string | null>(null);
   const [k8sSecrets, setK8sSecrets] = useState<string[]>([]);
-  const [overridesOpen, setOverridesOpen] = useState(false);
-  const [templateOverrides, setTemplateOverrides] = useState<TemplateOverrides>({});
+
+  // Template mode state
+  const [creationMode, setCreationMode] = useState<"scratch" | "template">("scratch");
+  const [selectedTemplateName, setSelectedTemplateName] = useState<string | null>(null);
+  const [templateDetail, setTemplateDetail] = useState<K8sTemplateDetail | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(false);
+
+  const isTemplateMode = creationMode === "template";
+  const STEPS = isTemplateMode ? TEMPLATE_STEPS : SCRATCH_STEPS;
 
   const DEFAULT_RESOURCES = {
     requests: { cpu: "500m", memory: "1Gi" },
@@ -131,19 +136,19 @@ export function K8sClusterWizard() {
     });
   }, [fetchTemplates]);
 
-  // Fetch K8s secrets when on the ACL step and namespace is available
+  // Fetch K8s secrets when on Advanced step and ACL is enabled (scratch mode only)
   useEffect(() => {
-    if (step === 4 && form.acl?.enabled && form.namespace) {
+    if (!isTemplateMode && step === 3 && form.acl?.enabled && form.namespace) {
       api
         .getK8sSecrets(form.namespace)
         .then(setK8sSecrets)
         .catch(() => setK8sSecrets([]));
     }
-  }, [step, form.acl?.enabled, form.namespace]);
+  }, [step, form.acl?.enabled, form.namespace, isTemplateMode]);
 
-  // Fetch K8s nodes when on the Rack Config step
+  // Fetch K8s nodes when on Advanced step (scratch mode only)
   useEffect(() => {
-    if (step === 6) {
+    if (!isTemplateMode && step === 3) {
       api
         .getK8sNodes()
         .then(setNodes)
@@ -152,23 +157,48 @@ export function K8sClusterWizard() {
           toast.error("Failed to load node information for zone selection");
         });
     }
-  }, [step]);
+  }, [step, isTemplateMode]);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));
   };
 
+  const handleTemplateSelect = async (ns: string, name: string) => {
+    setSelectedTemplateName(name);
+    setTemplateLoading(true);
+    try {
+      const detail = await api.getK8sTemplate(ns, name);
+      setTemplateDetail(detail);
+      const updates = buildFormUpdatesFromTemplate(detail.spec, name);
+      updateForm(updates);
+    } catch (err) {
+      toast.error(`Failed to load template: ${getErrorMessage(err)}`);
+      setSelectedTemplateName(null);
+      setTemplateDetail(null);
+    } finally {
+      setTemplateLoading(false);
+    }
+  };
+
   const canProceed = () => {
+    // Step 0: Creation Mode (same for both modes)
     if (step === 0) {
-      return validateK8sName(form.name) === null && form.namespace.length > 0;
+      if (creationMode === "scratch") return true;
+      return selectedTemplateName !== null && !templateLoading;
     }
-    if (step === 1) {
-      return validateNamespaces(form.namespaces, form.size) === null;
-    }
-    if (step === 2) {
+
+    if (isTemplateMode) {
+      // Template mode step 1: Name & Namespace only
+      if (step === 1) {
+        return validateK8sName(form.name) === null && form.namespace.length > 0;
+      }
       return true;
     }
-    if (step === 3) {
+
+    // Scratch mode steps
+    // Step 1: Basic & Resources
+    if (step === 1) {
+      if (validateK8sName(form.name) !== null || form.namespace.length === 0) return false;
       const res = form.resources ?? DEFAULT_RESOURCES;
       if (validateK8sCpu(res.requests.cpu) !== null) return false;
       if (validateK8sCpu(res.limits.cpu) !== null) return false;
@@ -178,7 +208,12 @@ export function K8sClusterWizard() {
       if (parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory)) return false;
       return true;
     }
-    if (step === 4) {
+    // Step 2: Namespace & Storage
+    if (step === 2) {
+      return validateNamespaces(form.namespaces, form.size) === null;
+    }
+    // Step 3: Advanced — validate ACL if enabled
+    if (step === 3) {
       if (form.acl?.enabled) {
         if (form.acl.users.length === 0) return false;
         for (const user of form.acl.users) {
@@ -188,12 +223,6 @@ export function K8sClusterWizard() {
           if (!role.name.trim() || role.privileges.length === 0) return false;
         }
       }
-      return true;
-    }
-    if (step === 5) {
-      return true;
-    }
-    if (step === 6) {
       return true;
     }
     return true;
@@ -313,7 +342,22 @@ export function K8sClusterWizard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {step === 0 && (
-            <WizardBasicStep
+            <WizardCreationModeStep
+              form={form}
+              updateForm={updateForm}
+              k8sNamespaces={k8sNamespaces}
+              templates={templates}
+              creationMode={creationMode}
+              setCreationMode={setCreationMode}
+              selectedTemplateName={selectedTemplateName}
+              onTemplateSelect={handleTemplateSelect}
+              templateDetail={templateDetail}
+              templateLoading={templateLoading}
+            />
+          )}
+
+          {step === 1 && isTemplateMode && (
+            <WizardTemplateNameStep
               form={form}
               updateForm={updateForm}
               k8sNamespaces={k8sNamespaces}
@@ -321,7 +365,17 @@ export function K8sClusterWizard() {
             />
           )}
 
-          {step === 1 && (
+          {step === 1 && !isTemplateMode && (
+            <WizardBasicStep
+              form={form}
+              updateForm={updateForm}
+              k8sNamespaces={k8sNamespaces}
+              fetchingOptions={fetchingOptions}
+              defaultResources={DEFAULT_RESOURCES}
+            />
+          )}
+
+          {step === 2 && !isTemplateMode && (
             <WizardNamespaceStorageStep
               form={form}
               updateForm={updateForm}
@@ -330,35 +384,16 @@ export function K8sClusterWizard() {
             />
           )}
 
-          {step === 2 && (
-            <WizardMonitoringStep
+          {step === 3 && !isTemplateMode && (
+            <WizardAdvancedStep
               form={form}
               updateForm={updateForm}
-              templates={templates}
-              overridesOpen={overridesOpen}
-              setOverridesOpen={setOverridesOpen}
-              templateOverrides={templateOverrides}
-              setTemplateOverrides={setTemplateOverrides}
+              k8sSecrets={k8sSecrets}
+              nodes={nodes}
             />
           )}
 
-          {step === 3 && (
-            <WizardResourcesStep
-              form={form}
-              updateForm={updateForm}
-              defaultResources={DEFAULT_RESOURCES}
-            />
-          )}
-
-          {step === 4 && (
-            <WizardAclStep form={form} updateForm={updateForm} k8sSecrets={k8sSecrets} />
-          )}
-
-          {step === 5 && <WizardRollingUpdateStep form={form} updateForm={updateForm} />}
-
-          {step === 6 && <WizardRackConfigStep form={form} updateForm={updateForm} nodes={nodes} />}
-
-          {step === 7 && <WizardReviewStep form={form} formatBytes={formatBytes} />}
+          {step === STEPS.length - 1 && <WizardReviewStep form={form} formatBytes={formatBytes} />}
         </CardContent>
       </Card>
 
