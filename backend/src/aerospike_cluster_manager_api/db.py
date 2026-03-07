@@ -84,10 +84,17 @@ async def _seed_if_empty() -> None:
 async def init_db() -> None:
     global _pool
     logger.info("Connecting to PostgreSQL …")
-    _pool = await asyncpg.create_pool(config.DATABASE_URL, min_size=2, max_size=10)
-    async with _pool.acquire() as conn:
-        await conn.execute(CREATE_TABLE_SQL)
-    await _seed_if_empty()
+    old_pool = _pool
+    pool = await asyncpg.create_pool(config.DATABASE_URL, min_size=2, max_size=10)
+    try:
+        async with pool.acquire() as conn:
+            await conn.execute(CREATE_TABLE_SQL)
+        _pool = pool
+        await _seed_if_empty()
+    except Exception:
+        _pool = old_pool
+        await pool.close()
+        raise
     logger.info("Database initialized")
 
 
