@@ -70,14 +70,18 @@ function getRetryDelay(attempt: number, retryAfter: string | null): number {
   return RETRY_BASE_DELAY * 2 ** attempt;
 }
 
-function toErrorMessage(detail: unknown): string | undefined {
+const MAX_ERROR_PARSE_DEPTH = 5;
+
+function toErrorMessage(detail: unknown, depth = 0): string | undefined {
+  if (depth >= MAX_ERROR_PARSE_DEPTH) return undefined;
+
   if (typeof detail === "string" && detail.trim()) {
     return detail;
   }
 
   if (Array.isArray(detail)) {
     const messages = detail
-      .map((item) => toErrorMessage(item))
+      .map((item) => toErrorMessage(item, depth + 1))
       .filter((message): message is string => Boolean(message));
 
     if (messages.length > 0) {
@@ -97,7 +101,7 @@ function toErrorMessage(detail: unknown): string | undefined {
     }
 
     if (value.detail !== undefined) {
-      return toErrorMessage(value.detail);
+      return toErrorMessage(value.detail, depth + 1);
     }
   }
 
@@ -105,10 +109,6 @@ function toErrorMessage(detail: unknown): string | undefined {
 }
 
 async function parseResponseBody<T>(res: Response): Promise<T | undefined> {
-  if (typeof res.text !== "function") {
-    return res.json();
-  }
-
   const bodyText = await res.text();
 
   if (!bodyText.trim()) {
