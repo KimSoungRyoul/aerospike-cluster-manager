@@ -615,9 +615,40 @@ export interface ResourceConfig {
   limits: ResourceSpec;
 }
 
+export interface TolerationConfig {
+  key?: string;
+  operator?: "Exists" | "Equal";
+  value?: string;
+  effect?: "NoSchedule" | "PreferNoSchedule" | "NoExecute" | "";
+  tolerationSeconds?: number;
+}
+
+export interface PodSchedulingConfig {
+  nodeSelector?: Record<string, string>;
+  tolerations?: TolerationConfig[];
+  multiPodPerHost?: boolean;
+  hostNetwork?: boolean;
+  serviceAccountName?: string;
+  terminationGracePeriodSeconds?: number;
+}
+
+export interface ServiceMonitorConfig {
+  enabled: boolean;
+  interval?: string;
+  labels?: Record<string, string>;
+}
+
+export interface PrometheusRuleConfig {
+  enabled: boolean;
+  labels?: Record<string, string>;
+}
+
 export interface MonitoringConfig {
   enabled: boolean;
   port: number;
+  exporterImage?: string;
+  serviceMonitor?: ServiceMonitorConfig;
+  prometheusRule?: PrometheusRuleConfig;
 }
 
 export interface CreateK8sClusterRequest {
@@ -638,6 +669,7 @@ export interface CreateK8sClusterRequest {
   rackConfig?: RackAwareConfig;
   networkPolicy?: NetworkAccessConfig;
   k8sNodeBlockList?: string[];
+  podScheduling?: PodSchedulingConfig;
   seedsFinderServices?: SeedsFinderServicesConfig;
   networkPolicyConfig?: NetworkPolicyAutoConfig;
 }
@@ -656,6 +688,7 @@ export interface UpdateK8sClusterRequest {
   rackConfig?: RackAwareConfig;
   networkPolicy?: NetworkAccessConfig;
   k8sNodeBlockList?: string[];
+  podScheduling?: PodSchedulingConfig;
   seedsFinderServices?: SeedsFinderServicesConfig;
   networkPolicyConfig?: NetworkPolicyAutoConfig;
 }
@@ -773,6 +806,7 @@ export interface AerospikeClusterSpec {
   aerospikeNetworkPolicy?: AerospikeNetworkPolicySpec;
   k8sNodeBlockList?: string[];
   monitoring?: MonitoringConfig;
+  podScheduling?: PodSchedulingConfig;
   acl?: ACLConfig;
   resources?: ResourceConfig;
   seedsFinderServices?: SeedsFinderServicesConfig;
