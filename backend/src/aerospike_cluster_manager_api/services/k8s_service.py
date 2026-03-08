@@ -114,12 +114,15 @@ def build_monitoring(mon: Any) -> dict[str, Any]:
     }
     if mon.exporter_image:
         result["exporterImage"] = mon.exporter_image
-    if hasattr(mon, "resources") and mon.resources:
-        result["resources"] = {
-            "requests": {"cpu": mon.resources.requests.cpu, "memory": mon.resources.requests.memory},
-            "limits": {"cpu": mon.resources.limits.cpu, "memory": mon.resources.limits.memory},
-        }
-    if hasattr(mon, "metric_labels") and mon.metric_labels:
+    if mon.resources:
+        resources: dict[str, Any] = {}
+        if mon.resources.requests:
+            resources["requests"] = {"cpu": mon.resources.requests.cpu, "memory": mon.resources.requests.memory}
+        if mon.resources.limits:
+            resources["limits"] = {"cpu": mon.resources.limits.cpu, "memory": mon.resources.limits.memory}
+        if resources:
+            result["resources"] = resources
+    if mon.metric_labels:
         result["metricLabels"] = mon.metric_labels
     if mon.service_monitor:
         sm: dict[str, Any] = {"enabled": mon.service_monitor.enabled}
@@ -665,9 +668,9 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
             patch["spec"]["aerospikeAccessControl"] = {
                 "roles": [
                     {"name": r.name, "privileges": r.privileges, **({"whitelist": r.whitelist} if r.whitelist else {})}
-                    for r in body.acl.roles
+                    for r in (body.acl.roles or [])
                 ],
-                "users": [{"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in body.acl.users],
+                "users": [{"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in (body.acl.users or [])],
                 "adminPolicy": {"timeout": body.acl.admin_policy_timeout},
             }
             patch["spec"].setdefault("aerospikeConfig", {})["security"] = {}

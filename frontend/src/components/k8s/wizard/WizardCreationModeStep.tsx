@@ -23,9 +23,6 @@ export function WizardCreationModeStep({
   templateDetail,
   templateLoading,
 }: WizardCreationModeStepProps) {
-  // Templates are cluster-scoped — no namespace filtering needed
-  const filteredTemplates = templates;
-
   const handleModeChange = (mode: "scratch" | "template") => {
     setCreationMode(mode);
     if (mode === "scratch") {
@@ -74,7 +71,7 @@ export function WizardCreationModeStep({
       {/* Template browser */}
       {creationMode === "template" && (
         <div className="space-y-3">
-          {filteredTemplates.length === 0 ? (
+          {templates.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
               <FileText className="text-muted-foreground h-10 w-10" />
               <p className="text-muted-foreground text-sm">No templates found</p>
@@ -87,7 +84,7 @@ export function WizardCreationModeStep({
             </div>
           ) : (
             <div className="grid gap-2">
-              {filteredTemplates.map((t) => (
+              {templates.map((t) => (
                 <button
                   key={t.name}
                   type="button"
