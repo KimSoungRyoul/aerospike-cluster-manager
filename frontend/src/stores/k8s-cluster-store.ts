@@ -13,11 +13,10 @@ import type {
 import { api } from "@/lib/api/client";
 import { withLoading } from "@/lib/store-utils";
 import { getErrorMessage } from "@/lib/utils";
+import { K8S_DETAIL_POLL_INTERVAL_MS, K8S_DETAIL_POLL_MAX_BACKOFF_MS } from "@/lib/constants";
 
 // Module-level variables for detail polling
 let _k8sDetailIntervalId: ReturnType<typeof setInterval> | null = null;
-const K8S_DETAIL_POLL_BASE_MS = 5000;
-const K8S_DETAIL_MAX_BACKOFF_MS = 60_000;
 
 interface K8sClusterState {
   clusters: K8sClusterSummary[];
@@ -267,7 +266,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
           // Reset interval back to base when recovering from errors
           if (hadErrors && _k8sDetailIntervalId) {
             clearInterval(_k8sDetailIntervalId);
-            _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_BASE_MS);
+            _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_INTERVAL_MS);
           }
         } catch (error) {
           const consecutiveErrors = get().consecutiveErrors + 1;
@@ -276,8 +275,8 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
           if (_k8sDetailIntervalId) {
             clearInterval(_k8sDetailIntervalId);
             const backoff = Math.min(
-              K8S_DETAIL_POLL_BASE_MS * Math.pow(2, consecutiveErrors),
-              K8S_DETAIL_MAX_BACKOFF_MS,
+              K8S_DETAIL_POLL_INTERVAL_MS * Math.pow(2, consecutiveErrors),
+              K8S_DETAIL_POLL_MAX_BACKOFF_MS,
             );
             _k8sDetailIntervalId = setInterval(poll, backoff);
           }
@@ -287,7 +286,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
       // Set the interval first so that if the immediate poll() fails fast and
       // triggers backoff (which replaces _k8sDetailIntervalId), it won't be
       // overwritten by a stale base-rate interval on the next line.
-      _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_BASE_MS);
+      _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_INTERVAL_MS);
       poll();
     },
 

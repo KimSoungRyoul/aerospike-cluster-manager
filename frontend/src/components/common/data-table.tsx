@@ -55,6 +55,8 @@ interface DataTableProps<TData, TValue> {
   maxHeight?: string;
   mobileLayout?: "table" | "cards";
   mobileCardRenderer?: (row: Row<TData>, index: number) => React.ReactNode;
+  /** Number of skeleton rows to show while loading (default: 8). Card mode uses half this value. */
+  loadingRows?: number;
 }
 
 function shouldHideColumn<TData, TValue>(
@@ -117,6 +119,7 @@ export function DataTable<TData, TValue>({
   maxHeight = "600px",
   mobileLayout = "table",
   mobileCardRenderer,
+  loadingRows = 8,
 }: DataTableProps<TData, TValue>) {
   const { isMobile, isTablet } = useBreakpoint();
   const isCardMode = isMobile && mobileLayout === "cards";
@@ -408,7 +411,7 @@ export function DataTable<TData, TValue>({
       return (
         <div className={cn("relative flex-1 min-w-0", className)} data-testid={testId}>
           <div className="space-y-3" data-testid={`${testId}-skeleton`}>
-            {Array.from({ length: 4 }).map((_, idx) => (
+            {Array.from({ length: Math.ceil(loadingRows / 2) }).map((_, idx) => (
               <div key={idx} className="border-border/50 bg-card rounded-2xl border p-4">
                 <Skeleton className="mb-3 h-4 w-32" />
                 <div className="space-y-2">
@@ -446,7 +449,7 @@ export function DataTable<TData, TValue>({
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: 8 }).map((_, rowIdx) => (
+              {Array.from({ length: loadingRows }).map((_, rowIdx) => (
                 <tr
                   key={rowIdx}
                   className="border-border/20 border-b last:border-b-0"

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState, useMemo, useCallback } from "react";
+import { use, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -36,6 +36,7 @@ import { useBrowserStore } from "@/stores/browser-store";
 import { useFilterStore } from "@/stores/filter-store";
 import { useConnectionStore } from "@/stores/connection-store";
 import { usePagination } from "@/hooks/use-pagination";
+import { useAsyncData } from "@/hooks/use-async-data";
 import type {
   AerospikeRecord,
   BinValue,
@@ -124,13 +125,11 @@ export default function BrowserPage({
   );
 
   // Fetch secondary indexes for this connection
-  const [indexes, setIndexes] = useState<SecondaryIndex[]>([]);
-  useEffect(() => {
-    api
-      .getIndexes(connId)
-      .then(setIndexes)
-      .catch(() => setIndexes([]));
-  }, [connId]);
+  const { data: indexesData } = useAsyncData<SecondaryIndex[]>(
+    () => api.getIndexes(connId),
+    [connId],
+  );
+  const indexes: SecondaryIndex[] = indexesData ?? [];
 
   // Reset filter store when leaving
   useEffect(() => {
@@ -405,6 +404,11 @@ export default function BrowserPage({
     [replaceRouteState, routeState.filters, routeState.primaryKey],
   );
 
+  // Ref so checkbox column header/cell can read the latest selectedPKs
+  // without being in tableColumns useMemo deps (avoids full column rebuild on every toggle)
+  const selectedPKsRef = useRef(selectedPKs);
+  selectedPKsRef.current = selectedPKs;
+
   const togglePK = useCallback((pk: string) => {
     setSelectedPKs((prev) => {
       const next = new Set(prev);
@@ -521,41 +525,49 @@ asyncio.run(main())`;
       {
         id: "select",
         size: 40,
-        header: () => (
-          <button
-            onClick={toggleAllPKs}
-            className={cn(
-              "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
-              selectedPKs.size === displayRecords.length && displayRecords.length > 0
-                ? "border-accent bg-accent text-accent-foreground"
-                : selectedPKs.size > 0
-                  ? "border-accent/60 bg-accent/20"
+        header: () => {
+          // Read from ref so this function doesn't need selectedPKs in useMemo deps
+          const pks = selectedPKsRef.current;
+          return (
+            <button
+              onClick={toggleAllPKs}
+              className={cn(
+                "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                pks.size === displayRecords.length && displayRecords.length > 0
+                  ? "border-accent bg-accent text-accent-foreground"
+                  : pks.size > 0
+                    ? "border-accent/60 bg-accent/20"
+                    : "border-muted-foreground/30 hover:border-muted-foreground/50",
+              )}
+            >
+              {pks.size === displayRecords.length && displayRecords.length > 0 ? (
+                <Check className="h-3 w-3" />
+              ) : pks.size > 0 ? (
+                <Minus className="h-3 w-3" />
+              ) : null}
+            </button>
+          );
+        },
+        cell: ({ row }) => {
+          const pks = selectedPKsRef.current;
+          const pk = String(row.original.key.pk);
+          return (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePK(pk);
+              }}
+              className={cn(
+                "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
+                pks.has(pk)
+                  ? "border-accent bg-accent text-accent-foreground"
                   : "border-muted-foreground/30 hover:border-muted-foreground/50",
-            )}
-          >
-            {selectedPKs.size === displayRecords.length && displayRecords.length > 0 ? (
-              <Check className="h-3 w-3" />
-            ) : selectedPKs.size > 0 ? (
-              <Minus className="h-3 w-3" />
-            ) : null}
-          </button>
-        ),
-        cell: ({ row }) => (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              togglePK(String(row.original.key.pk));
-            }}
-            className={cn(
-              "inline-flex h-4 w-4 items-center justify-center rounded border transition-colors",
-              selectedPKs.has(String(row.original.key.pk))
-                ? "border-accent bg-accent text-accent-foreground"
-                : "border-muted-foreground/30 hover:border-muted-foreground/50",
-            )}
-          >
-            {selectedPKs.has(String(row.original.key.pk)) && <Check className="h-3 w-3" />}
-          </button>
-        ),
+              )}
+            >
+              {pks.has(pk) && <Check className="h-3 w-3" />}
+            </button>
+          );
+        },
         meta: {
           headerClassName: "px-2 text-center",
           cellClassName: "px-2 text-center",
@@ -756,10 +768,11 @@ asyncio.run(main())`;
         },
       },
     ],
+    // selectedPKs intentionally omitted — read via selectedPKsRef to avoid
+    // rebuilding all column definitions on every checkbox toggle.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       binColumns,
-      selectedPKs,
       displayRecords.length,
       openDuplicateEditor,
       openRecordDetail,
