@@ -209,7 +209,7 @@ _routers = [
 if config.K8S_MANAGEMENT_ENABLED:
     _routers.append(k8s_clusters.router)
 
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter(prefix="/api", include_in_schema=False)
 v1_router = APIRouter(prefix="/api/v1")
 
 for r in _routers:
@@ -226,13 +226,7 @@ async def health_check(detail: bool = Query(False)) -> dict:
         return {"status": "ok"}
 
     # Check DB health
-    db_ok = False
-    try:
-        pool = db._get_pool()
-        await pool.fetchval("SELECT 1")
-        db_ok = True
-    except Exception:
-        pass
+    db_ok = await db.check_health()
 
     overall = "ok" if db_ok else "degraded"
     return {

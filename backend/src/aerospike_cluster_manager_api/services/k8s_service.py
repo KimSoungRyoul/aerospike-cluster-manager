@@ -9,9 +9,6 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import HTTPException
-
-from aerospike_cluster_manager_api.k8s_client import K8sApiError
 from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
     CreateK8sClusterRequest,
@@ -26,13 +23,6 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     RackDistribution,
     UpdateK8sClusterRequest,
 )
-
-
-def map_k8s_error(e: K8sApiError) -> HTTPException:
-    """Map K8sApiError status codes to appropriate HTTPException responses."""
-    status_map = {404: 404, 409: 409, 422: 422, 403: 403, 401: 401}
-    http_status = status_map.get(e.status, 500)
-    return HTTPException(status_code=http_status, detail=e.message or e.reason)
 
 
 def calculate_age(creation_timestamp: str | None) -> str | None:

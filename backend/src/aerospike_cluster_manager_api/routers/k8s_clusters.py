@@ -43,7 +43,6 @@ from aerospike_cluster_manager_api.services.k8s_service import (
     extract_summary,
     extract_template_summary,
     has_update_fields,
-    map_k8s_error,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,6 +56,13 @@ _K8S_NAMESPACE = Path(..., min_length=1, max_length=253, pattern=r"^[a-z0-9]([a-
 
 class DeleteResponse(BaseModel):
     message: str
+
+
+def _map_k8s_error(e: K8sApiError) -> HTTPException:
+    """Map K8sApiError status codes to appropriate HTTPException responses."""
+    status_map = {404: 404, 409: 409, 422: 422, 403: 403, 401: 401}
+    http_status = status_map.get(e.status, 500)
+    return HTTPException(status_code=http_status, detail=e.message or e.reason)
 
 
 def _require_k8s() -> None:
@@ -79,7 +85,7 @@ def _k8s_endpoint(operation: str):
             except HTTPException:
                 raise
             except K8sApiError as e:
-                raise map_k8s_error(e) from e
+                raise _map_k8s_error(e) from e
             except Exception as e:
                 logger.exception("Failed to %s", operation)
                 raise HTTPException(status_code=500, detail=f"Failed to {operation}") from e

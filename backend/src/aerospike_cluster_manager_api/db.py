@@ -12,7 +12,6 @@ from datetime import UTC, datetime
 import asyncpg
 
 from aerospike_cluster_manager_api import config
-from aerospike_cluster_manager_api.crypto import decrypt_password, encrypt_password
 from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 logger = logging.getLogger(__name__)
@@ -99,6 +98,16 @@ async def init_db() -> None:
     logger.info("Database initialized")
 
 
+async def check_health() -> bool:
+    """Check database connectivity. Returns True if healthy."""
+    try:
+        pool = _get_pool()
+        await pool.fetchval("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
 async def close_db() -> None:
     global _pool
     if _pool:
@@ -122,7 +131,7 @@ def _row_to_profile(row: asyncpg.Record) -> ConnectionProfile:
         port=row["port"],
         clusterName=row["cluster_name"],
         username=row["username"],
-        password=decrypt_password(row["password"]),
+        password=row["password"],
         color=row["color"],
         createdAt=row["created_at"],
         updatedAt=row["updated_at"],
@@ -157,7 +166,7 @@ async def create_connection(conn: ConnectionProfile) -> None:
         conn.port,
         conn.clusterName,
         conn.username,
-        encrypt_password(conn.password),
+        conn.password,
         conn.color,
         conn.createdAt,
         conn.updatedAt,
@@ -186,7 +195,7 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
             merged["port"],
             merged.get("clusterName"),
             merged.get("username"),
-            encrypt_password(merged.get("password")),
+            merged.get("password"),
             merged["color"],
             merged["updatedAt"],
             conn_id,

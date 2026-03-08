@@ -20,7 +20,7 @@ import type { ColumnDef, ColumnPinningState } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { VirtualDataTable } from "@/components/common/virtual-data-table";
+import { DataTable } from "@/components/common/data-table";
 import { TablePagination } from "@/components/common/table-pagination";
 import { renderCellValue } from "@/components/browser/record-cell-renderer";
 import { RecordViewDialog } from "@/components/browser/record-view-dialog";
@@ -832,7 +832,7 @@ asyncio.run(main())`;
           </>
         ) : (
           <TooltipProvider delayDuration={300}>
-            <VirtualDataTable
+            <DataTable
               data={displayRecords}
               columns={tableColumns}
               loading={displayLoading}

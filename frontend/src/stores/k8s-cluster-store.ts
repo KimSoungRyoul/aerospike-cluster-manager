@@ -284,6 +284,8 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
         }
       };
 
+      // Fetch immediately, then poll at interval
+      poll();
       _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_BASE_MS);
     },
 
