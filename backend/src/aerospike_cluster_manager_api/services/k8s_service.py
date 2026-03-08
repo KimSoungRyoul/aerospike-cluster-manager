@@ -670,7 +670,9 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
                     {"name": r.name, "privileges": r.privileges, **({"whitelist": r.whitelist} if r.whitelist else {})}
                     for r in (body.acl.roles or [])
                 ],
-                "users": [{"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in (body.acl.users or [])],
+                "users": [
+                    {"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in (body.acl.users or [])
+                ],
                 "adminPolicy": {"timeout": body.acl.admin_policy_timeout},
             }
             patch["spec"].setdefault("aerospikeConfig", {})["security"] = {}
@@ -855,7 +857,7 @@ def extract_reconciliation_status(cr: dict) -> dict:
     # Estimate backoff: min(30s * 2^count, 300s)
     backoff_seconds = None
     if circuit_breaker_active:
-        backoff_seconds = min(30 * (2 ** failed_count), 300)
+        backoff_seconds = min(30 * (2**failed_count), 300)
 
     return {
         "circuitBreakerActive": circuit_breaker_active,

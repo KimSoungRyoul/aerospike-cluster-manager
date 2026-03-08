@@ -241,20 +241,26 @@ export default function BrowserPage({
   );
 
   // Execute filtered query
-  const refreshCurrentView = useCallback(
-    async () => {
-      await fetchFilteredRecords(
-        connId,
-        decodedNs,
-        decodedSet,
-        activeFilters,
-        routeState.page,
-        routeState.pageSize,
-        routeState.primaryKey || undefined,
-      );
-    },
-    [activeFilters, connId, decodedNs, decodedSet, fetchFilteredRecords, routeState.page, routeState.pageSize, routeState.primaryKey],
-  );
+  const refreshCurrentView = useCallback(async () => {
+    await fetchFilteredRecords(
+      connId,
+      decodedNs,
+      decodedSet,
+      activeFilters,
+      routeState.page,
+      routeState.pageSize,
+      routeState.primaryKey || undefined,
+    );
+  }, [
+    activeFilters,
+    connId,
+    decodedNs,
+    decodedSet,
+    fetchFilteredRecords,
+    routeState.page,
+    routeState.pageSize,
+    routeState.primaryKey,
+  ]);
 
   const handleFilterExecute = useCallback(() => {
     setSelectedPKs(new Set());
@@ -270,7 +276,13 @@ export default function BrowserPage({
             }
           : undefined,
     });
-  }, [filterStore.conditions, filterStore.logic, filterStore.primaryKey, replaceRouteState, routeState.pageSize]);
+  }, [
+    filterStore.conditions,
+    filterStore.logic,
+    filterStore.primaryKey,
+    replaceRouteState,
+    routeState.pageSize,
+  ]);
 
   // PK lookup
   const handlePKLookup = useCallback(
@@ -830,7 +842,9 @@ asyncio.run(main())`;
                   </span>
                   <span className="text-muted-foreground" title={`TTL: ${record.meta.ttl}s`}>
                     Expiry:{" "}
-                    <span className="text-foreground font-mono">{formatTTLAsExpiry(record.meta.ttl)}</span>
+                    <span className="text-foreground font-mono">
+                      {formatTTLAsExpiry(record.meta.ttl)}
+                    </span>
                   </span>
                 </div>
               </div>
@@ -869,8 +883,12 @@ asyncio.run(main())`;
             <div className="border-border/30 mt-2 space-y-1 border-t pt-2">
               {binColumns.slice(0, 3).map((col) => (
                 <div key={col} className="flex items-start gap-2 text-xs">
-                  <span className="text-muted-foreground/60 w-20 shrink-0 truncate font-mono">{col}</span>
-                  <span className="min-w-0 flex-1 truncate">{renderCellValue(record.bins[col])}</span>
+                  <span className="text-muted-foreground/60 w-20 shrink-0 truncate font-mono">
+                    {col}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {renderCellValue(record.bins[col])}
+                  </span>
                 </div>
               ))}
               {binColumns.length > 3 && (
@@ -969,7 +987,7 @@ asyncio.run(main())`;
 
       {/* ── Export bar (when filters active) ─────────── */}
       {filterStore.conditions.length > 0 && records.length > 0 && (
-        <div className="bg-card/60 animate-fade-in shrink-0 flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-6">
+        <div className="bg-card/60 animate-fade-in flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-6">
           <span className="text-muted-foreground text-xs">
             Export {formatNumber(records.length)} visible record{records.length === 1 ? "" : "s"}
           </span>
@@ -1019,7 +1037,9 @@ asyncio.run(main())`;
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
                   <Database className="text-muted-foreground/30 mb-4 h-16 w-16" />
-                  <h3 className="text-base-content/70 mb-2 text-lg font-semibold">No Records Found</h3>
+                  <h3 className="text-base-content/70 mb-2 text-lg font-semibold">
+                    No Records Found
+                  </h3>
                   <p className="text-base-content/50 mb-6 max-w-md text-sm">
                     This set appears to be empty. Create a new record to get started.
                   </p>

@@ -23,7 +23,7 @@ export function InteractiveCard({ index = 0, onClick, className, children }: Int
     <Card
       className={cn(
         "group animate-fade-in-up",
-        interactive && "card-interactive cursor-pointer hover:border-accent/30",
+        interactive && "card-interactive hover:border-accent/30 cursor-pointer",
         className,
       )}
       style={staggerDelay(index)}

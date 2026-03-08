@@ -892,8 +892,12 @@ export interface AerospikeClusterSpec {
   networkPolicyConfig?: NetworkPolicyAutoConfig;
   bandwidthConfig?: BandwidthConfig;
   validationPolicy?: ValidationPolicyConfig;
-  headlessService?: { metadata?: { annotations?: Record<string, string>; labels?: Record<string, string> } };
-  podService?: { metadata?: { annotations?: Record<string, string>; labels?: Record<string, string> } };
+  headlessService?: {
+    metadata?: { annotations?: Record<string, string>; labels?: Record<string, string> };
+  };
+  podService?: {
+    metadata?: { annotations?: Record<string, string>; labels?: Record<string, string> };
+  };
   enableRackIDOverride?: boolean;
   templateRef?: { name: string };
   [key: string]: unknown;

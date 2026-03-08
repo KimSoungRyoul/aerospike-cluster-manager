@@ -297,13 +297,13 @@ export function DataTable<TData, TValue>({
                   }
                 : {}),
               ...(pinned
-                  ? {
-                      backgroundColor: "hsl(var(--card))",
-                      backgroundClip: "padding-box",
-                      boxShadow: pinnedShadow,
-                      isolation: "isolate",
-                    }
-                  : {}),
+                ? {
+                    backgroundColor: "hsl(var(--card))",
+                    backgroundClip: "padding-box",
+                    boxShadow: pinnedShadow,
+                    isolation: "isolate",
+                  }
+                : {}),
               ...meta?.style,
             }}
           >
@@ -356,7 +356,9 @@ export function DataTable<TData, TValue>({
               sections.title.map((entry, titleIndex) => (
                 <div key={entry.key} className="min-w-0">
                   {titleIndex === 0 ? (
-                    <div className="text-foreground truncate text-sm font-semibold">{entry.content}</div>
+                    <div className="text-foreground truncate text-sm font-semibold">
+                      {entry.content}
+                    </div>
                   ) : (
                     <div className="text-muted-foreground text-xs">
                       <span className="mr-1 uppercase">{entry.label}:</span>
@@ -409,7 +411,7 @@ export function DataTable<TData, TValue>({
   if (loading && data.length === 0) {
     if (isCardMode) {
       return (
-        <div className={cn("relative flex-1 min-w-0", className)} data-testid={testId}>
+        <div className={cn("relative min-w-0 flex-1", className)} data-testid={testId}>
           <div className="space-y-3" data-testid={`${testId}-skeleton`}>
             {Array.from({ length: Math.ceil(loadingRows / 2) }).map((_, idx) => (
               <div key={idx} className="border-border/50 bg-card rounded-2xl border p-4">
@@ -427,7 +429,7 @@ export function DataTable<TData, TValue>({
     }
 
     return (
-      <div className={cn("relative flex-1 min-w-0 overflow-auto", className)} data-testid={testId}>
+      <div className={cn("relative min-w-0 flex-1 overflow-auto", className)} data-testid={testId}>
         <div
           className="border-border/50 bg-card overflow-hidden rounded-lg border"
           data-testid={`${testId}-skeleton`}
@@ -474,7 +476,7 @@ export function DataTable<TData, TValue>({
 
   if (data.length === 0) {
     return (
-      <div className={cn("relative flex-1 min-w-0 overflow-auto", className)} data-testid={testId}>
+      <div className={cn("relative min-w-0 flex-1 overflow-auto", className)} data-testid={testId}>
         {emptyState || <EmptyState title="No records" description="No data available to display" />}
       </div>
     );
@@ -488,7 +490,7 @@ export function DataTable<TData, TValue>({
 
   if (isCardMode) {
     return (
-      <div className={cn("relative flex-1 min-w-0", className)} data-testid={testId}>
+      <div className={cn("relative min-w-0 flex-1", className)} data-testid={testId}>
         {loadingBar}
         <div className="space-y-3" data-testid={`${testId}-body`}>
           {rows.map((row, idx) =>
@@ -508,7 +510,7 @@ export function DataTable<TData, TValue>({
     const totalSize = virtualizer.getTotalSize();
 
     return (
-      <div className={cn("relative flex-1 min-h-0 min-w-0", className)} data-testid={testId}>
+      <div className={cn("relative min-h-0 min-w-0 flex-1", className)} data-testid={testId}>
         {loadingBar}
         <div className="border-border/50 bg-card min-w-0 overflow-hidden rounded-lg border">
           <div ref={parentRef} className="w-full overflow-auto" style={{ maxHeight }}>
@@ -553,7 +555,10 @@ export function DataTable<TData, TValue>({
   }
 
   return (
-    <div className={cn("relative flex-1 min-h-0 min-w-0 overflow-auto", className)} data-testid={testId}>
+    <div
+      className={cn("relative min-h-0 min-w-0 flex-1 overflow-auto", className)}
+      data-testid={testId}
+    >
       {loadingBar}
       <div className="border-border/50 bg-card min-w-0 overflow-hidden rounded-lg border">
         <div className="w-full overflow-auto">
@@ -564,7 +569,9 @@ export function DataTable<TData, TValue>({
             <thead className="grid-header sticky top-0 z-20" data-testid={`${testId}-head`}>
               {renderHeaderGroups()}
             </thead>
-            <tbody data-testid={`${testId}-body`}>{rows.map((row, idx) => renderRow(row, idx))}</tbody>
+            <tbody data-testid={`${testId}-body`}>
+              {rows.map((row, idx) => renderRow(row, idx))}
+            </tbody>
           </table>
         </div>
       </div>

@@ -23,17 +23,17 @@ import type { K8sClusterEvent, EventCategory } from "@/lib/api/types";
 import { EVENT_CATEGORIES } from "@/lib/api/types";
 
 const CATEGORY_CONFIG: Record<EventCategory, { icon: React.ElementType; color: string }> = {
-  "Lifecycle": { icon: Activity, color: "text-blue-500" },
+  Lifecycle: { icon: Activity, color: "text-blue-500" },
   "Rolling Restart": { icon: RefreshCw, color: "text-orange-500" },
-  "Configuration": { icon: FileText, color: "text-purple-500" },
+  Configuration: { icon: FileText, color: "text-purple-500" },
   "ACL Security": { icon: Shield, color: "text-red-500" },
-  "Scaling": { icon: Layers, color: "text-green-500" },
+  Scaling: { icon: Layers, color: "text-green-500" },
   "Rack Management": { icon: Server, color: "text-cyan-500" },
-  "Network": { icon: Globe, color: "text-indigo-500" },
-  "Monitoring": { icon: BarChart3, color: "text-yellow-500" },
-  "Template": { icon: FileText, color: "text-pink-500" },
+  Network: { icon: Globe, color: "text-indigo-500" },
+  Monitoring: { icon: BarChart3, color: "text-yellow-500" },
+  Template: { icon: FileText, color: "text-pink-500" },
   "Circuit Breaker": { icon: Zap, color: "text-red-600" },
-  "Other": { icon: Circle, color: "text-gray-500" },
+  Other: { icon: Circle, color: "text-gray-500" },
 };
 
 function formatTimestamp(ts?: string): string {
@@ -139,7 +139,7 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
                 >
                   <div className="mt-0.5 flex-shrink-0">
                     {isWarning ? (
-                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                      <AlertTriangle className="text-destructive h-3.5 w-3.5" />
                     ) : (
                       <Icon className={cn("h-3.5 w-3.5", config.color)} />
                     )}

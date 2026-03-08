@@ -27,7 +27,6 @@ export function K8sReconciliationHealth({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     api
       .getK8sReconciliationStatus(namespace, name)
       .then((data) => {
@@ -48,12 +47,12 @@ export function K8sReconciliationHealth({
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-normal text-muted-foreground">
+          <CardTitle className="text-muted-foreground text-sm font-normal">
             Reconciliation
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-8 animate-pulse rounded bg-muted" />
+          <div className="bg-muted h-8 animate-pulse rounded" />
         </CardContent>
       </Card>
     );
@@ -79,7 +78,7 @@ export function K8sReconciliationHealth({
         <CardTitle className="flex items-center gap-2 text-sm font-normal">
           {status.circuitBreakerActive ? (
             <>
-              <Zap className="h-4 w-4 text-destructive" />
+              <Zap className="text-destructive h-4 w-4" />
               <span className="text-destructive">Circuit Breaker Active</span>
             </>
           ) : (
@@ -93,7 +92,7 @@ export function K8sReconciliationHealth({
       <CardContent className="space-y-3">
         {/* Progress toward circuit breaker */}
         <div>
-          <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+          <div className="text-muted-foreground mb-1 flex items-center justify-between text-xs">
             <span>
               Failures: {status.failedReconcileCount} / {status.circuitBreakerThreshold}
             </span>
@@ -103,7 +102,7 @@ export function K8sReconciliationHealth({
               </Badge>
             )}
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
             <div
               className={cn(
                 "h-full rounded-full transition-all",
@@ -116,7 +115,7 @@ export function K8sReconciliationHealth({
 
         {/* Backoff info */}
         {status.estimatedBackoffSeconds && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
             <Clock className="h-3 w-3" />
             <span>Next retry in ~{status.estimatedBackoffSeconds}s</span>
           </div>
@@ -124,9 +123,9 @@ export function K8sReconciliationHealth({
 
         {/* Last error */}
         {status.lastReconcileError && (
-          <div className="rounded bg-destructive/5 p-2">
-            <p className="text-xs font-medium text-destructive">Last error:</p>
-            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-3">
+          <div className="bg-destructive/5 rounded p-2">
+            <p className="text-destructive text-xs font-medium">Last error:</p>
+            <p className="text-muted-foreground mt-0.5 line-clamp-3 text-xs">
               {status.lastReconcileError}
             </p>
           </div>
@@ -134,12 +133,7 @@ export function K8sReconciliationHealth({
 
         {/* Reset button */}
         {status.circuitBreakerActive && onResetCircuitBreaker && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={onResetCircuitBreaker}
-          >
+          <Button variant="outline" size="sm" className="w-full" onClick={onResetCircuitBreaker}>
             <RotateCcw className="mr-2 h-3 w-3" />
             Reset Circuit Breaker
           </Button>

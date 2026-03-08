@@ -152,7 +152,9 @@ export default function CreateTemplatePage() {
                 placeholder="my-template"
                 disabled={loading}
               />
-              <p className="text-muted-foreground text-xs">Cluster-scoped resource (no namespace)</p>
+              <p className="text-muted-foreground text-xs">
+                Cluster-scoped resource (no namespace)
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="tmpl-image">Default Image</Label>

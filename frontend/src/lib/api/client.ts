@@ -425,24 +425,18 @@ export const api = {
     request<string[]>(withQuery("/api/k8s/secrets", { namespace })),
 
   // K8s Templates (cluster-scoped — no namespace)
-  getK8sTemplates: () =>
-    request<import("./types").K8sTemplateSummary[]>("/api/k8s/templates"),
+  getK8sTemplates: () => request<import("./types").K8sTemplateSummary[]>("/api/k8s/templates"),
   getK8sTemplate: (name: string) =>
-    request<import("./types").K8sTemplateDetail>(
-      `/api/k8s/templates/${encodePathSegment(name)}`,
-    ),
+    request<import("./types").K8sTemplateDetail>(`/api/k8s/templates/${encodePathSegment(name)}`),
   createK8sTemplate: (data: import("./types").CreateK8sTemplateRequest) =>
     request<import("./types").K8sTemplateSummary>("/api/k8s/templates", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   deleteK8sTemplate: (name: string) =>
-    request<{ message: string }>(
-      `/api/k8s/templates/${encodePathSegment(name)}`,
-      {
-        method: "DELETE",
-      },
-    ),
+    request<{ message: string }>(`/api/k8s/templates/${encodePathSegment(name)}`, {
+      method: "DELETE",
+    }),
 
   // K8s Template Resync
   resyncK8sClusterTemplate: (namespace: string, name: string) =>

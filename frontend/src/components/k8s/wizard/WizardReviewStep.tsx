@@ -363,10 +363,7 @@ export function WizardReviewStep({
           <>
             <span className="text-muted-foreground">Template</span>
             <span className="font-medium">
-              Created from{" "}
-              <span className="text-accent">
-                {form.templateRef.name}
-              </span>
+              Created from <span className="text-accent">{form.templateRef.name}</span>
             </span>
           </>
         )}

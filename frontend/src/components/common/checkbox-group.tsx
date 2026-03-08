@@ -26,10 +26,7 @@ export function CheckboxGroup({
   idPrefix = "cb",
 }: CheckboxGroupProps) {
   return (
-    <div
-      className="space-y-2 overflow-auto rounded-md border p-3"
-      style={{ maxHeight }}
-    >
+    <div className="space-y-2 overflow-auto rounded-md border p-3" style={{ maxHeight }}>
       {items.map((item) => (
         <div key={item.id} className="flex items-center gap-2">
           <Checkbox

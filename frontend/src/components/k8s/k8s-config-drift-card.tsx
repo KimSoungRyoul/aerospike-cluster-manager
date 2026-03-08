@@ -20,7 +20,6 @@ export function K8sConfigDriftCard({ namespace, name, className }: K8sConfigDrif
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     api
       .getK8sClusterConfigDrift(namespace, name)
       .then((data) => {
@@ -41,10 +40,10 @@ export function K8sConfigDriftCard({ namespace, name, className }: K8sConfigDrif
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-normal text-muted-foreground">Config Status</CardTitle>
+          <CardTitle className="text-muted-foreground text-sm font-normal">Config Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-8 animate-pulse rounded bg-muted" />
+          <div className="bg-muted h-8 animate-pulse rounded" />
         </CardContent>
       </Card>
     );
@@ -55,7 +54,7 @@ export function K8sConfigDriftCard({ namespace, name, className }: K8sConfigDrif
   return (
     <Card className={className}>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
+        <CardTitle className="text-muted-foreground flex items-center gap-2 text-sm font-normal">
           <FileCode className="h-4 w-4" />
           Config Status
         </CardTitle>
@@ -77,7 +76,7 @@ export function K8sConfigDriftCard({ namespace, name, className }: K8sConfigDrif
 
         {drift.changedFields.length > 0 && (
           <div>
-            <p className="mb-1 text-xs text-muted-foreground">Changed fields:</p>
+            <p className="text-muted-foreground mb-1 text-xs">Changed fields:</p>
             <div className="flex flex-wrap gap-1">
               {drift.changedFields.map((field) => (
                 <Badge key={field} variant="outline" className="text-xs">
@@ -90,7 +89,7 @@ export function K8sConfigDriftCard({ namespace, name, className }: K8sConfigDrif
 
         {drift.podHashGroups.length > 1 && (
           <div>
-            <p className="mb-1.5 text-xs text-muted-foreground">Pod config versions:</p>
+            <p className="text-muted-foreground mb-1.5 text-xs">Pod config versions:</p>
             <div className="space-y-1">
               {drift.podHashGroups.map((group, i) => (
                 <div
@@ -101,10 +100,8 @@ export function K8sConfigDriftCard({ namespace, name, className }: K8sConfigDrif
                   )}
                 >
                   <div className="flex items-center gap-1.5">
-                    <Hash className="h-3 w-3 text-muted-foreground" />
-                    <span className="font-mono">
-                      {group.configHash?.slice(0, 8) || "unknown"}
-                    </span>
+                    <Hash className="text-muted-foreground h-3 w-3" />
+                    <span className="font-mono">{group.configHash?.slice(0, 8) || "unknown"}</span>
                     {group.isCurrent && (
                       <Badge variant="secondary" className="px-1 py-0 text-[10px]">
                         current
