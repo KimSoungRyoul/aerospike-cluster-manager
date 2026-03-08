@@ -365,9 +365,7 @@ export function WizardReviewStep({
             <span className="font-medium">
               Created from{" "}
               <span className="text-accent">
-                {form.templateRef.namespace
-                  ? `${form.templateRef.namespace}/${form.templateRef.name}`
-                  : form.templateRef.name}
+                {form.templateRef.name}
               </span>
             </span>
           </>
@@ -422,7 +420,7 @@ export function WizardReviewStep({
                 <span key={rack.id} className="block font-mono text-xs">
                   Rack #{rack.id}
                   {rack.zone ? ` (zone: ${rack.zone})` : ""}
-                  {rack.maxPodsPerNode ? ` max: ${rack.maxPodsPerNode}/node` : ""}
+                  {rack.rackLabel ? ` label: ${rack.rackLabel}` : ""}
                 </span>
               ))}
             </div>

@@ -241,7 +241,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-[95vw] sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Edit Cluster</DialogTitle>
           <DialogDescription>

@@ -1,13 +1,4 @@
-import { useState } from "react";
 import Link from "next/link";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { FileText, PenLine, Loader2 } from "lucide-react";
 import { formatTemplateSpecField } from "./template-prefill";
 import type { WizardCreationModeStepProps } from "./types";
@@ -24,7 +15,6 @@ const PREVIEW_FIELDS = [
 
 export function WizardCreationModeStep({
   updateForm,
-  k8sNamespaces,
   templates,
   creationMode,
   setCreationMode,
@@ -33,11 +23,8 @@ export function WizardCreationModeStep({
   templateDetail,
   templateLoading,
 }: WizardCreationModeStepProps) {
-  const [browseNamespace, setBrowseNamespace] = useState<string>("");
-
-  const filteredTemplates = browseNamespace
-    ? templates.filter((t) => t.namespace === browseNamespace)
-    : templates;
+  // Templates are cluster-scoped — no namespace filtering needed
+  const filteredTemplates = templates;
 
   const handleModeChange = (mode: "scratch" | "template") => {
     setCreationMode(mode);
@@ -87,32 +74,6 @@ export function WizardCreationModeStep({
       {/* Template browser */}
       {creationMode === "template" && (
         <div className="space-y-3">
-          <div className="grid gap-2">
-            <Label htmlFor="browse-namespace" className="text-xs">
-              Filter by Namespace
-            </Label>
-            <Select
-              value={browseNamespace || "__all__"}
-              onValueChange={(v) => {
-                const ns = v === "__all__" ? "" : v;
-                setBrowseNamespace(ns);
-                if (ns) updateForm({ namespace: ns });
-              }}
-            >
-              <SelectTrigger id="browse-namespace">
-                <SelectValue placeholder="All namespaces" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">All namespaces</SelectItem>
-                {k8sNamespaces.map((ns) => (
-                  <SelectItem key={ns} value={ns}>
-                    {ns}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {filteredTemplates.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
               <FileText className="text-muted-foreground h-10 w-10" />
@@ -128,9 +89,9 @@ export function WizardCreationModeStep({
             <div className="grid gap-2">
               {filteredTemplates.map((t) => (
                 <button
-                  key={`${t.namespace}/${t.name}`}
+                  key={t.name}
                   type="button"
-                  onClick={() => onTemplateSelect(t.namespace, t.name)}
+                  onClick={() => onTemplateSelect(t.name)}
                   disabled={templateLoading}
                   className={`flex items-start justify-between rounded-lg border p-3 text-left transition-colors ${
                     selectedTemplateName === t.name
@@ -141,7 +102,6 @@ export function WizardCreationModeStep({
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{t.name}</span>
-                      <span className="text-muted-foreground text-[10px]">{t.namespace}</span>
                     </div>
                     {t.description && (
                       <p className="text-muted-foreground mt-0.5 truncate text-xs">

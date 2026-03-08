@@ -417,12 +417,14 @@ export interface RackConfig {
   id: number;
   zone?: string;
   region?: string;
-  maxPodsPerNode?: number;
+  rackLabel?: string;
   nodeName?: string;
 }
 
 export interface RackAwareConfig {
   racks: RackConfig[];
+  namespaces?: string[];
+  scaleDownBatchSize?: string;
 }
 
 export interface ClusterHealthSummary {
@@ -649,6 +651,22 @@ export interface MonitoringConfig {
   exporterImage?: string;
   serviceMonitor?: ServiceMonitorConfig;
   prometheusRule?: PrometheusRuleConfig;
+  resources?: ResourceConfig;
+  metricLabels?: Record<string, string>;
+}
+
+export interface BandwidthConfig {
+  ingress?: string;
+  egress?: string;
+}
+
+export interface ValidationPolicyConfig {
+  skipWorkDirValidate?: boolean;
+}
+
+export interface ServiceMetadataConfig {
+  annotations?: Record<string, string>;
+  labels?: Record<string, string>;
 }
 
 export interface CreateK8sClusterRequest {
@@ -660,7 +678,7 @@ export interface CreateK8sClusterRequest {
   storage?: StorageVolumeConfig;
   resources?: ResourceConfig;
   monitoring?: MonitoringConfig;
-  templateRef?: { name: string; namespace?: string };
+  templateRef?: { name: string };
   templateOverrides?: TemplateOverrides;
   enableDynamicConfig?: boolean;
   autoConnect: boolean;
@@ -672,6 +690,11 @@ export interface CreateK8sClusterRequest {
   podScheduling?: PodSchedulingConfig;
   seedsFinderServices?: SeedsFinderServicesConfig;
   networkPolicyConfig?: NetworkPolicyAutoConfig;
+  bandwidthConfig?: BandwidthConfig;
+  validationPolicy?: ValidationPolicyConfig;
+  headlessService?: ServiceMetadataConfig;
+  podService?: ServiceMetadataConfig;
+  enableRackIDOverride?: boolean;
 }
 
 export interface UpdateK8sClusterRequest {
@@ -691,6 +714,12 @@ export interface UpdateK8sClusterRequest {
   podScheduling?: PodSchedulingConfig;
   seedsFinderServices?: SeedsFinderServicesConfig;
   networkPolicyConfig?: NetworkPolicyAutoConfig;
+  acl?: ACLConfig;
+  bandwidthConfig?: BandwidthConfig;
+  validationPolicy?: ValidationPolicyConfig;
+  headlessService?: ServiceMetadataConfig;
+  podService?: ServiceMetadataConfig;
+  enableRackIDOverride?: boolean;
 }
 
 export interface ScaleK8sClusterRequest {
@@ -705,7 +734,6 @@ export interface OperationRequest {
 
 export interface K8sTemplateSummary {
   name: string;
-  namespace: string;
   image?: string;
   size?: number;
   age?: string;
@@ -714,7 +742,6 @@ export interface K8sTemplateSummary {
 
 export interface K8sTemplateDetail {
   name: string;
-  namespace: string;
   spec: Record<string, unknown>;
   status?: Record<string, unknown>;
   age?: string;
@@ -734,7 +761,6 @@ export interface TemplateStorageConfig {
 
 export interface CreateK8sTemplateRequest {
   name: string;
-  namespace: string;
   description?: string;
   image?: string;
   size?: number;
@@ -811,5 +837,11 @@ export interface AerospikeClusterSpec {
   resources?: ResourceConfig;
   seedsFinderServices?: SeedsFinderServicesConfig;
   networkPolicyConfig?: NetworkPolicyAutoConfig;
+  bandwidthConfig?: BandwidthConfig;
+  validationPolicy?: ValidationPolicyConfig;
+  headlessService?: { metadata?: { annotations?: Record<string, string>; labels?: Record<string, string> } };
+  podService?: { metadata?: { annotations?: Record<string, string>; labels?: Record<string, string> } };
+  enableRackIDOverride?: boolean;
+  templateRef?: { name: string };
   [key: string]: unknown;
 }

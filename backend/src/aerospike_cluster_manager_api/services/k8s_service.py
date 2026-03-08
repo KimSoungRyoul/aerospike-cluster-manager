@@ -67,8 +67,8 @@ def build_rack_list(racks: list[RackConfig]) -> list[dict[str, Any]]:
             r["zone"] = rack.zone
         if rack.region:
             r["region"] = rack.region
-        if rack.max_pods_per_node is not None:
-            r["maxPodsPerNode"] = rack.max_pods_per_node
+        if rack.rack_label:
+            r["rackLabel"] = rack.rack_label
         if rack.node_name:
             r["nodeName"] = rack.node_name
         result.append(r)
@@ -114,6 +114,13 @@ def build_monitoring(mon: Any) -> dict[str, Any]:
     }
     if mon.exporter_image:
         result["exporterImage"] = mon.exporter_image
+    if hasattr(mon, "resources") and mon.resources:
+        result["resources"] = {
+            "requests": {"cpu": mon.resources.requests.cpu, "memory": mon.resources.requests.memory},
+            "limits": {"cpu": mon.resources.limits.cpu, "memory": mon.resources.limits.memory},
+        }
+    if hasattr(mon, "metric_labels") and mon.metric_labels:
+        result["metricLabels"] = mon.metric_labels
     if mon.service_monitor:
         sm: dict[str, Any] = {"enabled": mon.service_monitor.enabled}
         if mon.service_monitor.interval:
@@ -271,10 +278,7 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     # Template reference and overrides
     if req.template_ref:
-        ref: dict[str, str] = {"name": req.template_ref.name}
-        if req.template_ref.namespace:
-            ref["namespace"] = req.template_ref.namespace
-        cr["spec"]["templateRef"] = ref
+        cr["spec"]["templateRef"] = {"name": req.template_ref.name}
         if req.template_overrides:
             overrides: dict[str, Any] = {}
             if req.template_overrides.image:
@@ -337,7 +341,12 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
 
     # Rack config
     if req.rack_config and req.rack_config.racks:
-        cr["spec"]["rackConfig"] = {"racks": build_rack_list(req.rack_config.racks)}
+        rack_config: dict[str, Any] = {"racks": build_rack_list(req.rack_config.racks)}
+        if req.rack_config.namespaces:
+            rack_config["namespaces"] = req.rack_config.namespaces
+        if req.rack_config.scale_down_batch_size:
+            rack_config["scaleDownBatchSize"] = req.rack_config.scale_down_batch_size
+        cr["spec"]["rackConfig"] = rack_config
 
     # Network access policy
     if req.network_policy:
@@ -357,6 +366,46 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             "enabled": req.network_policy_config.enabled,
             "type": req.network_policy_config.type,
         }
+
+    # Bandwidth shaping
+    if req.bandwidth_config:
+        bw: dict[str, str] = {}
+        if req.bandwidth_config.ingress:
+            bw["ingress"] = req.bandwidth_config.ingress
+        if req.bandwidth_config.egress:
+            bw["egress"] = req.bandwidth_config.egress
+        if bw:
+            cr["spec"]["bandwidthConfig"] = bw
+
+    # Validation policy
+    if req.validation_policy:
+        cr["spec"]["validationPolicy"] = {
+            "skipWorkDirValidate": req.validation_policy.skip_work_dir_validate,
+        }
+
+    # Headless service metadata
+    if req.headless_service:
+        svc_meta: dict[str, Any] = {}
+        if req.headless_service.annotations:
+            svc_meta["metadata"] = {"annotations": req.headless_service.annotations}
+        if req.headless_service.labels:
+            svc_meta.setdefault("metadata", {})["labels"] = req.headless_service.labels
+        if svc_meta:
+            cr["spec"]["headlessService"] = svc_meta
+
+    # Pod service metadata
+    if req.pod_service:
+        pod_svc_meta: dict[str, Any] = {}
+        if req.pod_service.annotations:
+            pod_svc_meta["metadata"] = {"annotations": req.pod_service.annotations}
+        if req.pod_service.labels:
+            pod_svc_meta.setdefault("metadata", {})["labels"] = req.pod_service.labels
+        if pod_svc_meta:
+            cr["spec"]["podService"] = pod_svc_meta
+
+    # Enable rack ID override
+    if req.enable_rack_id_override is not None:
+        cr["spec"]["enableRackIDOverride"] = req.enable_rack_id_override
 
     return cr
 
@@ -381,7 +430,6 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
         "kind": "AerospikeClusterTemplate",
         "metadata": {
             "name": req.name,
-            "namespace": req.namespace,
         },
         "spec": {},
     }
@@ -552,6 +600,12 @@ def has_update_fields(body: UpdateK8sClusterRequest) -> bool:
             body.pod_scheduling,
             body.seeds_finder_services,
             body.network_policy_config,
+            body.acl,
+            body.bandwidth_config,
+            body.validation_policy,
+            body.headless_service,
+            body.pod_service,
+            body.enable_rack_id_override,
         )
     )
 
@@ -606,6 +660,46 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
             "enabled": body.network_policy_config.enabled,
             "type": body.network_policy_config.type,
         }
+    if body.acl is not None:
+        if body.acl.enabled:
+            patch["spec"]["aerospikeAccessControl"] = {
+                "roles": [
+                    {"name": r.name, "privileges": r.privileges, **({"whitelist": r.whitelist} if r.whitelist else {})}
+                    for r in body.acl.roles
+                ],
+                "users": [{"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in body.acl.users],
+                "adminPolicy": {"timeout": body.acl.admin_policy_timeout},
+            }
+            patch["spec"].setdefault("aerospikeConfig", {})["security"] = {}
+        else:
+            patch["spec"]["aerospikeAccessControl"] = None
+    if body.bandwidth_config is not None:
+        bw: dict[str, str] = {}
+        if body.bandwidth_config.ingress:
+            bw["ingress"] = body.bandwidth_config.ingress
+        if body.bandwidth_config.egress:
+            bw["egress"] = body.bandwidth_config.egress
+        patch["spec"]["bandwidthConfig"] = bw if bw else None
+    if body.validation_policy is not None:
+        patch["spec"]["validationPolicy"] = {
+            "skipWorkDirValidate": body.validation_policy.skip_work_dir_validate,
+        }
+    if body.headless_service is not None:
+        svc_meta: dict[str, Any] = {"metadata": {}}
+        if body.headless_service.annotations:
+            svc_meta["metadata"]["annotations"] = body.headless_service.annotations
+        if body.headless_service.labels:
+            svc_meta["metadata"]["labels"] = body.headless_service.labels
+        patch["spec"]["headlessService"] = svc_meta
+    if body.pod_service is not None:
+        pod_svc: dict[str, Any] = {"metadata": {}}
+        if body.pod_service.annotations:
+            pod_svc["metadata"]["annotations"] = body.pod_service.annotations
+        if body.pod_service.labels:
+            pod_svc["metadata"]["labels"] = body.pod_service.labels
+        patch["spec"]["podService"] = pod_svc
+    if body.enable_rack_id_override is not None:
+        patch["spec"]["enableRackIDOverride"] = body.enable_rack_id_override
     return patch
 
 
@@ -615,7 +709,6 @@ def extract_template_summary(item: dict[str, Any]) -> K8sTemplateSummary:
     spec = item.get("spec", {})
     return K8sTemplateSummary(
         name=metadata.get("name", ""),
-        namespace=metadata.get("namespace", ""),
         image=spec.get("image"),
         size=spec.get("size"),
         age=calculate_age(metadata.get("creationTimestamp")),

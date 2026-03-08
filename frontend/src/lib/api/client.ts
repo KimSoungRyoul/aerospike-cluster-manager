@@ -424,21 +424,21 @@ export const api = {
   getK8sSecrets: (namespace: string) =>
     request<string[]>(withQuery("/api/k8s/secrets", { namespace })),
 
-  // K8s Templates
-  getK8sTemplates: (namespace?: string) =>
-    request<import("./types").K8sTemplateSummary[]>(withQuery("/api/k8s/templates", { namespace })),
-  getK8sTemplate: (namespace: string, name: string) =>
+  // K8s Templates (cluster-scoped — no namespace)
+  getK8sTemplates: () =>
+    request<import("./types").K8sTemplateSummary[]>("/api/k8s/templates"),
+  getK8sTemplate: (name: string) =>
     request<import("./types").K8sTemplateDetail>(
-      `/api/k8s/templates/${encodePathSegment(namespace)}/${encodePathSegment(name)}`,
+      `/api/k8s/templates/${encodePathSegment(name)}`,
     ),
   createK8sTemplate: (data: import("./types").CreateK8sTemplateRequest) =>
     request<import("./types").K8sTemplateSummary>("/api/k8s/templates", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  deleteK8sTemplate: (namespace: string, name: string) =>
+  deleteK8sTemplate: (name: string) =>
     request<{ message: string }>(
-      `/api/k8s/templates/${encodePathSegment(namespace)}/${encodePathSegment(name)}`,
+      `/api/k8s/templates/${encodePathSegment(name)}`,
       {
         method: "DELETE",
       },

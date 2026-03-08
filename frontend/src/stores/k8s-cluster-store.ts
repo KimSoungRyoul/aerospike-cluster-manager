@@ -37,10 +37,10 @@ interface K8sClusterState {
   createCluster: (data: CreateK8sClusterRequest) => Promise<K8sClusterSummary>;
   deleteCluster: (namespace: string, name: string) => Promise<void>;
   scaleCluster: (namespace: string, name: string, size: number) => Promise<void>;
-  fetchTemplates: (namespace?: string) => Promise<void>;
-  fetchTemplate: (namespace: string, name: string) => Promise<void>;
+  fetchTemplates: () => Promise<void>;
+  fetchTemplate: (name: string) => Promise<void>;
   createTemplate: (data: CreateK8sTemplateRequest) => Promise<K8sTemplateSummary>;
-  deleteTemplate: (namespace: string, name: string) => Promise<void>;
+  deleteTemplate: (name: string) => Promise<void>;
   triggerOperation: (
     namespace: string,
     name: string,
@@ -149,18 +149,18 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
       );
     },
 
-    fetchTemplates: async (namespace?: string) => {
+    fetchTemplates: async () => {
       try {
-        const templates = await api.getK8sTemplates(namespace);
+        const templates = await api.getK8sTemplates();
         set({ templates });
       } catch {
         // Don't set global error — template fetch failures should not block cluster pages
       }
     },
 
-    fetchTemplate: async (namespace: string, name: string) => {
+    fetchTemplate: async (name: string) => {
       await withLoading(set, async () => {
-        const template = await api.getK8sTemplate(namespace, name);
+        const template = await api.getK8sTemplate(name);
         set({ selectedTemplate: template });
       });
     },
@@ -178,11 +178,11 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
       return result as K8sTemplateSummary;
     },
 
-    deleteTemplate: async (namespace: string, name: string) => {
+    deleteTemplate: async (name: string) => {
       await withLoading(
         set,
         async () => {
-          await api.deleteK8sTemplate(namespace, name);
+          await api.deleteK8sTemplate(name);
           set({ selectedTemplate: null });
           await get().fetchTemplates();
         },

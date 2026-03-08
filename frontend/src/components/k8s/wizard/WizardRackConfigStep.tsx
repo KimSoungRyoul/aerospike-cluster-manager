@@ -94,21 +94,18 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                   )}
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-xs">Max Pods Per Node</Label>
+                  <Label className="text-xs">Rack Label</Label>
                   <Input
-                    type="number"
-                    min={1}
-                    value={rack.maxPodsPerNode ?? ""}
+                    value={rack.rackLabel ?? ""}
                     onChange={(e) => {
-                      const val = parseInt(e.target.value);
                       const newRacks = [...racks];
                       newRacks[idx] = {
                         ...rack,
-                        maxPodsPerNode: isNaN(val) ? undefined : Math.max(1, val),
+                        rackLabel: e.target.value || undefined,
                       };
                       updateForm({ rackConfig: { racks: newRacks } });
                     }}
-                    placeholder="No limit"
+                    placeholder="Optional label"
                   />
                 </div>
               </div>
