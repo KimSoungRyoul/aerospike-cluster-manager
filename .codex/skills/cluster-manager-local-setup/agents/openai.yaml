@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cluster Manager Local Setup"
+  short_description: "Check local tools and install project dependencies"
+  default_prompt: "Use $cluster-manager-local-setup to verify local prerequisites for Cluster Manager development."

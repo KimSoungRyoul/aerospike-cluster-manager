@@ -177,11 +177,13 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
         cell: ({ getValue }) => (
           <span className="font-mono font-medium">{getValue() as string}</span>
         ),
+        meta: { mobileSlot: "title", mobileLabel: "Module" },
       },
       {
         accessorKey: "type",
         header: "Type",
         cell: ({ getValue }) => <Badge variant="secondary">{getValue() as string}</Badge>,
+        meta: { mobileSlot: "meta" },
       },
       {
         accessorKey: "hash",
@@ -191,7 +193,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             {truncateMiddle(getValue() as string, 24)}
           </span>
         ),
-        meta: { className: "hidden md:table-cell" },
+        meta: { hideOn: ["mobile"], mobileSlot: "content", mobileLabel: "Hash" },
       },
       {
         id: "actions",
@@ -228,6 +230,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             </Button>
           </div>
         ),
+        meta: { mobileSlot: "actions" },
       },
     ],
 
@@ -235,7 +238,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
   );
 
   return (
-    <div className="animate-fade-in space-y-6 p-6 lg:p-8">
+    <div className="animate-fade-in space-y-6 p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="UDF Modules"
         description="Manage User-Defined Functions (Lua scripts)"
@@ -287,6 +290,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
         }
         className="rounded-lg border"
         testId="udfs-table"
+        mobileLayout="cards"
       />
 
       {/* Upload / Paste Dialog */}

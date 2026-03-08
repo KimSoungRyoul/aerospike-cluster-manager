@@ -52,12 +52,12 @@ export function TablePagination({
   return (
     <div
       className={cn(
-        "border-border/50 bg-card/80 flex flex-col gap-2 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6",
+        "border-border/50 bg-card/80 safe-bottom flex w-full min-w-0 shrink-0 flex-col gap-3 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6",
         className,
       )}
     >
       {/* Range & page size */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
           {start}–{end}
           <span className="text-muted-foreground/40 mx-1.5">of</span>
@@ -88,7 +88,7 @@ export function TablePagination({
       </div>
 
       {/* Page navigation */}
-      <div className="flex items-center justify-center gap-0.5">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-1 sm:justify-center">
         {/* First/Last page: hidden on mobile */}
         <button
           className="page-num-btn hidden sm:inline-flex"

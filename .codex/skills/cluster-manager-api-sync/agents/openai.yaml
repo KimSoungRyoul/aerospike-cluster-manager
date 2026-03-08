@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cluster Manager API Sync"
+  short_description: "Keep backend models and frontend types aligned"
+  default_prompt: "Use $cluster-manager-api-sync to sync backend Pydantic models with frontend TypeScript types."

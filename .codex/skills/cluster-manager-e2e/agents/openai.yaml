@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cluster Manager E2E"
+  short_description: "Run local or containerized Cluster Manager E2E"
+  default_prompt: "Use $cluster-manager-e2e to start the stack and run Playwright checks for Cluster Manager."

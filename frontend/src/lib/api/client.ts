@@ -270,6 +270,10 @@ export const api = {
     request<import("./types").RecordListResponse>(
       withQuery(`/api/records/${encodePathSegment(connId)}`, { ns, set, page, pageSize }),
     ),
+  getRecord: (connId: string, ns: string, set: string, pk: string) =>
+    request<import("./types").AerospikeRecord>(
+      withQuery(`/api/records/${encodePathSegment(connId)}/detail`, { ns, set, pk }),
+    ),
   putRecord: (connId: string, data: import("./types").RecordWriteRequest) =>
     request<import("./types").AerospikeRecord>(`/api/records/${encodePathSegment(connId)}`, {
       method: "POST",
