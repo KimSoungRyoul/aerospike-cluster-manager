@@ -153,12 +153,8 @@ export function DataTable<TData, TValue>({
                   : flexRender(header.column.columnDef.header, header.getContext())}
                 {canSort && (
                   <>
-                    {sorted === "asc" && (
-                      <ChevronUp className="text-accent h-3 w-3 shrink-0" />
-                    )}
-                    {sorted === "desc" && (
-                      <ChevronDown className="text-accent h-3 w-3 shrink-0" />
-                    )}
+                    {sorted === "asc" && <ChevronUp className="text-accent h-3 w-3 shrink-0" />}
+                    {sorted === "desc" && <ChevronDown className="text-accent h-3 w-3 shrink-0" />}
                     {!sorted && (
                       <ChevronsUpDown className="text-muted-foreground/30 h-3 w-3 shrink-0" />
                     )}
@@ -320,7 +316,9 @@ export function DataTable<TData, TValue>({
                     />
                   </tr>
                 )}
-                {virtualItems.map((virtualRow) => renderRow(rows[virtualRow.index], virtualRow.index))}
+                {virtualItems.map((virtualRow) =>
+                  renderRow(rows[virtualRow.index], virtualRow.index),
+                )}
                 {virtualItems.length > 0 &&
                   virtualItems[virtualItems.length - 1].end < totalSize && (
                     <tr>
