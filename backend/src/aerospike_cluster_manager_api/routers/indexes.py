@@ -12,7 +12,7 @@ from aerospike_cluster_manager_api.models.index import CreateIndexRequest, Secon
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/indexes", tags=["indexes"])
+router = APIRouter(prefix="/indexes", tags=["indexes"])
 
 _STATE_MAP = {"RW": "ready", "WO": "building", "D": "error"}
 _TYPE_MAP = {"numeric": "numeric", "string": "string", "geo2dsphere": "geo2dsphere"}

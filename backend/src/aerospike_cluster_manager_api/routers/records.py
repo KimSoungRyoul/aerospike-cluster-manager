@@ -39,7 +39,7 @@ def _auto_detect_pk(pk: str) -> str | int:
     return pk
 
 
-router = APIRouter(prefix="/api/records", tags=["records"])
+router = APIRouter(prefix="/records", tags=["records"])
 
 
 @router.get(

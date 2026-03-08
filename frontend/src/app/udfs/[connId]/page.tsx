@@ -22,7 +22,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { LoadingButton } from "@/components/common/loading-button";
 import { PageHeader } from "@/components/common/page-header";
-import { CodeEditor } from "@/components/common/code-editor";
+import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
 import { api } from "@/lib/api/client";
 import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";

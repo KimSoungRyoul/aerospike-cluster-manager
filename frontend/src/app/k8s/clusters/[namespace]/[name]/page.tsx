@@ -33,11 +33,9 @@ import { toast } from "sonner";
 import { cn, getErrorMessage } from "@/lib/utils";
 import {
   TRANSITIONAL_PHASES,
-  type K8sClusterEvent,
   type K8sClusterPhase,
   type UpdateK8sClusterRequest,
   type TemplateSnapshot,
-  type ClusterHealthSummary,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
@@ -75,19 +73,21 @@ export default function K8sClusterDetailPage() {
     resyncTemplate,
     pauseCluster,
     resumeCluster,
+    detailEvents: events,
+    detailHealth: health,
+    startDetailPolling,
+    stopDetailPolling,
   } = useK8sClusterStore();
   const [scaleOpen, setScaleOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resyncing, setResyncing] = useState(false);
-  const [events, setEvents] = useState<K8sClusterEvent[]>([]);
   const [selectedPods, setSelectedPods] = useState<string[]>([]);
   const [templateSpecOpen, setTemplateSpecOpen] = useState(false);
   const [warmRestartConfirmOpen, setWarmRestartConfirmOpen] = useState(false);
   const [podRestartConfirmOpen, setPodRestartConfirmOpen] = useState(false);
   const [pendingPodsExpanded, setPendingPodsExpanded] = useState(false);
-  const [health, setHealth] = useState<ClusterHealthSummary | null>(null);
 
   const namespace = params?.namespace || "";
   const name = params?.name || "";
@@ -97,13 +97,13 @@ export default function K8sClusterDetailPage() {
       fetchCluster(namespace, name);
       api
         .getK8sClusterEvents(namespace, name)
-        .then(setEvents)
+        .then((e) => useK8sClusterStore.setState({ detailEvents: e }))
         .catch((err) => {
           console.error("Failed to fetch cluster events:", err);
         });
       api
         .getK8sClusterHealth(namespace, name)
-        .then(setHealth)
+        .then((h) => useK8sClusterStore.setState({ detailHealth: h }))
         .catch((err) => {
           console.error("Failed to fetch cluster health:", err);
         });
@@ -117,23 +117,9 @@ export default function K8sClusterDetailPage() {
       !(TRANSITIONAL_PHASES as string[]).includes(selectedCluster.phase)
     )
       return;
-    const interval = setInterval(() => {
-      fetchCluster(namespace, name);
-      api
-        .getK8sClusterEvents(namespace, name)
-        .then(setEvents)
-        .catch((err) => {
-          console.error("Failed to fetch cluster events:", err);
-        });
-      api
-        .getK8sClusterHealth(namespace, name)
-        .then(setHealth)
-        .catch((err) => {
-          console.error("Failed to fetch cluster health:", err);
-        });
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [selectedCluster?.phase, namespace, name, fetchCluster]);
+    startDetailPolling(namespace, name);
+    return () => stopDetailPolling();
+  }, [selectedCluster?.phase, namespace, name, startDetailPolling, stopDetailPolling]);
 
   const handleEdit = async (data: UpdateK8sClusterRequest) => {
     try {

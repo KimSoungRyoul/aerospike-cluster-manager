@@ -868,6 +868,8 @@ asyncio.run(main())`;
               columnPinning={COLUMN_PINNING}
               tableMinWidth={tableMinWidth}
               testId="records-table"
+              virtualScrolling
+              maxHeight="calc(100vh - 280px)"
             />
           </TooltipProvider>
         )}

@@ -16,7 +16,7 @@ from aerospike_cluster_manager_api.sample_data_generator import SAMPLE_INDEXES, 
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/sample-data", tags=["sample-data"])
+router = APIRouter(prefix="/sample-data", tags=["sample-data"])
 
 
 @router.post(

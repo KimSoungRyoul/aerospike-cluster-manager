@@ -8,7 +8,7 @@ from typing import Any
 
 import aerospike_py
 from aerospike_py.exception import AerospikeError
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.responses import Response
 
 from aerospike_cluster_manager_api import db
@@ -18,26 +18,30 @@ from aerospike_cluster_manager_api.dependencies import _get_verified_connection
 from aerospike_cluster_manager_api.info_parser import parse_list
 from aerospike_cluster_manager_api.models.connection import (
     ConnectionProfile,
+    ConnectionProfileResponse,
     ConnectionStatus,
     CreateConnectionRequest,
     TestConnectionRequest,
     UpdateConnectionRequest,
 )
+from aerospike_cluster_manager_api.rate_limit import limiter
 from aerospike_cluster_manager_api.utils import parse_host_port
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/connections", tags=["connections"])
+router = APIRouter(prefix="/connections", tags=["connections"])
 
 
 @router.get("", summary="List connections", description="Retrieve all saved Aerospike connection profiles.")
-async def list_connections() -> list[ConnectionProfile]:
+async def list_connections() -> list[ConnectionProfileResponse]:
     """Retrieve all saved Aerospike connection profiles."""
-    return await db.get_all_connections()
+    profiles = await db.get_all_connections()
+    return [ConnectionProfileResponse.from_profile(p) for p in profiles]
 
 
 @router.post("", status_code=201, summary="Create connection", description="Create a new Aerospike connection profile.")
-async def create_connection(body: CreateConnectionRequest) -> ConnectionProfile:
+@limiter.limit("10/minute")
+async def create_connection(request: Request, body: CreateConnectionRequest) -> ConnectionProfileResponse:
     """Create a new Aerospike connection profile."""
     now = datetime.now(UTC).isoformat()
     conn = ConnectionProfile(
@@ -53,16 +57,16 @@ async def create_connection(body: CreateConnectionRequest) -> ConnectionProfile:
         updatedAt=now,
     )
     await db.create_connection(conn)
-    return conn
+    return ConnectionProfileResponse.from_profile(conn)
 
 
 @router.get("/{conn_id}", summary="Get connection", description="Retrieve a single connection profile by its ID.")
-async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfile:
+async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfileResponse:
     """Retrieve a single connection profile by its ID."""
     conn = await db.get_connection(conn_id)
     if not conn:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
-    return conn
+    return ConnectionProfileResponse.from_profile(conn)
 
 
 @router.put(
@@ -71,13 +75,13 @@ async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> Co
 async def update_connection(
     body: UpdateConnectionRequest,
     conn_id: str = Depends(_get_verified_connection),
-) -> ConnectionProfile:
+) -> ConnectionProfileResponse:
     """Update an existing connection profile with new settings."""
     update_data = body.model_dump(exclude_none=True)
     conn = await db.update_connection(conn_id, update_data)
     if not conn:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
-    return conn
+    return ConnectionProfileResponse.from_profile(conn)
 
 
 @router.get(
@@ -116,7 +120,8 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
     summary="Test connection",
     description="Test connectivity to an Aerospike cluster without saving the profile.",
 )
-async def test_connection(body: TestConnectionRequest) -> dict:
+@limiter.limit("5/minute")
+async def test_connection(request: Request, body: TestConnectionRequest) -> dict:
     """Test connectivity to an Aerospike cluster without saving the profile."""
     try:
         hosts = [parse_host_port(h, body.port) for h in body.hosts]
@@ -146,7 +151,8 @@ async def test_connection(body: TestConnectionRequest) -> dict:
     summary="Delete connection",
     description="Delete a connection profile and close its active client.",
 )
-async def delete_connection(conn_id: str = Depends(_get_verified_connection)) -> Response:
+@limiter.limit("10/minute")
+async def delete_connection(request: Request, conn_id: str = Depends(_get_verified_connection)) -> Response:
     """Delete a connection profile and close its active client."""
     await db.delete_connection(conn_id)
     await client_manager.close_client(conn_id)

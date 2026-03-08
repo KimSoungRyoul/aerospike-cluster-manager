@@ -8,12 +8,15 @@ import { METRIC_INTERVAL_MS } from "@/lib/constants";
 let _intervalId: ReturnType<typeof setInterval> | null = null;
 let _visibilityCleanup: (() => void) | null = null;
 
+const MAX_BACKOFF_MS = 60_000;
+
 interface MetricsState {
   metrics: ClusterMetrics | null;
   loading: boolean;
   error: string | null;
   _isFetching: boolean;
   _isTabVisible: boolean;
+  consecutiveErrors: number;
 
   fetchMetrics: (connId: string) => Promise<void>;
   startPolling: (connId: string) => void;
@@ -26,6 +29,7 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
   error: null,
   _isFetching: false,
   _isTabVisible: true,
+  consecutiveErrors: 0,
 
   fetchMetrics: async (connId) => {
     // Prevent concurrent requests
@@ -35,9 +39,27 @@ export const useMetricsStore = create<MetricsState>()((set, get) => ({
     set({ _isFetching: true, ...(isInitialLoad ? { loading: true } : {}), error: null });
     try {
       const metrics = await api.getMetrics(connId);
-      set({ metrics, loading: false, _isFetching: false });
+      const hadErrors = get().consecutiveErrors > 0;
+      set({ metrics, loading: false, _isFetching: false, consecutiveErrors: 0 });
+      // Reset interval back to base when recovering from errors
+      if (hadErrors && _intervalId) {
+        get().startPolling(connId);
+      }
     } catch (error) {
-      set({ error: getErrorMessage(error), loading: false, _isFetching: false });
+      const consecutiveErrors = get().consecutiveErrors + 1;
+      set({ error: getErrorMessage(error), loading: false, _isFetching: false, consecutiveErrors });
+      // Restart interval with backed-off delay
+      if (_intervalId) {
+        clearInterval(_intervalId);
+        const backoff = Math.min(
+          METRIC_INTERVAL_MS * Math.pow(2, consecutiveErrors),
+          MAX_BACKOFF_MS,
+        );
+        _intervalId = setInterval(() => {
+          if (!get()._isTabVisible) return;
+          get().fetchMetrics(connId);
+        }, backoff);
+      }
     }
   },
 

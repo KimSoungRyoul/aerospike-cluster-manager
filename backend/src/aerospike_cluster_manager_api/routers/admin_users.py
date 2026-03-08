@@ -13,7 +13,7 @@ from aerospike_cluster_manager_api.models.common import MessageResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin", tags=["admin-users"])
+router = APIRouter(prefix="/admin", tags=["admin-users"])
 
 
 @router.get(

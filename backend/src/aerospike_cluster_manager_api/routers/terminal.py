@@ -30,7 +30,7 @@ from aerospike_cluster_manager_api.models.terminal import TerminalCommand, Termi
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/terminal", tags=["terminal"])
+router = APIRouter(prefix="/terminal", tags=["terminal"])
 
 
 async def _execute(c, command: str) -> tuple[str, bool]:

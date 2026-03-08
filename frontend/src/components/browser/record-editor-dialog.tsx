@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { CodeEditor } from "@/components/common/code-editor";
+import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
 import type { BinValue, BinEntry } from "@/lib/api/types";
 export type { BinEntry } from "@/lib/api/types";
 import { BIN_TYPES, type BinType } from "@/lib/constants";

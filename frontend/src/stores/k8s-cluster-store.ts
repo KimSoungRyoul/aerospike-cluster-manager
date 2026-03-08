@@ -7,10 +7,17 @@ import type {
   CreateK8sClusterRequest,
   CreateK8sTemplateRequest,
   UpdateK8sClusterRequest,
+  K8sClusterEvent,
+  ClusterHealthSummary,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 import { withLoading } from "@/lib/store-utils";
 import { getErrorMessage } from "@/lib/utils";
+
+// Module-level variables for detail polling
+let _k8sDetailIntervalId: ReturnType<typeof setInterval> | null = null;
+const K8S_DETAIL_POLL_BASE_MS = 5000;
+const K8S_DETAIL_MAX_BACKOFF_MS = 60_000;
 
 interface K8sClusterState {
   clusters: K8sClusterSummary[];
@@ -20,6 +27,9 @@ interface K8sClusterState {
   loading: boolean;
   error: string | null;
   k8sAvailable: boolean;
+  detailEvents: K8sClusterEvent[];
+  detailHealth: ClusterHealthSummary | null;
+  consecutiveErrors: number;
 
   checkAvailability: () => Promise<void>;
   fetchClusters: (namespace?: string) => Promise<void>;
@@ -41,6 +51,8 @@ interface K8sClusterState {
   resyncTemplate: (namespace: string, name: string) => Promise<void>;
   pauseCluster: (namespace: string, name: string) => Promise<void>;
   resumeCluster: (namespace: string, name: string) => Promise<void>;
+  startDetailPolling: (namespace: string, name: string) => void;
+  stopDetailPolling: () => void;
 }
 
 export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
@@ -64,6 +76,9 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
     loading: false,
     error: null,
     k8sAvailable: false,
+    detailEvents: [],
+    detailHealth: null,
+    consecutiveErrors: 0,
 
     checkAvailability: async () => {
       try {
@@ -234,6 +249,52 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
         },
         { rethrow: true },
       );
+    },
+
+    startDetailPolling: (namespace: string, name: string) => {
+      if (_k8sDetailIntervalId) clearInterval(_k8sDetailIntervalId);
+      set({ consecutiveErrors: 0 });
+
+      const poll = async () => {
+        try {
+          await loadCluster(namespace, name);
+          const [events, health] = await Promise.all([
+            api.getK8sClusterEvents(namespace, name).catch(() => get().detailEvents),
+            api.getK8sClusterHealth(namespace, name).catch(() => get().detailHealth),
+          ]);
+          const hadErrors = get().consecutiveErrors > 0;
+          set({ detailEvents: events, detailHealth: health, consecutiveErrors: 0 });
+          // Reset interval back to base when recovering from errors
+          if (hadErrors && _k8sDetailIntervalId) {
+            clearInterval(_k8sDetailIntervalId);
+            _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_BASE_MS);
+          }
+        } catch (error) {
+          const consecutiveErrors = get().consecutiveErrors + 1;
+          set({ error: getErrorMessage(error), consecutiveErrors });
+          // Restart interval with backed-off delay
+          if (_k8sDetailIntervalId) {
+            clearInterval(_k8sDetailIntervalId);
+            const backoff = Math.min(
+              K8S_DETAIL_POLL_BASE_MS * Math.pow(2, consecutiveErrors),
+              K8S_DETAIL_MAX_BACKOFF_MS,
+            );
+            _k8sDetailIntervalId = setInterval(poll, backoff);
+          }
+        }
+      };
+
+      // Fetch immediately, then poll at interval
+      poll();
+      _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_BASE_MS);
+    },
+
+    stopDetailPolling: () => {
+      if (_k8sDetailIntervalId) {
+        clearInterval(_k8sDetailIntervalId);
+        _k8sDetailIntervalId = null;
+      }
+      set({ consecutiveErrors: 0 });
     },
   };
 });

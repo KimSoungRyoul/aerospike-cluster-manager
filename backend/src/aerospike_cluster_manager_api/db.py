@@ -98,6 +98,16 @@ async def init_db() -> None:
     logger.info("Database initialized")
 
 
+async def check_health() -> bool:
+    """Check database connectivity. Returns True if healthy."""
+    try:
+        pool = _get_pool()
+        await pool.fetchval("SELECT 1")
+        return True
+    except Exception:
+        return False
+
+
 async def close_db() -> None:
     global _pool
     if _pool:

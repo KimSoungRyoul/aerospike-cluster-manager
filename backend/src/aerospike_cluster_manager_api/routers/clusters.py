@@ -34,7 +34,7 @@ from aerospike_cluster_manager_api.models.common import MessageResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/clusters", tags=["clusters"])
+router = APIRouter(prefix="/clusters", tags=["clusters"])
 
 
 @router.get(

@@ -1,17 +1,22 @@
 import logging
 import time
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
 
 from aerospike_cluster_manager_api import config, db
 from aerospike_cluster_manager_api.client_manager import client_manager
 from aerospike_cluster_manager_api.logging_config import setup_logging
+from aerospike_cluster_manager_api.rate_limit import limiter
 from aerospike_cluster_manager_api.routers import (
     admin_roles,
     admin_users,
@@ -29,7 +34,7 @@ from aerospike_cluster_manager_api.routers import (
 if config.K8S_MANAGEMENT_ENABLED:
     from aerospike_cluster_manager_api.routers import k8s_clusters
 
-setup_logging(config.LOG_LEVEL)
+setup_logging(config.LOG_LEVEL, config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
@@ -53,12 +58,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
 )
 
 
@@ -69,15 +78,18 @@ app.add_middleware(
 
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    request_id = request.headers.get("X-Request-ID", uuid.uuid4().hex[:16])
     start = time.monotonic()
     response = await call_next(request)
     elapsed_ms = (time.monotonic() - start) * 1000
+    response.headers["X-Request-ID"] = request_id
     logger.info(
-        "%s %s %d %.1fms",
+        "%s %s %d %.1fms request_id=%s",
         request.method,
         request.url.path,
         response.status_code,
         elapsed_ms,
+        request_id,
     )
     return response
 
@@ -172,25 +184,54 @@ except ImportError:
     pass
 
 # ---------------------------------------------------------------------------
-# Routers
+# Routers — versioned (/api/v1/...) and backward-compatible (/api/...)
 # ---------------------------------------------------------------------------
 
-app.include_router(connections.router)
-app.include_router(clusters.router)
-app.include_router(records.router)
-app.include_router(query.router)
-app.include_router(indexes.router)
-app.include_router(terminal.router)
-app.include_router(admin_users.router)
-app.include_router(admin_roles.router)
-app.include_router(udfs.router)
-app.include_router(sample_data.router)
-app.include_router(metrics.router)
+# Each sub-router uses a domain prefix (e.g. /connections, /clusters).
+# We mount them under both /api and /api/v1 so that:
+#   - Existing clients using /api/... continue to work (backward compat)
+#   - New clients can target /api/v1/... for explicit versioning
+
+_routers = [
+    connections.router,
+    clusters.router,
+    records.router,
+    query.router,
+    indexes.router,
+    terminal.router,
+    admin_users.router,
+    admin_roles.router,
+    udfs.router,
+    sample_data.router,
+    metrics.router,
+]
 
 if config.K8S_MANAGEMENT_ENABLED:
-    app.include_router(k8s_clusters.router)
+    _routers.append(k8s_clusters.router)
+
+api_router = APIRouter(prefix="/api", include_in_schema=False)
+v1_router = APIRouter(prefix="/api/v1")
+
+for r in _routers:
+    api_router.include_router(r)
+    v1_router.include_router(r)
+
+app.include_router(v1_router)
+app.include_router(api_router)
 
 
 @app.get("/api/health")
-def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+async def health_check(detail: bool = Query(False)) -> dict:
+    if not detail:
+        return {"status": "ok"}
+
+    # Check DB health
+    db_ok = await db.check_health()
+
+    overall = "ok" if db_ok else "degraded"
+    return {
+        "status": overall,
+        "components": {
+            "database": {"status": "ok" if db_ok else "error"},
+        },
+    }

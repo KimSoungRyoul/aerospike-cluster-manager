@@ -12,7 +12,7 @@ from aerospike_cluster_manager_api.models.admin import AerospikeRole, CreateRole
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/admin", tags=["admin-roles"])
+router = APIRouter(prefix="/admin", tags=["admin-roles"])
 
 
 @router.get(

@@ -51,5 +51,23 @@ class TestConnectionRequest(BaseModel):
     password: str | None = None
 
 
-class ConnectionWithStatus(ConnectionProfile):
+class ConnectionProfileResponse(BaseModel):
+    """Connection profile without password — used in API responses."""
+
+    id: str
+    name: str
+    hosts: list[str] = Field(min_length=1)
+    port: int = Field(ge=1, le=65535)
+    clusterName: str | None = None
+    username: str | None = None
+    color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    createdAt: str
+    updatedAt: str
+
+    @classmethod
+    def from_profile(cls, profile: ConnectionProfile) -> ConnectionProfileResponse:
+        return cls(**profile.model_dump(exclude={"password"}))
+
+
+class ConnectionWithStatus(ConnectionProfileResponse):
     status: ConnectionStatus

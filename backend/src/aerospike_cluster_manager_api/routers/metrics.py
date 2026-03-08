@@ -18,7 +18,7 @@ from aerospike_cluster_manager_api.models.metrics import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/metrics", tags=["metrics"])
+router = APIRouter(prefix="/metrics", tags=["metrics"])
 
 _NS_COLORS = ["#0097D3", "#ffe600", "#ff6b35", "#2ecc71", "#9b59b6"]
 

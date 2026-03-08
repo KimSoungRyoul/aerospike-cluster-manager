@@ -4,14 +4,38 @@ import { getErrorMessage } from "@/lib/utils";
 const BASE_URL = "";
 const DEFAULT_TIMEOUT = 30_000;
 const MAX_RETRIES = 2;
+
+// API Versioning: The backend now supports both /api/... (backward-compatible)
+// and /api/v1/... (versioned) endpoints. All paths below use the unversioned
+// /api/... prefix for backward compatibility. When ready to migrate, replace
+// "/api/" with "/api/v1/" in the endpoint paths below.
 const RETRY_BASE_DELAY = 1000;
 const MAX_RETRY_DELAY = 30_000;
+
+function generateRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  const bytes = new Uint8Array(16);
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 function buildHeaders(
   headersInit: HeadersInit | undefined,
   body: BodyInit | null | undefined,
 ): Headers {
   const headers = new Headers(headersInit);
+
+  if (!headers.has("X-Request-ID")) {
+    headers.set("X-Request-ID", generateRequestId());
+  }
 
   if (body !== undefined && body !== null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");

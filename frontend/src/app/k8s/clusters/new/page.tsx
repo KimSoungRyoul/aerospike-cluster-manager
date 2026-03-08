@@ -1,7 +1,20 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { PageHeader } from "@/components/common/page-header";
-import { K8sClusterWizard } from "@/components/k8s/k8s-cluster-wizard";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const K8sClusterWizard = dynamic(
+  () => import("@/components/k8s/k8s-cluster-wizard").then((m) => m.K8sClusterWizard),
+  {
+    loading: () => (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-[400px] w-full rounded-xl" />
+      </div>
+    ),
+  },
+);
 
 export default function CreateK8sClusterPage() {
   return (

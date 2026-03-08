@@ -14,7 +14,7 @@ from aerospike_cluster_manager_api.models.udf import UDFModule, UploadUDFRequest
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/udfs", tags=["udfs"])
+router = APIRouter(prefix="/udfs", tags=["udfs"])
 
 
 async def _list_udfs(c) -> list[UDFModule]:

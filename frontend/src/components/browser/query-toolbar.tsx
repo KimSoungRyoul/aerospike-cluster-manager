@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { LoadingButton } from "@/components/common/loading-button";
 import { InlineAlert } from "@/components/common/inline-alert";
-import { CodeEditor } from "@/components/common/code-editor";
+import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
 import { useQueryStore } from "@/stores/query-store";
 import type { PredicateOperator } from "@/lib/api/types";
 import { toast } from "sonner";

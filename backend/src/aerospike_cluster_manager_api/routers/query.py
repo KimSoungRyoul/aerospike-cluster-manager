@@ -15,7 +15,7 @@ from aerospike_cluster_manager_api.utils import build_predicate
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/query", tags=["query"])
+router = APIRouter(prefix="/query", tags=["query"])
 
 
 @router.post(
