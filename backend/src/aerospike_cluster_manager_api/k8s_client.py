@@ -499,18 +499,16 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
-    def _create_hpa_sync(
-        self,
-        namespace: str,
+    @staticmethod
+    def _build_hpa_object(
         cluster_name: str,
+        namespace: str,
         min_replicas: int,
         max_replicas: int,
-        cpu_target_percent: int | None = None,
-        memory_target_percent: int | None = None,
-    ) -> dict[str, Any]:
-        """Create an HPA targeting an AerospikeCluster."""
-        logger.debug("_create_hpa_sync(namespace=%s, cluster=%s)", namespace, cluster_name)
-        self._ensure_initialized()
+        cpu_target_percent: int | None,
+        memory_target_percent: int | None,
+    ) -> Any:
+        """Build a V2HorizontalPodAutoscaler object (shared by create and update)."""
         from kubernetes import client
 
         metrics = []
@@ -541,7 +539,7 @@ class K8sClient:
                 )
             )
 
-        hpa = client.V2HorizontalPodAutoscaler(
+        return client.V2HorizontalPodAutoscaler(
             metadata=client.V1ObjectMeta(
                 name=cluster_name,
                 namespace=namespace,
@@ -562,6 +560,21 @@ class K8sClient:
             ),
         )
 
+    def _create_hpa_sync(
+        self,
+        namespace: str,
+        cluster_name: str,
+        min_replicas: int,
+        max_replicas: int,
+        cpu_target_percent: int | None = None,
+        memory_target_percent: int | None = None,
+    ) -> dict[str, Any]:
+        """Create an HPA targeting an AerospikeCluster."""
+        logger.debug("_create_hpa_sync(namespace=%s, cluster=%s)", namespace, cluster_name)
+        self._ensure_initialized()
+        hpa = self._build_hpa_object(
+            cluster_name, namespace, min_replicas, max_replicas, cpu_target_percent, memory_target_percent
+        )
         try:
             result = self._autoscaling_api.create_namespaced_horizontal_pod_autoscaler(
                 namespace=namespace,
@@ -584,55 +597,8 @@ class K8sClient:
         """Update (replace) an existing HPA."""
         logger.debug("_update_hpa_sync(namespace=%s, cluster=%s)", namespace, cluster_name)
         self._ensure_initialized()
-        from kubernetes import client
-
-        metrics = []
-        if cpu_target_percent is not None:
-            metrics.append(
-                client.V2MetricSpec(
-                    type="Resource",
-                    resource=client.V2ResourceMetricSource(
-                        name="cpu",
-                        target=client.V2MetricTarget(
-                            type="Utilization",
-                            average_utilization=cpu_target_percent,
-                        ),
-                    ),
-                )
-            )
-        if memory_target_percent is not None:
-            metrics.append(
-                client.V2MetricSpec(
-                    type="Resource",
-                    resource=client.V2ResourceMetricSource(
-                        name="memory",
-                        target=client.V2MetricTarget(
-                            type="Utilization",
-                            average_utilization=memory_target_percent,
-                        ),
-                    ),
-                )
-            )
-
-        hpa = client.V2HorizontalPodAutoscaler(
-            metadata=client.V1ObjectMeta(
-                name=cluster_name,
-                namespace=namespace,
-                labels={
-                    "app.kubernetes.io/managed-by": "aerospike-cluster-manager",
-                    "app.kubernetes.io/instance": cluster_name,
-                },
-            ),
-            spec=client.V2HorizontalPodAutoscalerSpec(
-                scale_target_ref=client.V2CrossVersionObjectReference(
-                    api_version=f"{GROUP}/{VERSION}",
-                    kind="AerospikeCluster",
-                    name=cluster_name,
-                ),
-                min_replicas=min_replicas,
-                max_replicas=max_replicas,
-                metrics=metrics,
-            ),
+        hpa = self._build_hpa_object(
+            cluster_name, namespace, min_replicas, max_replicas, cpu_target_percent, memory_target_percent
         )
 
         try:

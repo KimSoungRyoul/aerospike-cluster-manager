@@ -984,14 +984,17 @@ def extract_hpa_response(raw: dict[str, Any]) -> HPAResponse:
             )
         )
 
+    # Use model_construct to bypass the at_least_one_metric validator — this function reads
+    # an existing K8s HPA which may have custom/external metrics not tracked by our model.
+    config = HPAConfig.model_construct(
+        min_replicas=min_replicas,
+        max_replicas=max_replicas,
+        cpu_target_percent=cpu_target,
+        memory_target_percent=memory_target,
+    )
     return HPAResponse(
         enabled=True,
-        config=HPAConfig(
-            minReplicas=min_replicas,
-            maxReplicas=max_replicas,
-            cpuTargetPercent=cpu_target,
-            memoryTargetPercent=memory_target,
-        ),
+        config=config,
         status=HPAStatus(
             currentReplicas=status_raw.get("current_replicas", 0),
             desiredReplicas=status_raw.get("desired_replicas", 0),
