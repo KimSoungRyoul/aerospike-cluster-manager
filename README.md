@@ -111,7 +111,11 @@ npm run dev                        # http://localhost:3000
   - Network access type configuration (Pod IP, Host Internal/External, Configured IP) with custom network names for configuredIP
   - Kubernetes NetworkPolicy auto-generation (standard K8s or Cilium)
   - Seeds Finder LoadBalancer service for external seed discovery
-  - K8s node block list for excluding specific nodes from scheduling
+  - K8s node block list UI for selecting nodes to exclude from scheduling (wizard + edit dialog)
+  - CNI bandwidth annotations for ingress/egress limits (wizard + edit dialog)
+  - HorizontalPodAutoscaler (HPA) management: create, view, and delete HPAs targeting AerospikeCluster resources
+  - Enhanced monitoring configuration: exporter image, metric labels, exporter resources (CPU/memory), ServiceMonitor config (enabled/interval/labels), PrometheusRule config (enabled/labels)
+  - Seeds Finder Services advanced config: LoadBalancer annotations, labels, and source ranges
   - Cluster health dashboard with rack distribution and migration status
   - Pod logs viewer with tail lines, copy, and download
   - Export cluster CR as clean YAML
@@ -134,12 +138,12 @@ Create, scale, update, and delete Aerospike clusters through a guided 9-step wiz
 
 1. **Basic** — Cluster name, Kubernetes namespace, size (1-8 nodes), Aerospike image selection
 2. **Namespace & Storage** — Aerospike namespace configuration with in-memory or persistent (PVC) storage, replication factor, storage class selection, volume init/wipe methods, cascade delete
-3. **Monitoring & Options** — Enable Prometheus metrics exporter, select an AerospikeClusterTemplate, enable dynamic configuration updates, configure network access type (Pod IP, Host Internal/External, Configured IP with custom network names), auto-generate Kubernetes NetworkPolicy (standard or Cilium), configure Seeds Finder LoadBalancer for external seed discovery
+3. **Monitoring & Options** — Enable Prometheus metrics exporter (custom image, metric labels, exporter resources, ServiceMonitor, PrometheusRule), select an AerospikeClusterTemplate, enable dynamic configuration updates, configure network access type (Pod IP, Host Internal/External, Configured IP with custom network names), auto-generate Kubernetes NetworkPolicy (standard or Cilium), configure Seeds Finder LoadBalancer for external seed discovery (annotations, labels, source ranges)
 4. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
 5. **Security (ACL)** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
 6. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
 7. **Rack Config** — Multi-rack deployment with zone affinity, per-rack overrides (aerospikeConfig, storage, podSpec), batch scaling controls (maxIgnorablePods, rollingUpdateBatchSize, scaleDownBatchSize)
-8. **Advanced** — Pod management policy, DNS policy, readiness gate, pod metadata (labels/annotations), bandwidth throttling, validation policy, service metadata, rack ID override
+8. **Advanced** — Pod management policy, DNS policy, readiness gate, pod metadata (labels/annotations), bandwidth throttling (CNI ingress/egress limits), node block list (select K8s nodes to exclude from scheduling), validation policy, service metadata, rack ID override
 9. **Review** — Summary of all settings before creation
 
 ### Cluster Phases
@@ -180,7 +184,8 @@ Full lifecycle management of `AerospikeClusterTemplate` resources:
 From the cluster detail page, you can:
 
 - **Scale** — Change cluster size (1-8 nodes) via a scale dialog
-- **Edit** — Modify running cluster settings (image, size, dynamic config, aerospike config, network policy, NetworkPolicy auto-generation, ACL, bandwidth config, validation policy, service metadata, rack ID override, pod metadata) with diff-based patching
+- **Edit** — Modify running cluster settings (image, size, dynamic config, aerospike config, network policy, NetworkPolicy auto-generation, ACL, monitoring config, bandwidth config, node block list, validation policy, service metadata, rack ID override, pod metadata) with diff-based patching
+- **HPA** — Create, view, and delete HorizontalPodAutoscaler resources for automatic cluster scaling based on CPU/memory utilization
 - **Warm Restart** — Trigger a warm restart operation (all pods or selected pods via checkboxes)
 - **Pod Restart** — Trigger a full pod restart operation (all pods or selected pods via checkboxes)
 - **Pause / Resume** — Pause reconciliation for maintenance windows, then resume when ready
@@ -231,6 +236,9 @@ When creating a cluster, the "Auto-connect" option (enabled by default) automati
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/reconciliation-status` | Get reconciliation health (circuit breaker state, backoff timer) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/pods/{pod}/logs` | Get container logs for a pod |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/yaml` | Export cluster CR as clean YAML |
+| `GET` | `/api/k8s/clusters/{namespace}/{name}/hpa` | Get HPA config and status for a cluster |
+| `POST` | `/api/k8s/clusters/{namespace}/{name}/hpa` | Create or update HPA (minReplicas, maxReplicas, CPU/memory targets) |
+| `DELETE` | `/api/k8s/clusters/{namespace}/{name}/hpa` | Delete HPA for a cluster |
 | `POST` | `/api/k8s/clusters/{namespace}/{name}/resync-template` | Trigger template resync via annotation |
 | `GET` | `/api/k8s/templates` | List all AerospikeClusterTemplate resources (cluster-scoped) |
 | `POST` | `/api/k8s/templates` | Create a new AerospikeClusterTemplate |

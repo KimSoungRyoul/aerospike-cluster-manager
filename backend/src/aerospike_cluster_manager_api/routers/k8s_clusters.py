@@ -23,6 +23,8 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
     CreateK8sClusterRequest,
     CreateK8sTemplateRequest,
+    HPAConfig,
+    HPAResponse,
     K8sClusterDetail,
     K8sClusterEvent,
     K8sClusterSummary,
@@ -41,6 +43,7 @@ from aerospike_cluster_manager_api.services.k8s_service import (
     clean_cr_for_export,
     extract_detail,
     extract_health,
+    extract_hpa_response,
     extract_reconciliation_status,
     extract_summary,
     extract_template_summary,
@@ -315,6 +318,69 @@ async def scale_k8s_cluster(
     patch = {"spec": {"size": body.size}}
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return extract_summary(result)
+
+
+# ---------------------------------------------------------------------------
+# HPA endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/clusters/{namespace}/{name}/hpa", summary="Get HPA for K8s Aerospike cluster")
+@_k8s_endpoint("get HPA for Kubernetes cluster")
+async def get_k8s_cluster_hpa(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> HPAResponse:
+    _require_k8s()
+    raw = await k8s_client.get_hpa(namespace, name)
+    return extract_hpa_response(raw)
+
+
+@router.post(
+    "/clusters/{namespace}/{name}/hpa", status_code=201, summary="Create or update HPA for K8s Aerospike cluster"
+)
+@_k8s_endpoint("create/update HPA for Kubernetes cluster")
+async def create_or_update_k8s_cluster_hpa(
+    body: HPAConfig,
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> HPAResponse:
+    _require_k8s()
+    # Check if HPA already exists — update if so, create if not
+    try:
+        await k8s_client.get_hpa(namespace, name)
+        raw = await k8s_client.update_hpa(
+            namespace,
+            name,
+            body.min_replicas,
+            body.max_replicas,
+            body.cpu_target_percent,
+            body.memory_target_percent,
+        )
+    except K8sApiError as e:
+        if e.status == 404:
+            raw = await k8s_client.create_hpa(
+                namespace,
+                name,
+                body.min_replicas,
+                body.max_replicas,
+                body.cpu_target_percent,
+                body.memory_target_percent,
+            )
+        else:
+            raise
+    return extract_hpa_response(raw)
+
+
+@router.delete("/clusters/{namespace}/{name}/hpa", status_code=202, summary="Delete HPA for K8s Aerospike cluster")
+@_k8s_endpoint("delete HPA for Kubernetes cluster")
+async def delete_k8s_cluster_hpa(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> DeleteResponse:
+    _require_k8s()
+    await k8s_client.delete_hpa(namespace, name)
+    return DeleteResponse(message=f"HPA for {namespace}/{name} deleted")
 
 
 # ---------------------------------------------------------------------------

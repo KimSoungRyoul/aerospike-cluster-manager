@@ -15,6 +15,7 @@ import {
   Clock,
   AlertTriangle,
   Copy,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +30,7 @@ import { K8sScaleDialog } from "@/components/k8s/k8s-scale-dialog";
 import { K8sDeleteDialog } from "@/components/k8s/k8s-delete-dialog";
 import { K8sEventTimeline } from "@/components/k8s/k8s-event-timeline";
 import { K8sEditDialog } from "@/components/k8s/k8s-edit-dialog";
+import { K8sHPADialog } from "@/components/k8s/k8s-hpa-dialog";
 import { K8sReconciliationHealth } from "@/components/k8s/k8s-reconciliation-health";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
@@ -84,6 +86,7 @@ export default function K8sClusterDetailPage() {
   const [scaleOpen, setScaleOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [hpaOpen, setHpaOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [resyncing, setResyncing] = useState(false);
   const [selectedPods, setSelectedPods] = useState<string[]>([]);
@@ -197,6 +200,10 @@ export default function K8sClusterDetailPage() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
               <Pencil className="mr-2 h-4 w-4" />
               Edit
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setHpaOpen(true)}>
+              <Gauge className="mr-2 h-4 w-4" />
+              HPA
             </Button>
             <Button
               variant="outline"
@@ -812,6 +819,13 @@ export default function K8sClusterDetailPage() {
         onOpenChange={setEditOpen}
         cluster={selectedCluster}
         onSave={handleEdit}
+      />
+
+      <K8sHPADialog
+        open={hpaOpen}
+        onOpenChange={setHpaOpen}
+        namespace={namespace}
+        clusterName={name}
       />
 
       <ConfirmDialog

@@ -13,6 +13,10 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
     CreateK8sClusterRequest,
     CreateK8sTemplateRequest,
+    HPACondition,
+    HPAConfig,
+    HPAResponse,
+    HPAStatus,
     K8sClusterCondition,
     K8sClusterDetail,
     K8sClusterSummary,
@@ -944,6 +948,59 @@ def extract_reconciliation_status(cr: dict) -> dict:
         "estimatedBackoffSeconds": backoff_seconds,
         "phase": phase,
     }
+
+
+def extract_hpa_response(raw: dict[str, Any]) -> HPAResponse:
+    """Build an HPAResponse from a raw HPA dict (from to_dict())."""
+    spec = raw.get("spec", {})
+    status_raw = raw.get("status", {})
+
+    min_replicas = spec.get("min_replicas", 1)
+    max_replicas = spec.get("max_replicas", 1)
+
+    cpu_target: int | None = None
+    memory_target: int | None = None
+    for metric in spec.get("metrics", []):
+        resource = metric.get("resource", {})
+        target = resource.get("target", {})
+        metric_name = resource.get("name", "")
+        if metric_name == "cpu" and target.get("average_utilization") is not None:
+            cpu_target = target["average_utilization"]
+        elif metric_name == "memory" and target.get("average_utilization") is not None:
+            memory_target = target["average_utilization"]
+
+    conditions = []
+    for cond in status_raw.get("conditions", []) or []:
+        last_time = cond.get("last_transition_time")
+        if last_time and not isinstance(last_time, str):
+            last_time = last_time.isoformat() if hasattr(last_time, "isoformat") else str(last_time)
+        conditions.append(
+            HPACondition(
+                type=cond.get("type", ""),
+                status=cond.get("status", ""),
+                reason=cond.get("reason"),
+                message=cond.get("message"),
+                lastTransitionTime=last_time,
+            )
+        )
+
+    # Use model_construct to bypass the at_least_one_metric validator — this function reads
+    # an existing K8s HPA which may have custom/external metrics not tracked by our model.
+    config = HPAConfig.model_construct(
+        min_replicas=min_replicas,
+        max_replicas=max_replicas,
+        cpu_target_percent=cpu_target,
+        memory_target_percent=memory_target,
+    )
+    return HPAResponse(
+        enabled=True,
+        config=config,
+        status=HPAStatus(
+            currentReplicas=status_raw.get("current_replicas", 0),
+            desiredReplicas=status_raw.get("desired_replicas", 0),
+            conditions=conditions,
+        ),
+    )
 
 
 def clean_cr_for_export(item: dict[str, Any]) -> dict[str, Any]:

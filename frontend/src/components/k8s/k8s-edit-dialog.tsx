@@ -23,12 +23,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import type {
   K8sClusterDetail,
   UpdateK8sClusterRequest,
   NetworkAccessType,
   NetworkPolicyAutoConfig,
   PodMetadataConfig,
+  BandwidthConfig,
+  MonitoringConfig,
 } from "@/lib/api/types";
 
 interface K8sEditDialogProps {
@@ -56,11 +59,14 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     null,
   );
   const [nodeBlockList, setNodeBlockList] = useState("");
+  const [bandwidthIngress, setBandwidthIngress] = useState("");
+  const [bandwidthEgress, setBandwidthEgress] = useState("");
   const [readinessGateEnabled, setReadinessGateEnabled] = useState(false);
   const [podMetadataLabels, setPodMetadataLabels] = useState("");
   const [podMetadataAnnotations, setPodMetadataAnnotations] = useState("");
   const [podManagementPolicy, setPodManagementPolicy] = useState<string>("");
   const [dnsPolicy, setDnsPolicy] = useState<string>("");
+  const [monitoringConfig, setMonitoringConfig] = useState<MonitoringConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -85,6 +91,8 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
   const initialCustomFabricNames = (networkPolicy?.customFabricNetworkNames ?? []).join(", ");
   const initialNetworkPolicyConfig = cluster.spec?.networkPolicyConfig ?? null;
   const initialNodeBlockList = (cluster.spec?.k8sNodeBlockList ?? []).join(", ");
+  const initialBandwidthIngress = cluster.spec?.bandwidthConfig?.ingress ?? "";
+  const initialBandwidthEgress = cluster.spec?.bandwidthConfig?.egress ?? "";
   const podSpec = cluster.spec?.podSpec as Record<string, unknown> | undefined;
   const initialReadinessGateEnabled = Boolean(podSpec?.readinessGateEnabled);
   const podMeta = podSpec?.metadata as PodMetadataConfig | undefined;
@@ -100,6 +108,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     : "";
   const initialPodManagementPolicy = (podSpec?.podManagementPolicy as string) || "";
   const initialDnsPolicy = (podSpec?.dnsPolicy as string) || "";
+  const initialMonitoringConfig: MonitoringConfig | null = cluster.spec?.monitoring ?? null;
   const initialAerospikeConfig = useMemo(
     () => cluster.spec?.aerospikeConfig ?? {},
     [cluster.spec?.aerospikeConfig],
@@ -127,11 +136,14 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       setCustomFabricNames(initialCustomFabricNames);
       setNetworkPolicyConfig(initialNetworkPolicyConfig);
       setNodeBlockList(initialNodeBlockList);
+      setBandwidthIngress(initialBandwidthIngress);
+      setBandwidthEgress(initialBandwidthEgress);
       setReadinessGateEnabled(initialReadinessGateEnabled);
       setPodMetadataLabels(initialPodMetadataLabels);
       setPodMetadataAnnotations(initialPodMetadataAnnotations);
       setPodManagementPolicy(initialPodManagementPolicy);
       setDnsPolicy(initialDnsPolicy);
+      setMonitoringConfig(initialMonitoringConfig);
       setError(null);
       setConfigError(null);
     }
@@ -152,11 +164,14 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     initialCustomFabricNames,
     initialNetworkPolicyConfig,
     initialNodeBlockList,
+    initialBandwidthIngress,
+    initialBandwidthEgress,
     initialReadinessGateEnabled,
     initialPodMetadataLabels,
     initialPodMetadataAnnotations,
     initialPodManagementPolicy,
     initialDnsPolicy,
+    initialMonitoringConfig,
   ]);
 
   // Validate JSON on every keystroke
@@ -189,11 +204,14 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     customFabricNames !== initialCustomFabricNames ||
     JSON.stringify(networkPolicyConfig) !== JSON.stringify(initialNetworkPolicyConfig) ||
     nodeBlockList !== initialNodeBlockList ||
+    bandwidthIngress !== initialBandwidthIngress ||
+    bandwidthEgress !== initialBandwidthEgress ||
     readinessGateEnabled !== initialReadinessGateEnabled ||
     podMetadataLabels !== initialPodMetadataLabels ||
     podMetadataAnnotations !== initialPodMetadataAnnotations ||
     podManagementPolicy !== initialPodManagementPolicy ||
-    dnsPolicy !== initialDnsPolicy;
+    dnsPolicy !== initialDnsPolicy ||
+    JSON.stringify(monitoringConfig) !== JSON.stringify(initialMonitoringConfig);
 
   const handleSave = async () => {
     setLoading(true);
@@ -266,6 +284,16 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
         data.k8sNodeBlockList = nodes;
       }
 
+      if (
+        bandwidthIngress !== initialBandwidthIngress ||
+        bandwidthEgress !== initialBandwidthEgress
+      ) {
+        const bw: BandwidthConfig = {};
+        if (bandwidthIngress.trim()) bw.ingress = bandwidthIngress.trim();
+        if (bandwidthEgress.trim()) bw.egress = bandwidthEgress.trim();
+        data.bandwidthConfig = Object.keys(bw).length > 0 ? bw : undefined;
+      }
+
       // Pod scheduling new fields
       const podSchedulingChanged =
         readinessGateEnabled !== initialReadinessGateEnabled ||
@@ -303,6 +331,11 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
           labels: parseKvPairs(podMetadataLabels),
           annotations: parseKvPairs(podMetadataAnnotations),
         };
+      }
+
+      // Monitoring
+      if (JSON.stringify(monitoringConfig) !== JSON.stringify(initialMonitoringConfig)) {
+        data.monitoring = monitoringConfig ?? undefined;
       }
 
       await onSave(data);
@@ -377,6 +410,16 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
               Enable Dynamic Config Update
             </Label>
           </div>
+
+          {/* Monitoring */}
+          <EditMonitoringSection
+            config={monitoringConfig}
+            onChange={(cfg) => {
+              setMonitoringConfig(cfg);
+              setError(null);
+            }}
+            disabled={loading}
+          />
 
           {/* Rolling Update Strategy */}
           <div className="grid gap-3">
@@ -621,6 +664,47 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
             </p>
           </div>
 
+          {/* Bandwidth Limits */}
+          <div className="grid gap-3">
+            <Label className="text-sm font-semibold">Bandwidth Limits</Label>
+            <p className="text-muted-foreground text-[10px]">
+              CNI bandwidth shaping for Aerospike pods (e.g. &quot;1M&quot;, &quot;10M&quot;,
+              &quot;100M&quot;)
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1">
+                <Label htmlFor="edit-bw-ingress" className="text-xs">
+                  Ingress
+                </Label>
+                <Input
+                  id="edit-bw-ingress"
+                  value={bandwidthIngress}
+                  onChange={(e) => {
+                    setBandwidthIngress(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="e.g. 10M"
+                  disabled={loading}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label htmlFor="edit-bw-egress" className="text-xs">
+                  Egress
+                </Label>
+                <Input
+                  id="edit-bw-egress"
+                  value={bandwidthEgress}
+                  onChange={(e) => {
+                    setBandwidthEgress(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="e.g. 10M"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Pod Settings */}
           <div className="grid gap-3">
             <Label className="text-sm font-semibold">Pod Settings</Label>
@@ -746,5 +830,436 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Monitoring Section for Edit Dialog
+// ---------------------------------------------------------------------------
+
+/** Inline key-value pair editor for Record<string, string> fields. */
+function EditKvEditor({
+  value,
+  onChange,
+  keyPlaceholder = "key",
+  valuePlaceholder = "value",
+  disabled,
+}: {
+  value: Record<string, string> | undefined;
+  onChange: (v: Record<string, string> | undefined) => void;
+  keyPlaceholder?: string;
+  valuePlaceholder?: string;
+  disabled?: boolean;
+}) {
+  const entries = value ? Object.entries(value) : [];
+  const [newKey, setNewKey] = useState("");
+  const [newVal, setNewVal] = useState("");
+
+  const addEntry = () => {
+    const k = newKey.trim();
+    const v = newVal.trim();
+    if (!k) return;
+    onChange({ ...value, [k]: v });
+    setNewKey("");
+    setNewVal("");
+  };
+
+  const removeEntry = (key: string) => {
+    if (!value) return;
+    const next = { ...value };
+    delete next[key];
+    onChange(Object.keys(next).length > 0 ? next : undefined);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      {entries.map(([k, v]) => (
+        <div key={k} className="flex items-center gap-1.5">
+          <code className="bg-muted truncate rounded px-1.5 py-0.5 text-[10px]">{k}</code>
+          <span className="text-muted-foreground text-[10px]">=</span>
+          <code className="bg-muted flex-1 truncate rounded px-1.5 py-0.5 text-[10px]">{v}</code>
+          <button
+            type="button"
+            className="text-muted-foreground hover:text-foreground shrink-0"
+            onClick={() => removeEntry(k)}
+            disabled={disabled}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+      <div className="flex items-center gap-1.5">
+        <Input
+          className="h-7 text-[10px]"
+          placeholder={keyPlaceholder}
+          value={newKey}
+          onChange={(e) => setNewKey(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEntry())}
+          disabled={disabled}
+        />
+        <Input
+          className="h-7 text-[10px]"
+          placeholder={valuePlaceholder}
+          value={newVal}
+          onChange={(e) => setNewVal(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEntry())}
+          disabled={disabled}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-7 shrink-0 text-[10px]"
+          onClick={addEntry}
+          disabled={disabled || !newKey.trim()}
+        >
+          <Plus className="mr-0.5 h-3 w-3" />
+          Add
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function EditCollapsible({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  summary: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded border">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-3 py-2 text-left"
+      >
+        <div>
+          <span className="text-xs font-medium">{title}</span>
+          <span className="text-muted-foreground ml-1.5 text-[10px]">{summary}</span>
+        </div>
+        {open ? (
+          <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
+        ) : (
+          <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+        )}
+      </button>
+      {open && <div className="space-y-3 border-t px-3 pt-3 pb-3">{children}</div>}
+    </div>
+  );
+}
+
+function EditMonitoringSection({
+  config,
+  onChange,
+  disabled,
+}: {
+  config: MonitoringConfig | null;
+  onChange: (cfg: MonitoringConfig | null) => void;
+  disabled?: boolean;
+}) {
+  const enabled = config?.enabled ?? false;
+
+  const patch = (updates: Partial<MonitoringConfig>) => {
+    onChange({ ...config!, ...updates });
+  };
+
+  return (
+    <div className="grid gap-3">
+      <Label className="text-sm font-semibold">Monitoring</Label>
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="edit-monitoring-enabled"
+          checked={enabled}
+          onCheckedChange={(checked) => {
+            if (checked === true) {
+              onChange({ enabled: true, port: config?.port ?? 9145 });
+            } else {
+              onChange(null);
+            }
+          }}
+          disabled={disabled}
+        />
+        <Label htmlFor="edit-monitoring-enabled" className="cursor-pointer text-xs">
+          Enable Prometheus monitoring
+        </Label>
+      </div>
+
+      {enabled && config && (
+        <div className="space-y-3">
+          {/* Port & Image */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1">
+              <Label htmlFor="edit-monitoring-port" className="text-xs">
+                Exporter Port
+              </Label>
+              <Input
+                id="edit-monitoring-port"
+                type="number"
+                min={1024}
+                max={65535}
+                value={config.port}
+                onChange={(e) =>
+                  patch({
+                    port: Math.min(65535, Math.max(1024, parseInt(e.target.value) || 9145)),
+                  })
+                }
+                disabled={disabled}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor="edit-exporter-image" className="text-xs">
+                Exporter Image
+              </Label>
+              <Input
+                id="edit-exporter-image"
+                value={config.exporterImage ?? ""}
+                onChange={(e) => patch({ exporterImage: e.target.value || undefined })}
+                placeholder="aerospike/aerospike-prometheus-exporter:latest"
+                disabled={disabled}
+              />
+            </div>
+          </div>
+
+          {/* Metric Labels */}
+          <div className="grid gap-1.5">
+            <Label className="text-xs">Metric Labels</Label>
+            <EditKvEditor
+              value={config.metricLabels}
+              onChange={(labels) => patch({ metricLabels: labels })}
+              keyPlaceholder="label name"
+              valuePlaceholder="label value"
+              disabled={disabled}
+            />
+          </div>
+
+          {/* Exporter Resources */}
+          <EditCollapsible
+            title="Exporter Resources"
+            summary={
+              config.resources
+                ? `${config.resources.requests.cpu} / ${config.resources.requests.memory}`
+                : "Defaults"
+            }
+          >
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-exporter-resources-enabled"
+                  checked={config.resources != null}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      patch({
+                        resources: {
+                          requests: { cpu: "100m", memory: "128Mi" },
+                          limits: { cpu: "200m", memory: "256Mi" },
+                        },
+                      });
+                    } else {
+                      patch({ resources: undefined });
+                    }
+                  }}
+                  disabled={disabled}
+                />
+                <Label htmlFor="edit-exporter-resources-enabled" className="cursor-pointer text-xs">
+                  Set resource requests/limits
+                </Label>
+              </div>
+              {config.resources && (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">CPU Request</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        value={config.resources.requests.cpu}
+                        onChange={(e) =>
+                          patch({
+                            resources: {
+                              ...config.resources!,
+                              requests: { ...config.resources!.requests, cpu: e.target.value },
+                            },
+                          })
+                        }
+                        placeholder="100m"
+                        disabled={disabled}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">Memory Request</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        value={config.resources.requests.memory}
+                        onChange={(e) =>
+                          patch({
+                            resources: {
+                              ...config.resources!,
+                              requests: { ...config.resources!.requests, memory: e.target.value },
+                            },
+                          })
+                        }
+                        placeholder="128Mi"
+                        disabled={disabled}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">CPU Limit</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        value={config.resources.limits.cpu}
+                        onChange={(e) =>
+                          patch({
+                            resources: {
+                              ...config.resources!,
+                              limits: { ...config.resources!.limits, cpu: e.target.value },
+                            },
+                          })
+                        }
+                        placeholder="200m"
+                        disabled={disabled}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">Memory Limit</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        value={config.resources.limits.memory}
+                        onChange={(e) =>
+                          patch({
+                            resources: {
+                              ...config.resources!,
+                              limits: { ...config.resources!.limits, memory: e.target.value },
+                            },
+                          })
+                        }
+                        placeholder="256Mi"
+                        disabled={disabled}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </EditCollapsible>
+
+          {/* ServiceMonitor */}
+          <EditCollapsible
+            title="ServiceMonitor"
+            summary={config.serviceMonitor?.enabled ? "Enabled" : "Disabled"}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-sm-enabled"
+                  checked={config.serviceMonitor?.enabled ?? false}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      patch({
+                        serviceMonitor: {
+                          enabled: true,
+                          ...(config.serviceMonitor ?? {}),
+                        },
+                      });
+                    } else {
+                      patch({ serviceMonitor: undefined });
+                    }
+                  }}
+                  disabled={disabled}
+                />
+                <Label htmlFor="edit-sm-enabled" className="cursor-pointer text-xs">
+                  Enable ServiceMonitor
+                </Label>
+              </div>
+              {config.serviceMonitor?.enabled && (
+                <>
+                  <div className="grid gap-1">
+                    <Label className="text-[10px]">Scrape Interval</Label>
+                    <Input
+                      className="h-7 max-w-[150px] text-xs"
+                      value={config.serviceMonitor.interval ?? ""}
+                      onChange={(e) =>
+                        patch({
+                          serviceMonitor: {
+                            ...config.serviceMonitor!,
+                            interval: e.target.value || undefined,
+                          },
+                        })
+                      }
+                      placeholder="30s"
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-[10px]">Labels</Label>
+                    <EditKvEditor
+                      value={config.serviceMonitor.labels}
+                      onChange={(labels) =>
+                        patch({
+                          serviceMonitor: { ...config.serviceMonitor!, labels },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </EditCollapsible>
+
+          {/* PrometheusRule */}
+          <EditCollapsible
+            title="PrometheusRule"
+            summary={config.prometheusRule?.enabled ? "Enabled" : "Disabled"}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-prom-rule-enabled"
+                  checked={config.prometheusRule?.enabled ?? false}
+                  onCheckedChange={(checked) => {
+                    if (checked === true) {
+                      patch({
+                        prometheusRule: {
+                          enabled: true,
+                          ...(config.prometheusRule ?? {}),
+                        },
+                      });
+                    } else {
+                      patch({ prometheusRule: undefined });
+                    }
+                  }}
+                  disabled={disabled}
+                />
+                <Label htmlFor="edit-prom-rule-enabled" className="cursor-pointer text-xs">
+                  Enable PrometheusRule
+                </Label>
+              </div>
+              {config.prometheusRule?.enabled && (
+                <div className="grid gap-1">
+                  <Label className="text-[10px]">Labels</Label>
+                  <EditKvEditor
+                    value={config.prometheusRule.labels}
+                    onChange={(labels) =>
+                      patch({
+                        prometheusRule: { ...config.prometheusRule!, labels },
+                      })
+                    }
+                    disabled={disabled}
+                  />
+                </div>
+              )}
+            </div>
+          </EditCollapsible>
+        </div>
+      )}
+    </div>
   );
 }

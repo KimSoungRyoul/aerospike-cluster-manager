@@ -434,6 +434,27 @@ export function WizardReviewStep({
           </>
         )}
 
+        {(form.k8sNodeBlockList ?? []).length > 0 && (
+          <>
+            <span className="text-muted-foreground">Node Block List</span>
+            <span className="font-medium">{form.k8sNodeBlockList!.join(", ")}</span>
+          </>
+        )}
+
+        {(form.bandwidthConfig?.ingress || form.bandwidthConfig?.egress) && (
+          <>
+            <span className="text-muted-foreground">Bandwidth Limits</span>
+            <span className="font-medium">
+              {[
+                form.bandwidthConfig?.ingress ? `Ingress: ${form.bandwidthConfig.ingress}` : null,
+                form.bandwidthConfig?.egress ? `Egress: ${form.bandwidthConfig.egress}` : null,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+            </span>
+          </>
+        )}
+
         {form.storage && (
           <>
             <span className="text-muted-foreground">Storage</span>

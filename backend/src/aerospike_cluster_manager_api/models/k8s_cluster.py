@@ -826,3 +826,63 @@ class ReconciliationStatus(BaseModel):
     phase: str = "Unknown"
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+# ---------------------------------------------------------------------------
+# HPA (HorizontalPodAutoscaler) models
+# ---------------------------------------------------------------------------
+
+
+class HPAConfig(BaseModel):
+    """Configuration for creating/updating an HPA targeting an AerospikeCluster."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    min_replicas: int = Field(ge=1, le=8, alias="minReplicas")
+    max_replicas: int = Field(ge=1, le=8, alias="maxReplicas")
+    cpu_target_percent: int | None = Field(default=None, ge=1, le=100, alias="cpuTargetPercent")
+    memory_target_percent: int | None = Field(default=None, ge=1, le=100, alias="memoryTargetPercent")
+
+    @model_validator(mode="after")
+    def max_gte_min(self) -> HPAConfig:
+        if self.max_replicas < self.min_replicas:
+            raise ValueError(f"maxReplicas ({self.max_replicas}) must be >= minReplicas ({self.min_replicas})")
+        return self
+
+    @model_validator(mode="after")
+    def at_least_one_metric(self) -> HPAConfig:
+        if self.cpu_target_percent is None and self.memory_target_percent is None:
+            raise ValueError("At least one metric target (cpuTargetPercent or memoryTargetPercent) must be specified")
+        return self
+
+
+class HPACondition(BaseModel):
+    """A single HPA condition from status.conditions[]."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    type: str
+    status: str
+    reason: str | None = None
+    message: str | None = None
+    last_transition_time: str | None = Field(default=None, alias="lastTransitionTime")
+
+
+class HPAStatus(BaseModel):
+    """Current status of an HPA."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    current_replicas: int = Field(default=0, alias="currentReplicas")
+    desired_replicas: int = Field(default=0, alias="desiredReplicas")
+    conditions: list[HPACondition] = Field(default_factory=list)
+
+
+class HPAResponse(BaseModel):
+    """Combined HPA config and status response."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    enabled: bool = True
+    config: HPAConfig
+    status: HPAStatus

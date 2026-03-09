@@ -886,6 +886,34 @@ export interface ConfigDriftResponse {
   desiredConfigHash: string | null;
 }
 
+// === HPA (HorizontalPodAutoscaler) ===
+export interface HPAConfig {
+  minReplicas: number;
+  maxReplicas: number;
+  cpuTargetPercent?: number | null;
+  memoryTargetPercent?: number | null;
+}
+
+export interface HPACondition {
+  type: string;
+  status: string;
+  reason?: string;
+  message?: string;
+  lastTransitionTime?: string;
+}
+
+export interface HPAStatus {
+  currentReplicas: number;
+  desiredReplicas: number;
+  conditions: HPACondition[];
+}
+
+export interface HPAResponse {
+  enabled: boolean;
+  config: HPAConfig;
+  status: HPAStatus;
+}
+
 // === AerospikeCluster Spec (typed subset of the CRD spec) ===
 export interface AerospikeNetworkPolicySpec {
   accessType?: string;

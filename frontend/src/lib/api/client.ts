@@ -499,6 +499,25 @@ export const api = {
   // K8s Nodes
   getK8sNodes: () => request<import("./types").K8sNodeInfo[]>("/api/k8s/nodes"),
 
+  // K8s Cluster HPA
+  getK8sClusterHPA: (namespace: string, name: string) =>
+    request<import("./types").HPAResponse>(
+      `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/hpa`,
+    ),
+  createK8sClusterHPA: (namespace: string, name: string, data: import("./types").HPAConfig) =>
+    request<import("./types").HPAResponse>(
+      `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/hpa`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+    ),
+  deleteK8sClusterHPA: (namespace: string, name: string) =>
+    request<{ message: string }>(
+      `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}/hpa`,
+      { method: "DELETE" },
+    ),
+
   // K8s Cluster Operations
   triggerK8sClusterOperation: (
     namespace: string,
