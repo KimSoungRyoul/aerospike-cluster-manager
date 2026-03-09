@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { STATUS_COLORS } from "@/lib/status-colors";
-import { FileText, Database } from "lucide-react";
+import { FileText, Database, CheckCircle, XCircle, Minus } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { K8sPodLogsDialog } from "@/components/k8s/k8s-pod-logs-dialog";
 import { DataTable } from "@/components/common/data-table";
 import { EmptyState } from "@/components/common/empty-state";
@@ -20,6 +26,21 @@ interface K8sPodTableProps {
   onSelectionChange?: (selected: string[]) => void;
   namespace?: string;
   clusterName?: string;
+}
+
+function formatRelativeTime(dateString: string): string {
+  const now = new Date();
+  const then = new Date(dateString);
+  const diffMs = now.getTime() - then.getTime();
+  if (diffMs < 0) return "just now";
+  const diffSeconds = Math.floor(diffMs / 1000);
+  if (diffSeconds < 60) return `${diffSeconds}s ago`;
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
 }
 
 export function K8sPodTable({
@@ -182,6 +203,86 @@ export function K8sPodTable({
             >
               {status}
             </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "readinessGateSatisfied",
+        header: "Readiness Gate",
+        size: 110,
+        meta: { hideOn: ["mobile"], mobileSlot: "meta", mobileLabel: "Readiness Gate" },
+        cell: ({ getValue }) => {
+          const value = getValue<boolean | undefined | null>();
+          if (value == null) {
+            return (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Minus className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>Not configured</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            );
+          }
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {value ? (
+                    <CheckCircle className="h-4 w-4 text-success" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-destructive" />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>{value ? "Satisfied" : "Not satisfied"}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        },
+      },
+      {
+        accessorKey: "accessEndpoints",
+        header: "Access Endpoints",
+        size: 180,
+        meta: { hideOn: ["mobile", "tablet"], mobileSlot: "content", mobileLabel: "Endpoints" },
+        cell: ({ getValue }) => {
+          const endpoints = getValue<string[] | undefined>();
+          if (!endpoints || endpoints.length === 0) {
+            return <span className="text-muted-foreground text-xs">-</span>;
+          }
+          return (
+            <span className="font-mono text-xs" title={endpoints.join(", ")}>
+              {endpoints.join(", ")}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "unstableSince",
+        header: "Stability",
+        size: 130,
+        meta: { hideOn: ["mobile"], mobileSlot: "meta", mobileLabel: "Stability" },
+        cell: ({ getValue }) => {
+          const unstableSince = getValue<string | undefined | null>();
+          if (!unstableSince) {
+            return (
+              <Badge variant="outline" className={cn("text-[11px]", STATUS_COLORS.success)}>
+                Stable
+              </Badge>
+            );
+          }
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className={cn("text-[11px]", STATUS_COLORS.warning)}>
+                    Unstable {formatRelativeTime(unstableSince)}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>Unstable since {new Date(unstableSince).toLocaleString()}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         },
       },
