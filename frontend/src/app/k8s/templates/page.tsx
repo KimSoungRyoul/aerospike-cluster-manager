@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileCode, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common/empty-state";
@@ -134,6 +135,20 @@ export default function K8sTemplatesPage() {
               {tmpl.age && (
                 <p className="text-muted-foreground mt-2 text-[10px]">Created {tmpl.age} ago</p>
               )}
+              <div className="mt-2">
+                <span className="text-muted-foreground text-[10px]">Referenced By: </span>
+                {tmpl.usedBy && tmpl.usedBy.length > 0 ? (
+                  <span className="inline-flex flex-wrap gap-1 mt-0.5">
+                    {tmpl.usedBy.map((ref) => (
+                      <Badge key={ref} variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {ref}
+                      </Badge>
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground text-[10px]">&mdash;</span>
+                )}
+              </div>
             </div>
           ))}
         </div>

@@ -163,9 +163,9 @@ export default function TemplateDetailPage() {
           </div>
         )}
 
-        {/* Usage Card */}
+        {/* Referenced Clusters Card */}
         <div className="bg-card rounded-xl border p-5">
-          <h3 className="mb-3 text-sm font-semibold">Usage</h3>
+          <h3 className="mb-3 text-sm font-semibold">Referenced Clusters</h3>
           {usedBy.length > 0 ? (
             <ul className="space-y-1">
               {usedBy.map((cluster) => (

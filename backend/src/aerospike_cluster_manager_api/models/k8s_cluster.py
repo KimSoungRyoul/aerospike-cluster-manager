@@ -655,6 +655,9 @@ class K8sPodStatus(BaseModel):
     rackId: int | None = None
     configHash: str | None = None
     podSpecHash: str | None = None
+    accessEndpoints: list[str] | None = None
+    readinessGateSatisfied: bool | None = None
+    unstableSince: str | None = None
 
 
 class K8sClusterSummary(BaseModel):
@@ -735,6 +738,7 @@ class K8sTemplateSummary(BaseModel):
     size: int | None = None
     age: str | None = None
     description: str | None = None
+    usedBy: list[str] = Field(default_factory=list)
 
 
 class K8sTemplateDetail(BaseModel):

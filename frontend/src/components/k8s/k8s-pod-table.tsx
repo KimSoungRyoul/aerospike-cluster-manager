@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { STATUS_COLORS } from "@/lib/status-colors";
-import { FileText, Database } from "lucide-react";
+import { FileText, Database, CheckCircle2, XCircle, AlertTriangle, Network } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { K8sPodLogsDialog } from "@/components/k8s/k8s-pod-logs-dialog";
 import { DataTable } from "@/components/common/data-table";
 import { EmptyState } from "@/components/common/empty-state";
@@ -182,6 +188,96 @@ export function K8sPodTable({
             >
               {status}
             </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "readinessGateSatisfied",
+        header: "Readiness Gate",
+        size: 110,
+        meta: { hideOn: ["mobile", "tablet"], mobileSlot: "meta", mobileLabel: "Readiness Gate" },
+        cell: ({ getValue }) => {
+          const satisfied = getValue<boolean | null | undefined>();
+          if (satisfied == null) return <span className="text-muted-foreground text-xs">-</span>;
+          return satisfied ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                </TooltipTrigger>
+                <TooltipContent>Readiness gate satisfied</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <XCircle className="h-4 w-4 text-red-500" />
+                </TooltipTrigger>
+                <TooltipContent>Readiness gate not satisfied</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        },
+      },
+      {
+        accessorKey: "accessEndpoints",
+        header: "Access Endpoints",
+        size: 150,
+        meta: { hideOn: ["mobile", "tablet"], mobileSlot: "content", mobileLabel: "Endpoints" },
+        cell: ({ getValue }) => {
+          const endpoints = getValue<string[] | null | undefined>();
+          if (!endpoints || endpoints.length === 0) {
+            return <span className="text-muted-foreground text-xs">-</span>;
+          }
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 font-mono text-xs cursor-default">
+                    <Network className="h-3 w-3 shrink-0" />
+                    {endpoints[0]}
+                    {endpoints.length > 1 && (
+                      <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                        +{endpoints.length - 1}
+                      </Badge>
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  <ul className="space-y-0.5 font-mono text-xs">
+                    {endpoints.map((ep) => (
+                      <li key={ep}>{ep}</li>
+                    ))}
+                  </ul>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+        },
+      },
+      {
+        accessorKey: "unstableSince",
+        header: "Stability",
+        size: 120,
+        meta: { hideOn: ["mobile", "tablet"], mobileSlot: "meta", mobileLabel: "Stability" },
+        cell: ({ getValue }) => {
+          const unstableSince = getValue<string | null | undefined>();
+          if (!unstableSince) {
+            return <span className="text-muted-foreground text-xs">-</span>;
+          }
+          return (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-1 text-amber-500 cursor-default">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    <span className="text-[11px]">Unstable</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Unstable since {unstableSince}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           );
         },
       },

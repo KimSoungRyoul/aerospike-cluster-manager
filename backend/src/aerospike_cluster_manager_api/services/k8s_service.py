@@ -578,6 +578,13 @@ def extract_detail(item: dict[str, Any], pods_raw: list[dict[str, Any]]) -> K8sC
         p["rackId"] = rack_val if isinstance(rack_val, int) else None
         p["configHash"] = cr_pod.get("configHash")
         p["podSpecHash"] = cr_pod.get("podSpecHash")
+        # Extended operator status fields
+        access_endpoints = cr_pod.get("accessEndpoints")
+        p["accessEndpoints"] = access_endpoints if isinstance(access_endpoints, list) else None
+        readiness_gate = cr_pod.get("readinessGateSatisfied")
+        p["readinessGateSatisfied"] = readiness_gate if isinstance(readiness_gate, bool) else None
+        unstable_since = cr_pod.get("unstableSince")
+        p["unstableSince"] = unstable_since if isinstance(unstable_since, str) else None
         pods.append(K8sPodStatus(**p))
 
     # Extract operation status
@@ -818,12 +825,15 @@ def extract_template_summary(item: dict[str, Any]) -> K8sTemplateSummary:
     """Build a K8sTemplateSummary from a raw template CR dict."""
     metadata = item.get("metadata", {})
     spec = item.get("spec", {})
+    status = item.get("status", {})
+    used_by = status.get("usedBy", []) if isinstance(status, dict) else []
     return K8sTemplateSummary(
         name=metadata.get("name", ""),
         image=spec.get("image"),
         size=spec.get("size"),
         age=calculate_age(metadata.get("creationTimestamp")),
         description=spec.get("description"),
+        usedBy=used_by if isinstance(used_by, list) else [],
     )
 
 
