@@ -11,13 +11,13 @@ export function renderCellValue(value: BinValue): React.ReactNode {
       <span
         className={cn(
           "inline-flex items-center gap-1.5 font-mono text-xs",
-          value ? "text-success" : "text-destructive/60",
+          value ? "text-success" : "text-error/80",
         )}
       >
         <span
           className={cn(
             "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-            value ? "bg-success" : "bg-destructive/60",
+            value ? "bg-success" : "bg-error/80",
           )}
         />
         {value.toString()}
@@ -52,7 +52,7 @@ export function renderCellValue(value: BinValue): React.ReactNode {
   }
 
   return (
-    <span className="text-foreground/85 font-mono text-[13px]">
+    <span className="text-base-content/85 font-mono text-[13px]">
       {truncateMiddle(String(value), 50)}
     </span>
   );

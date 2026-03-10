@@ -15,10 +15,6 @@ function extractText(node: React.ReactNode): string {
   return "";
 }
 
-const TooltipProvider = ({ children }: { children: React.ReactNode; delayDuration?: number }) => (
-  <>{children}</>
-);
-
 interface TooltipTriggerProps {
   children: React.ReactNode;
   asChild?: boolean;
@@ -67,4 +63,4 @@ const Tooltip = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+export { Tooltip, TooltipTrigger, TooltipContent };

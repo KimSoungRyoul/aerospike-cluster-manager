@@ -23,7 +23,7 @@ const statusConfig: Record<StatusType, { label: string; className: string; dotCo
   disconnected: {
     label: "Disconnected",
     className: STATUS_COLORS.error,
-    dotColor: "bg-destructive",
+    dotColor: "bg-error",
   },
   checking: {
     label: "Checking...",
@@ -43,7 +43,7 @@ const statusConfig: Record<StatusType, { label: string; className: string; dotCo
   error: {
     label: "Error",
     className: STATUS_COLORS.error,
-    dotColor: "bg-destructive",
+    dotColor: "bg-error",
   },
   live: {
     label: "Live",

@@ -58,7 +58,7 @@ export function FilterColumnPicker({ bins, onSelect, onClose }: FilterColumnPick
   return (
     <div className="w-[220px]">
       {/* Search */}
-      <div className="border-border/40 flex items-center gap-2 border-b px-3 py-2">
+      <div className="border-base-300/40 flex items-center gap-2 border-b px-3 py-2">
         <Search className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
         <input
           ref={inputRef}
@@ -71,7 +71,7 @@ export function FilterColumnPicker({ bins, onSelect, onClose }: FilterColumnPick
       </div>
 
       {/* Indexed bin label */}
-      <div className="border-border/40 flex items-center gap-1.5 border-b px-3 py-1.5">
+      <div className="border-base-300/40 flex items-center gap-1.5 border-b px-3 py-1.5">
         <DatabaseZap className="h-3 w-3 text-amber-500" />
         <span className="text-muted-foreground text-[10px]">Secondary Index required</span>
       </div>

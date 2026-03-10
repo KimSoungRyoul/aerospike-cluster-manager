@@ -11,14 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select } from "@/components/ui/select";
+
 import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
 import type { AerospikeRecord, BinValue, BinEntry } from "@/lib/api/types";
 export type { BinEntry } from "@/lib/api/types";
@@ -144,7 +138,7 @@ export function RecordEditorFields({
             value={pk}
             onChange={(e) => onPKChange(e.target.value)}
             disabled={mode === "edit" || saving}
-            className="border-border/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
+            className="border-base-300/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
           />
         </div>
         <div className="space-y-1.5">
@@ -157,7 +151,7 @@ export function RecordEditorFields({
             value={ttl}
             onChange={(e) => onTTLChange(e.target.value)}
             disabled={saving}
-            className="border-border/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
+            className="border-base-300/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
           />
         </div>
       </div>
@@ -173,7 +167,7 @@ export function RecordEditorFields({
             size="sm"
             onClick={onAddBin}
             disabled={saving}
-            className="border-border/40 text-muted-foreground hover:text-accent hover:border-accent/30 h-6 gap-1 font-mono text-[11px]"
+            className="border-base-300/40 text-muted-foreground hover:text-accent hover:border-accent/30 h-6 gap-1 font-mono text-[11px]"
           >
             <Plus className="h-3 w-3" />
             Add
@@ -187,7 +181,7 @@ export function RecordEditorFields({
             <div
               key={bin.id}
               className={cn(
-                "border-border/40 hover:border-border/60 space-y-2.5 rounded-md border border-l-2 p-3 transition-colors",
+                "border-base-300/40 hover:border-base-300/60 space-y-2.5 rounded-md border border-l-2 p-3 transition-colors",
                 typeAccent[bin.type] || "border-l-border",
               )}
             >
@@ -197,27 +191,24 @@ export function RecordEditorFields({
                   value={bin.name}
                   onChange={(e) => onUpdateBin(bin.id, "name", e.target.value)}
                   disabled={saving}
-                  className="border-border/40 h-8 flex-1 font-mono text-sm"
+                  className="border-base-300/40 h-8 flex-1 font-mono text-sm"
                 />
-                <Select value={bin.type} onValueChange={(v) => onUpdateBin(bin.id, "type", v)}>
-                  <SelectTrigger
-                    className="border-border/40 h-8 w-[110px] font-mono text-xs"
-                    disabled={saving}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BIN_TYPES.map((t) => (
-                      <SelectItem key={t} value={t} className="font-mono text-xs">
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select
+                  value={bin.type}
+                  onChange={(e) => onUpdateBin(bin.id, "type", e.target.value)}
+                  className="border-base-300/40 h-8 w-[110px] font-mono text-xs"
+                  disabled={saving}
+                >
+                  {BIN_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
                 </Select>
                 {bins.length > 1 && (
                   <button
                     type="button"
-                    className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50"
+                    className="text-muted-foreground/50 hover:text-error hover:bg-error/10 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50"
                     onClick={() => onRemoveBin(bin.id)}
                     disabled={saving}
                   >
@@ -238,7 +229,7 @@ export function RecordEditorFields({
               )}
 
               {isComplex && showCode ? (
-                <div className="border-border/40 h-[200px] overflow-hidden rounded-md border">
+                <div className="border-base-300/40 h-[200px] overflow-hidden rounded-md border">
                   <CodeEditor
                     value={bin.value}
                     onChange={(v) => onUpdateBin(bin.id, "value", v)}
@@ -258,7 +249,7 @@ export function RecordEditorFields({
                   value={bin.value}
                   onChange={(e) => onUpdateBin(bin.id, "value", e.target.value)}
                   disabled={saving}
-                  className="border-border/40 h-8 font-mono text-sm"
+                  className="border-base-300/40 h-8 font-mono text-sm"
                 />
               )}
             </div>
@@ -290,8 +281,8 @@ export function RecordEditorDialog({
 }: RecordEditorDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange} preventClose>
-      <DialogContent className="border-border/50 flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]">
-        <DialogHeader className="border-border/40 space-y-0.5 border-b px-5 pt-5 pb-3">
+      <DialogContent className="border-base-300/50 flex max-h-[85vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[700px]">
+        <DialogHeader className="border-base-300/40 space-y-0.5 border-b px-5 pt-5 pb-3">
           <DialogTitle className="font-mono text-sm font-medium">
             {mode === "create"
               ? "New Record"
@@ -306,7 +297,7 @@ export function RecordEditorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-auto">
           <RecordEditorFields
             mode={mode}
             pk={pk}
@@ -321,9 +312,9 @@ export function RecordEditorDialog({
             onToggleCodeEditor={onToggleCodeEditor}
             saving={saving}
           />
-        </ScrollArea>
+        </div>
 
-        <div className="border-border/40 flex items-center justify-end gap-2 border-t px-5 py-3">
+        <div className="border-base-300/40 flex items-center justify-end gap-2 border-t px-5 py-3">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}

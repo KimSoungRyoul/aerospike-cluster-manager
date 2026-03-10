@@ -28,7 +28,7 @@ import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";
 import { sanitizeFilename, sanitizeInput } from "@/lib/sanitize";
 import { getErrorMessage } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 export default function UDFsPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
@@ -78,7 +78,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
 
   const handleUpload = async () => {
     if (!uploadFilename.trim() || !uploadContent.trim()) {
-      toast.error("Filename and content are required");
+      useToastStore.getState().addToast("error", "Filename and content are required");
       return;
     }
     setUploading(true);
@@ -87,13 +87,13 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
         filename: sanitizeFilename(uploadFilename.trim()),
         content: uploadContent,
       });
-      toast.success("UDF uploaded");
+      useToastStore.getState().addToast("success", "UDF uploaded");
       setUploadOpen(false);
       setUploadFilename("");
       setUploadContent("");
       await fetchUDFs();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setUploading(false);
     }
@@ -119,11 +119,11 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
     setDeleting(true);
     try {
       await api.deleteUDF(connId, deleteTarget.filename);
-      toast.success("UDF deleted");
+      useToastStore.getState().addToast("success", "UDF deleted");
       setDeleteTarget(null);
       await fetchUDFs();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -131,7 +131,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
 
   const handleApply = async () => {
     if (!applyNs.trim() || !applyPK.trim() || !applyFunction.trim()) {
-      toast.error("Namespace, PK, and function name are required");
+      useToastStore.getState().addToast("error", "Namespace, PK, and function name are required");
       return;
     }
     setApplying(true);
@@ -140,7 +140,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       try {
         args = JSON.parse(applyArgs);
       } catch {
-        toast.error("Invalid JSON for arguments");
+        useToastStore.getState().addToast("error", "Invalid JSON for arguments");
         setApplying(false);
         return;
       }
@@ -150,10 +150,10 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       // Use the terminal API to apply the UDF since there's no direct apply endpoint
       const command = `execute ${applyModule}.${safeFunction}(${JSON.stringify(args)}) on ${applyNs}.${applySet || ""} where PK = '${safePK}'`;
       await api.executeCommand(connId, command);
-      toast.success("UDF applied successfully");
+      useToastStore.getState().addToast("success", "UDF applied successfully");
       setApplyOpen(false);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setApplying(false);
     }
@@ -222,7 +222,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             <Button
               variant="ghost"
               size="sm"
-              className="text-destructive h-8 w-8 p-0"
+              className="text-error h-8 w-8 p-0"
               onClick={() => setDeleteTarget(row.original)}
               aria-label="Delete UDF"
             >

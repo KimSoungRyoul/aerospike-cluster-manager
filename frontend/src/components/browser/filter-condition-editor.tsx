@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { FilterCondition, FilterOperator, BinValue } from "@/lib/api/types";
@@ -80,23 +80,19 @@ export function FilterConditionEditor({
   return (
     <div className="w-[260px] space-y-2.5 p-3">
       {/* Bin name header */}
-      <div className="text-foreground/70 font-mono text-xs font-medium">{condition.bin}</div>
+      <div className="text-base-content/70 font-mono text-xs font-medium">{condition.bin}</div>
 
       {/* Operator selector */}
       <Select
         value={condition.operator}
-        onValueChange={(v) => onChange({ operator: v as FilterOperator })}
+        onChange={(e) => onChange({ operator: e.target.value as FilterOperator })}
+        className="h-8 text-xs"
       >
-        <SelectTrigger className="h-8 text-xs">
-          <span className="truncate">{currentOpLabel}</span>
-        </SelectTrigger>
-        <SelectContent>
-          {operators.map((op) => (
-            <SelectItem key={op.value} value={op.value}>
-              {op.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
+        {operators.map((op) => (
+          <option key={op.value} value={op.value}>
+            {op.label}
+          </option>
+        ))}
       </Select>
 
       {/* Value input(s) */}

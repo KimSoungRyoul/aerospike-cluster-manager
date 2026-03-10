@@ -10,7 +10,7 @@ interface InlineAlertProps {
 }
 
 const variantStyles: Record<AlertVariant, string> = {
-  error: "border-destructive/30 bg-destructive/5 text-destructive",
+  error: "border-error/30 bg-error/5 text-error",
   warning: "border-warning/30 bg-warning/5 text-warning",
   info: "border-accent/30 bg-accent/5 text-accent",
 };

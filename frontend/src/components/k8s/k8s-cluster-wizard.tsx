@@ -18,7 +18,7 @@ import {
   parseMemoryBytes,
 } from "@/lib/validations/k8s";
 import { AEROSPIKE_IMAGES } from "@/lib/constants";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 import { Progress } from "@/components/ui/progress";
 import type {
   CreateK8sClusterRequest,
@@ -154,7 +154,9 @@ export function K8sClusterWizard() {
         .then(setNodes)
         .catch((err) => {
           console.error("Failed to fetch K8s nodes:", err);
-          toast.error("Failed to load node information for zone selection");
+          useToastStore
+            .getState()
+            .addToast("error", "Failed to load node information for zone selection");
         });
     }
   }, [step, isTemplateMode]);
@@ -172,7 +174,9 @@ export function K8sClusterWizard() {
       const updates = buildFormUpdatesFromTemplate(detail.spec, name);
       updateForm(updates);
     } catch (err) {
-      toast.error(`Failed to load template: ${getErrorMessage(err)}`);
+      useToastStore
+        .getState()
+        .addToast("error", `Failed to load template: ${getErrorMessage(err)}`);
       setSelectedTemplateName(null);
       setTemplateDetail(null);
     } finally {
@@ -301,12 +305,12 @@ export function K8sClusterWizard() {
         payload.validationPolicy = undefined;
       }
       await createCluster(payload);
-      toast.success(`Cluster "${form.name}" creation initiated`);
+      useToastStore.getState().addToast("success", `Cluster "${form.name}" creation initiated`);
       router.push("/k8s/clusters");
     } catch (err) {
       const msg = getErrorMessage(err);
       setCreationError(msg);
-      toast.error("Failed to create cluster");
+      useToastStore.getState().addToast("error", "Failed to create cluster");
     } finally {
       setCreating(false);
     }
@@ -326,10 +330,10 @@ export function K8sClusterWizard() {
       {/* Step indicator */}
       <nav aria-label="Wizard steps" className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm font-medium">
+          <p className="text-base-content/60 text-sm font-medium">
             Step {step + 1} of {STEPS.length}
-            <span className="text-muted-foreground/60 mx-1.5">—</span>
-            <span className="text-foreground">{STEPS[step]}</span>
+            <span className="text-base-content/60/60 mx-1.5">—</span>
+            <span className="text-base-content">{STEPS[step]}</span>
           </p>
         </div>
         <Progress value={((step + 1) / STEPS.length) * 100} className="h-1" />
@@ -351,14 +355,14 @@ export function K8sClusterWizard() {
                     ? "bg-accent text-accent-foreground"
                     : i < step
                       ? "bg-accent/20 text-accent"
-                      : "bg-muted text-muted-foreground"
+                      : "bg-base-200 text-base-content/60"
                 }`}
               >
                 {i + 1}
               </span>
               <span
                 className={`hidden text-sm sm:inline ${
-                  i === step ? "text-foreground font-medium" : "text-muted-foreground"
+                  i === step ? "text-base-content font-medium" : "text-base-content/60"
                 }`}
               >
                 {label}
@@ -372,7 +376,7 @@ export function K8sClusterWizard() {
       {fetchingOptions && (
         <div className="flex items-center justify-center gap-2 py-4">
           <div className="border-accent h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" />
-          <span className="text-muted-foreground text-sm">Loading K8s options...</span>
+          <span className="text-base-content/60 text-sm">Loading K8s options...</span>
         </div>
       )}
 

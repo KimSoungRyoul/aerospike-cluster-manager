@@ -14,13 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoadingButton } from "@/components/common/loading-button";
 import { getErrorMessage } from "@/lib/utils";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import type { K8sTemplateDetail, UpdateK8sTemplateRequest } from "@/lib/api/types";
 
 interface K8sTemplateEditDialogProps {
@@ -193,7 +187,7 @@ export function K8sTemplateEditDialog({
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto py-4">
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && <p className="text-error text-sm">{error}</p>}
 
           {/* Description */}
           <div className="space-y-1">
@@ -234,15 +228,13 @@ export function K8sTemplateEditDialog({
           {/* Scheduling */}
           <div className="space-y-1">
             <Label>Anti-Affinity Level</Label>
-            <Select value={antiAffinity || "none"} onValueChange={setAntiAffinity}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="preferred">Preferred</SelectItem>
-                <SelectItem value="required">Required</SelectItem>
-              </SelectContent>
+            <Select
+              value={antiAffinity || "none"}
+              onChange={(e) => setAntiAffinity(e.target.value)}
+            >
+              <option value="none">None</option>
+              <option value="preferred">Preferred</option>
+              <option value="required">Required</option>
             </Select>
           </div>
 
@@ -250,15 +242,10 @@ export function K8sTemplateEditDialog({
             <Label>Pod Management Policy</Label>
             <Select
               value={podManagementPolicy || "OrderedReady"}
-              onValueChange={setPodManagementPolicy}
+              onChange={(e) => setPodManagementPolicy(e.target.value)}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="OrderedReady">OrderedReady</SelectItem>
-                <SelectItem value="Parallel">Parallel</SelectItem>
-              </SelectContent>
+              <option value="OrderedReady">OrderedReady</option>
+              <option value="Parallel">Parallel</option>
             </Select>
           </div>
 

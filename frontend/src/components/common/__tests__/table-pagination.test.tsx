@@ -109,10 +109,8 @@ describe("TablePagination", () => {
         pageSizeOptions={[25, 50, 100]}
       />,
     );
-    const selectTrigger = screen.getByRole("combobox");
-    await user.click(selectTrigger);
-    const option50 = screen.getByRole("option", { name: "50" });
-    await user.click(option50);
+    const selectEl = screen.getByRole("combobox");
+    await user.selectOptions(selectEl, "50");
     expect(onPageSizeChange).toHaveBeenCalledWith(50);
   });
 

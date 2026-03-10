@@ -19,7 +19,7 @@ export function ClusterOverviewTab({ cluster }: ClusterOverviewTabProps) {
     <>
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="card-interactive">
+        <Card className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
               <Server className="text-accent h-3.5 w-3.5" />
@@ -28,13 +28,13 @@ export function ClusterOverviewTab({ cluster }: ClusterOverviewTabProps) {
           </CardHeader>
           <CardContent>
             <div className="metric-value text-3xl font-bold">{cluster.nodes.length}</div>
-            <p className="text-muted-foreground mt-1 font-mono text-xs">
+            <p className="text-base-content/60 mt-1 font-mono text-xs">
               {edition} {build}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-interactive">
+        <Card className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
               <Database className="text-accent h-3.5 w-3.5" />
@@ -43,13 +43,13 @@ export function ClusterOverviewTab({ cluster }: ClusterOverviewTabProps) {
           </CardHeader>
           <CardContent>
             <div className="metric-value text-3xl font-bold">{cluster.namespaces.length}</div>
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="text-base-content/60 mt-1 text-xs">
               {cluster.namespaces.map((n) => n.name).join(", ")}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="card-interactive">
+        <Card className="transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
           <CardHeader className="pb-2">
             <CardDescription className="flex items-center gap-2 text-xs font-medium tracking-wider uppercase">
               <Network className="text-accent h-3.5 w-3.5" />
@@ -71,7 +71,7 @@ export function ClusterOverviewTab({ cluster }: ClusterOverviewTabProps) {
       {/* Nodes Section */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <Server className="text-muted-foreground h-4 w-4" />
+          <Server className="text-base-content/60 h-4 w-4" />
           Nodes ({cluster.nodes.length})
         </h2>
         {cluster.nodes.length === 0 ? (
@@ -100,28 +100,28 @@ export function ClusterOverviewTab({ cluster }: ClusterOverviewTabProps) {
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                      <span className="text-base-content/60 text-xs tracking-wider uppercase">
                         Build
                       </span>
                       <p className="mt-0.5 font-medium">{node.build}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                      <span className="text-base-content/60 text-xs tracking-wider uppercase">
                         Edition
                       </span>
                       <p className="mt-0.5 font-medium">{node.edition}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                      <span className="text-base-content/60 text-xs tracking-wider uppercase">
                         Uptime
                       </span>
                       <p className="mt-0.5 flex items-center gap-1 font-medium">
-                        <Clock className="text-muted-foreground h-3 w-3" />
+                        <Clock className="text-base-content/60 h-3 w-3" />
                         {formatUptime(node.uptime)}
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                      <span className="text-base-content/60 text-xs tracking-wider uppercase">
                         Connections
                       </span>
                       <p className="metric-value mt-0.5 font-medium">
@@ -129,7 +129,7 @@ export function ClusterOverviewTab({ cluster }: ClusterOverviewTabProps) {
                       </p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs tracking-wider uppercase">
+                      <span className="text-base-content/60 text-xs tracking-wider uppercase">
                         Cluster Size
                       </span>
                       <p className="metric-value mt-0.5 font-medium">{node.clusterSize}</p>

@@ -21,7 +21,7 @@ export function K8sClusterCard({ cluster, onClick, index = 0 }: K8sClusterCardPr
           <CardTitle className="text-base">{cluster.name}</CardTitle>
           <K8sClusterStatusBadge phase={cluster.phase} />
         </div>
-        <p className="text-muted-foreground font-mono text-xs">{cluster.namespace}</p>
+        <p className="text-base-content/60 font-mono text-xs">{cluster.namespace}</p>
       </CardHeader>
       <CardContent className="pb-4">
         <div className="flex flex-wrap items-center gap-2">

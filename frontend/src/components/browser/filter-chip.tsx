@@ -34,7 +34,7 @@ export function FilterChip({ condition, onEdit, onRemove }: FilterChipProps) {
   return (
     <span
       className={cn(
-        "border-border/60 bg-base-200/40 hover:border-border inline-flex max-w-[280px] items-center gap-1 rounded-md border border-dashed px-2 py-1 text-xs transition-colors",
+        "border-base-300/60 bg-base-200/40 hover:border-base-300 inline-flex max-w-[280px] items-center gap-1 rounded-md border border-dashed px-2 py-1 text-xs transition-colors",
         "hover:bg-base-200/70 cursor-pointer",
       )}
       role="button"
@@ -47,12 +47,12 @@ export function FilterChip({ condition, onEdit, onRemove }: FilterChipProps) {
         }
       }}
     >
-      <span className="text-foreground/70 font-mono font-medium">{condition.bin}</span>
+      <span className="text-base-content/70 font-mono font-medium">{condition.bin}</span>
       <span className="text-muted-foreground">{opLabel}</span>
-      {val && <span className="text-foreground max-w-[120px] truncate font-medium">{val}</span>}
+      {val && <span className="text-base-content max-w-[120px] truncate font-medium">{val}</span>}
       <button
         type="button"
-        className="text-muted-foreground hover:text-foreground -mr-0.5 ml-0.5 rounded-sm p-0.5 transition-colors"
+        className="text-muted-foreground hover:text-base-content -mr-0.5 ml-0.5 rounded-sm p-0.5 transition-colors"
         onClick={(e) => {
           e.stopPropagation();
           onRemove(condition.id);

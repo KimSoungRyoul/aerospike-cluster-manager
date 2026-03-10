@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -41,7 +41,7 @@ import { formatNumber, formatBytes, formatPercent } from "@/lib/formatters";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
 import { CreateSampleDataDialog } from "@/components/browser/create-sample-data-dialog";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 export default function BrowserSetListPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
@@ -91,12 +91,12 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
   const handleConfigureNamespace = async () => {
     const memorySizeMB = parseInt(nsMemorySizeMB, 10);
     if (isNaN(memorySizeMB) || memorySizeMB <= 0) {
-      toast.error("Memory size must be a positive number");
+      useToastStore.getState().addToast("error", "Memory size must be a positive number");
       return;
     }
     const rf = parseInt(nsReplicationFactor, 10);
     if (isNaN(rf) || rf < 1) {
-      toast.error("Replication factor must be at least 1");
+      useToastStore.getState().addToast("error", "Replication factor must be at least 1");
       return;
     }
 
@@ -107,11 +107,13 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
         memorySize: memorySizeMB * 1024 * 1024,
         replicationFactor: rf,
       });
-      toast.success(`Namespace "${configNsName}" configured successfully`);
+      useToastStore
+        .getState()
+        .addToast("success", `Namespace "${configNsName}" configured successfully`);
       setConfigNsOpen(false);
       await fetchData();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setConfiguringNs(false);
     }
@@ -119,7 +121,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
 
   const handleCreateSet = () => {
     if (!setName.trim()) {
-      toast.error("Set name is required");
+      useToastStore.getState().addToast("error", "Set name is required");
       return;
     }
     router.push(
@@ -127,9 +129,12 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
     );
     setCreateSetOpen(false);
     setSetName("");
-    toast.success(
-      `Navigating to set "${setName.trim()}" — create your first record to initialize it`,
-    );
+    useToastStore
+      .getState()
+      .addToast(
+        "success",
+        `Navigating to set "${setName.trim()}" — create your first record to initialize it`,
+      );
   };
 
   const openCreateSetDialog = (namespaceName: string) => {
@@ -179,13 +184,14 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
           <div className="flex items-center gap-1.5">
             <Layers className="h-4 w-4" />
             <span>
-              <span className="text-foreground font-semibold">{namespaces.length}</span> namespaces
+              <span className="text-base-content font-semibold">{namespaces.length}</span>{" "}
+              namespaces
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <HardDrive className="h-4 w-4" />
             <span>
-              <span className="text-foreground font-semibold">{totalSets}</span> sets
+              <span className="text-base-content font-semibold">{totalSets}</span> sets
             </span>
           </div>
         </div>
@@ -287,7 +293,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                     </div>
                     <Progress
                       value={memPercent}
-                      className={cn("h-1.5", memPercent > 80 && "[&>div]:bg-destructive")}
+                      className={cn("h-1.5", memPercent > 80 && "[&>div]:bg-error")}
                     />
                   </div>
 
@@ -306,7 +312,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                       </div>
                       <Progress
                         value={devPercent}
-                        className={cn("h-1.5", devPercent > 80 && "[&>div]:bg-destructive")}
+                        className={cn("h-1.5", devPercent > 80 && "[&>div]:bg-error")}
                       />
                     </div>
                   )}
@@ -358,7 +364,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                   </div>
 
                   {/* Sets */}
-                  <Separator />
+                  <div className="divider my-0" />
                   <div>
                     <div className="mb-2.5 flex items-center justify-between">
                       <h4 className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
@@ -388,7 +394,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                                 `/browser/${connId}/${encodeURIComponent(ns.name)}/${encodeURIComponent(s.name)}`,
                               )
                             }
-                            className="group border-border/60 hover:border-accent/40 hover:bg-accent/5 flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-all"
+                            className="group border-base-300/60 hover:border-accent/40 hover:bg-accent/5 flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-all"
                           >
                             <span className="font-medium">{s.name}</span>
                             <div className="flex items-center gap-1.5">

@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Plus, Search, X, Clock, Filter, DatabaseZap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { FilterColumnPicker } from "@/components/browser/filter-column-picker";
 import { FilterConditionEditor } from "@/components/browser/filter-condition-editor";
@@ -43,6 +42,18 @@ export function FilterToolbar({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pkExpanded, setPkExpanded] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [pickerOpen]);
 
   const hasFilters = store.conditions.length > 0;
   const showStats = hasFilters && stats && stats.executionTimeMs > 0;
@@ -96,14 +107,14 @@ export function FilterToolbar({
   );
 
   return (
-    <div className="border-border/50 shrink-0 space-y-0 border-b px-3 py-2 sm:px-4">
+    <div className="border-base-300/50 shrink-0 space-y-0 border-b px-3 py-2 sm:px-4">
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <button
             type="button"
             className={cn(
-              "text-muted-foreground hover:text-foreground flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs transition-colors",
-              pkExpanded && "bg-base-200/60 text-foreground",
+              "text-muted-foreground hover:text-base-content flex h-7 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs transition-colors",
+              pkExpanded && "bg-base-200/60 text-base-content",
             )}
             onClick={() => setPkExpanded(!pkExpanded)}
             title="Primary Key Lookup"
@@ -138,17 +149,19 @@ export function FilterToolbar({
 
           {pkExpanded && <div className="bg-border/40 mx-0.5 hidden h-4 w-px sm:block" />}
 
-          <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-            <PopoverTrigger
+          <div ref={pickerRef} className="relative">
+            <button
+              type="button"
               className={cn(
-                "border-border/60 hover:border-border hover:bg-base-200/60 inline-flex h-7 items-center gap-1 rounded-md border border-dashed px-2 text-xs transition-colors",
-                "text-muted-foreground hover:text-foreground",
+                "border-base-300/60 hover:border-base-300 hover:bg-base-200/60 inline-flex h-7 items-center gap-1 rounded-md border border-dashed px-2 text-xs transition-colors",
+                "text-muted-foreground hover:text-base-content",
               )}
               title={
                 availableBins.length === 0
                   ? "No secondary indexes found — create an index to enable filtering"
                   : `${availableBins.length} indexed bin(s) available`
               }
+              onClick={() => setPickerOpen(!pickerOpen)}
             >
               {availableBins.length > 0 ? (
                 <Plus className="h-3 w-3" />
@@ -161,28 +174,28 @@ export function FilterToolbar({
                   {availableBins.length}
                 </span>
               )}
-            </PopoverTrigger>
-            <PopoverContent align="start" sideOffset={4}>
-              <FilterColumnPicker
-                bins={availableBins}
-                onSelect={handleAddFilter}
-                onClose={() => setPickerOpen(false)}
-              />
-            </PopoverContent>
-          </Popover>
+            </button>
+            {pickerOpen && (
+              <div className="bg-base-100 border-base-300 absolute top-full left-0 z-50 mt-1 rounded-lg border shadow-lg">
+                <FilterColumnPicker
+                  bins={availableBins}
+                  onSelect={handleAddFilter}
+                  onClose={() => setPickerOpen(false)}
+                />
+              </div>
+            )}
+          </div>
 
           {store.conditions.map((cond) => (
             <div key={cond.id} className="relative">
               {editingId === cond.id ? (
-                <Popover open={true} onOpenChange={(open) => !open && setEditingId(null)}>
-                  <PopoverTrigger className="inline-flex">
-                    <FilterChip
-                      condition={cond}
-                      onEdit={handleEditChip}
-                      onRemove={handleRemoveChip}
-                    />
-                  </PopoverTrigger>
-                  <PopoverContent align="start" sideOffset={4}>
+                <div className="relative">
+                  <FilterChip
+                    condition={cond}
+                    onEdit={handleEditChip}
+                    onRemove={handleRemoveChip}
+                  />
+                  <div className="bg-base-100 border-base-300 absolute top-full left-0 z-50 mt-1 rounded-lg border shadow-lg">
                     {editingCondition && (
                       <FilterConditionEditor
                         condition={editingCondition}
@@ -191,8 +204,8 @@ export function FilterToolbar({
                         onCancel={handleEditorCancel}
                       />
                     )}
-                  </PopoverContent>
-                </Popover>
+                  </div>
+                </div>
               ) : (
                 <FilterChip condition={cond} onEdit={handleEditChip} onRemove={handleRemoveChip} />
               )}
@@ -202,7 +215,7 @@ export function FilterToolbar({
           {store.conditions.length >= 2 && (
             <button
               type="button"
-              className="text-muted-foreground hover:text-foreground bg-base-200/40 hover:bg-base-200/70 h-7 rounded-md px-2 text-[10px] font-semibold tracking-wider uppercase transition-colors"
+              className="text-muted-foreground hover:text-base-content bg-base-200/40 hover:bg-base-200/70 h-7 rounded-md px-2 text-[10px] font-semibold tracking-wider uppercase transition-colors"
               onClick={() => store.setLogic(store.logic === "and" ? "or" : "and")}
               title={`Switch to ${store.logic === "and" ? "OR" : "AND"} logic`}
             >
@@ -215,7 +228,7 @@ export function FilterToolbar({
               variant="ghost"
               size="sm"
               onClick={handleClearAll}
-              className="text-muted-foreground hover:text-foreground h-7 gap-1 px-2 text-xs"
+              className="text-muted-foreground hover:text-base-content h-7 gap-1 px-2 text-xs"
             >
               <X className="h-3 w-3" />
               <span className="hidden sm:inline">Clear all</span>

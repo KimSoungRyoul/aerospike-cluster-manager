@@ -4,13 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { WizardMonitoringStep } from "./WizardMonitoringStep";
 import { WizardAclStep } from "./WizardAclStep";
 import { WizardRollingUpdateStep } from "./WizardRollingUpdateStep";
@@ -47,12 +41,12 @@ function CollapsibleSection({
       >
         <div>
           <span className="text-sm font-medium">{title}</span>
-          <span className="text-muted-foreground ml-2 text-xs">{summary}</span>
+          <span className="text-base-content/60 ml-2 text-xs">{summary}</span>
         </div>
         {open ? (
-          <ChevronDown className="text-muted-foreground h-4 w-4" />
+          <ChevronDown className="text-base-content/60 h-4 w-4" />
         ) : (
-          <ChevronRight className="text-muted-foreground h-4 w-4" />
+          <ChevronRight className="text-base-content/60 h-4 w-4" />
         )}
       </button>
       {open && <div className="space-y-4 border-t px-4 pt-4 pb-4">{children}</div>}
@@ -134,7 +128,7 @@ function WizardPodSettingsStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure pod-level settings: metadata, scheduling, network, and lifecycle.
       </p>
 
@@ -220,7 +214,7 @@ function WizardPodSettingsStep({
           Enable Readiness Gate (acko.io/aerospike-ready)
         </Label>
       </div>
-      <p className="text-muted-foreground -mt-2 ml-6 text-[10px]">
+      <p className="text-base-content/60 -mt-2 ml-6 text-[10px]">
         Pods are excluded from Service endpoints until Aerospike joins cluster mesh and finishes
         migrations.
       </p>
@@ -231,41 +225,33 @@ function WizardPodSettingsStep({
           <Label className="text-xs">Pod Management Policy</Label>
           <Select
             value={scheduling?.podManagementPolicy || "default"}
-            onValueChange={(v) => {
+            onChange={(e) => {
+              const v = e.target.value;
               updateScheduling({
                 podManagementPolicy:
                   v === "default" ? undefined : (v as "OrderedReady" | "Parallel"),
               });
             }}
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default (OrderedReady)</SelectItem>
-              <SelectItem value="OrderedReady">OrderedReady</SelectItem>
-              <SelectItem value="Parallel">Parallel</SelectItem>
-            </SelectContent>
+            <option value="default">Default (OrderedReady)</option>
+            <option value="OrderedReady">OrderedReady</option>
+            <option value="Parallel">Parallel</option>
           </Select>
         </div>
         <div className="grid gap-1">
           <Label className="text-xs">DNS Policy</Label>
           <Select
             value={scheduling?.dnsPolicy || "default"}
-            onValueChange={(v) => {
+            onChange={(e) => {
+              const v = e.target.value;
               updateScheduling({ dnsPolicy: v === "default" ? undefined : v });
             }}
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default (ClusterFirst)</SelectItem>
-              <SelectItem value="ClusterFirst">ClusterFirst</SelectItem>
-              <SelectItem value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</SelectItem>
-              <SelectItem value="Default">Default</SelectItem>
-              <SelectItem value="None">None</SelectItem>
-            </SelectContent>
+            <option value="default">Default (ClusterFirst)</option>
+            <option value="ClusterFirst">ClusterFirst</option>
+            <option value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</option>
+            <option value="Default">Default</option>
+            <option value="None">None</option>
           </Select>
         </div>
       </div>
@@ -273,7 +259,7 @@ function WizardPodSettingsStep({
       {/* Node Selector */}
       <div className="grid gap-2">
         <Label className="text-sm font-semibold">Node Selector</Label>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Constrain pods to nodes with matching labels.
         </p>
         {Object.entries(scheduling?.nodeSelector ?? {}).length > 0 && (
@@ -335,7 +321,7 @@ function WizardPodSettingsStep({
       {/* Tolerations */}
       <div className="grid gap-2">
         <Label className="text-sm font-semibold">Tolerations</Label>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Allow pods to be scheduled on nodes with matching taints.
         </p>
         {(scheduling?.tolerations ?? []).map((tol, idx) => (
@@ -356,15 +342,13 @@ function WizardPodSettingsStep({
               <Label className="text-[10px]">Operator</Label>
               <Select
                 value={tol.operator ?? "Equal"}
-                onValueChange={(v) => updateToleration(idx, { operator: v as "Equal" | "Exists" })}
+                onChange={(e) =>
+                  updateToleration(idx, { operator: e.target.value as "Equal" | "Exists" })
+                }
+                className="h-8 w-24 text-xs"
               >
-                <SelectTrigger className="h-8 w-24 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Equal">Equal</SelectItem>
-                  <SelectItem value="Exists">Exists</SelectItem>
-                </SelectContent>
+                <option value="Equal">Equal</option>
+                <option value="Exists">Exists</option>
               </Select>
             </div>
             <div className="grid gap-1">
@@ -381,26 +365,22 @@ function WizardPodSettingsStep({
               <Label className="text-[10px]">Effect</Label>
               <Select
                 value={tol.effect ?? ""}
-                onValueChange={(v) =>
+                onChange={(e) =>
                   updateToleration(idx, {
-                    effect: v as TolerationConfig["effect"],
+                    effect: e.target.value as TolerationConfig["effect"],
                   })
                 }
+                className="h-8 w-36 text-xs"
               >
-                <SelectTrigger className="h-8 w-36 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NoSchedule">NoSchedule</SelectItem>
-                  <SelectItem value="PreferNoSchedule">PreferNoSchedule</SelectItem>
-                  <SelectItem value="NoExecute">NoExecute</SelectItem>
-                </SelectContent>
+                <option value="NoSchedule">NoSchedule</option>
+                <option value="PreferNoSchedule">PreferNoSchedule</option>
+                <option value="NoExecute">NoExecute</option>
               </Select>
             </div>
             <button
               type="button"
               onClick={() => removeToleration(idx)}
-              className="text-muted-foreground hover:text-destructive mb-1 self-end p-1"
+              className="text-base-content/60 hover:text-error mb-1 self-end p-1"
               title="Remove toleration"
             >
               <X className="h-4 w-4" />
@@ -424,7 +404,7 @@ function WizardPodSettingsStep({
             <Label htmlFor="multi-pod-per-host" className="cursor-pointer text-xs">
               Multi Pod Per Host
             </Label>
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-base-content/60 text-[10px]">
               Allow multiple Aerospike pods on the same Kubernetes node.
             </p>
           </div>
@@ -441,7 +421,7 @@ function WizardPodSettingsStep({
             <Label htmlFor="host-network" className="cursor-pointer text-xs">
               Host Network
             </Label>
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-base-content/60 text-[10px]">
               Use the host&apos;s network namespace instead of pod networking.
             </p>
           </div>
@@ -464,7 +444,7 @@ function WizardPodSettingsStep({
           onChange={(e) => updateScheduling({ serviceAccountName: e.target.value || undefined })}
           placeholder="e.g. aerospike-sa"
         />
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Kubernetes service account to use for Aerospike pods.
         </p>
       </div>
@@ -488,7 +468,7 @@ function WizardPodSettingsStep({
           placeholder="e.g. 600"
           className="w-40"
         />
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Time in seconds before a pod is forcefully terminated. Leave empty for Kubernetes default
           (30s).
         </p>
@@ -497,7 +477,7 @@ function WizardPodSettingsStep({
       {/* Image Pull Secrets */}
       <div className="grid gap-2">
         <Label className="text-sm font-semibold">Image Pull Secrets</Label>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Kubernetes secrets for pulling container images from private registries.
         </p>
         {(scheduling?.imagePullSecrets ?? []).length > 0 && (
@@ -585,7 +565,7 @@ function WizardNodeBlockListStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Select Kubernetes nodes to exclude from scheduling Aerospike pods.
       </p>
 
@@ -595,13 +575,13 @@ function WizardNodeBlockListStep({
           {blockedNodes.map((node) => (
             <span
               key={node}
-              className="bg-destructive/10 text-destructive inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              className="bg-error/10 text-error inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
             >
               {node}
               <button
                 type="button"
                 onClick={() => removeNode(node)}
-                className="hover:bg-destructive/20 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full"
+                className="hover:bg-error/20 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full"
                 title={`Remove ${node}`}
               >
                 &times;
@@ -628,8 +608,8 @@ function WizardNodeBlockListStep({
                   className="flex cursor-pointer items-center gap-2 text-xs"
                 >
                   <span className="font-mono">{node.name}</span>
-                  {node.zone && <span className="text-muted-foreground">({node.zone})</span>}
-                  {!node.ready && <span className="text-destructive text-[10px]">Not Ready</span>}
+                  {node.zone && <span className="text-base-content/60">({node.zone})</span>}
+                  {!node.ready && <span className="text-error text-[10px]">Not Ready</span>}
                 </Label>
               </div>
             ))}
@@ -662,7 +642,7 @@ function WizardNodeBlockListStep({
             Add
           </button>
         </div>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Enter a K8s node name to block, then press Enter or click Add.
         </p>
       </div>
@@ -691,7 +671,7 @@ function WizardValidationPolicyStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure validation behavior for the Aerospike cluster.
       </p>
 
@@ -700,7 +680,7 @@ function WizardValidationPolicyStep({
           <Label htmlFor="skip-workdir-validate" className="cursor-pointer text-xs">
             Skip Work Dir Validate
           </Label>
-          <p className="text-muted-foreground text-[10px]">
+          <p className="text-base-content/60 text-[10px]">
             Skip validation of the working directory on pod startup. Useful when using custom
             storage configurations.
           </p>
@@ -736,7 +716,7 @@ function WizardBandwidthStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure CNI bandwidth limits for Aerospike pods. Values use standard Kubernetes bandwidth
         notation (e.g. &quot;1M&quot;, &quot;10M&quot;, &quot;100M&quot;).
       </p>
@@ -752,7 +732,7 @@ function WizardBandwidthStep({
             onChange={(e) => updateBandwidth({ ingress: e.target.value || undefined })}
             placeholder="e.g. 10M"
           />
-          <p className="text-muted-foreground text-[10px]">Max incoming bandwidth per pod</p>
+          <p className="text-base-content/60 text-[10px]">Max incoming bandwidth per pod</p>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="bw-egress" className="text-xs">
@@ -764,7 +744,7 @@ function WizardBandwidthStep({
             onChange={(e) => updateBandwidth({ egress: e.target.value || undefined })}
             placeholder="e.g. 10M"
           />
-          <p className="text-muted-foreground text-[10px]">Max outgoing bandwidth per pod</p>
+          <p className="text-base-content/60 text-[10px]">Max outgoing bandwidth per pod</p>
         </div>
       </div>
     </div>
@@ -1016,7 +996,7 @@ export function WizardAdvancedStep({
 
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure optional settings. All sections have sensible defaults — expand only what you
         need.
       </p>

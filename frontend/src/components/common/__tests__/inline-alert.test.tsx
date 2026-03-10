@@ -26,7 +26,7 @@ describe("InlineAlert", () => {
   it("applies error variant by default", () => {
     render(<InlineAlert message="Error" />);
     const el = screen.getByRole("alert");
-    expect(el.className).toContain("border-destructive");
+    expect(el.className).toContain("border-error");
   });
 
   it("applies warning variant", () => {

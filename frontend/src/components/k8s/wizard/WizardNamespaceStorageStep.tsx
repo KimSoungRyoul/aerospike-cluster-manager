@@ -1,13 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { validateNamespaces, MAX_CE_NAMESPACES } from "@/lib/validations/k8s";
 import type { AerospikeNamespaceConfig, StorageVolumeConfig } from "@/lib/api/types";
@@ -44,7 +38,7 @@ export function WizardNamespaceStorageStep({
 
   return (
     <>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-base-content/60 text-xs">
         Aerospike CE supports up to {MAX_CE_NAMESPACES} namespaces per cluster.
       </p>
 
@@ -69,12 +63,12 @@ export function WizardNamespaceStorageStep({
                 onChange={(e) => updateNamespace(ni, { name: e.target.value })}
               />
               {ns.name !== undefined && ns.name.trim().length === 0 && (
-                <p className="text-destructive text-xs">Namespace name is required</p>
+                <p className="text-error text-xs">Namespace name is required</p>
               )}
               {form.namespaces.length > 1 &&
                 ns.name.trim().length > 0 &&
                 form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length > 1 && (
-                  <p className="text-destructive text-xs">Namespace names must be unique</p>
+                  <p className="text-error text-xs">Namespace names must be unique</p>
                 )}
             </div>
 
@@ -127,21 +121,17 @@ export function WizardNamespaceStorageStep({
                 <Label htmlFor={`memory-size-${ni}`}>Memory Size</Label>
                 <Select
                   value={String(ns.storageEngine.dataSize || 1073741824)}
-                  onValueChange={(v) =>
+                  onChange={(e) =>
                     updateNamespace(ni, {
-                      storageEngine: { type: "memory", dataSize: parseInt(v) },
+                      storageEngine: { type: "memory", dataSize: parseInt(e.target.value) },
                     })
                   }
+                  id={`memory-size-${ni}`}
                 >
-                  <SelectTrigger id={`memory-size-${ni}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1073741824">1 GiB</SelectItem>
-                    <SelectItem value="2147483648">2 GiB</SelectItem>
-                    <SelectItem value="4294967296">4 GiB</SelectItem>
-                    <SelectItem value="8589934592">8 GiB</SelectItem>
-                  </SelectContent>
+                  <option value="1073741824">1 GiB</option>
+                  <option value="2147483648">2 GiB</option>
+                  <option value="4294967296">4 GiB</option>
+                  <option value="8589934592">8 GiB</option>
                 </Select>
               </div>
             )}
@@ -164,7 +154,7 @@ export function WizardNamespaceStorageStep({
                 }
               />
               {ns.replicationFactor > form.size && (
-                <p className="text-destructive text-xs">
+                <p className="text-error text-xs">
                   Replication factor ({ns.replicationFactor}) cannot exceed cluster size (
                   {form.size}).
                 </p>
@@ -181,7 +171,7 @@ export function WizardNamespaceStorageStep({
       )}
 
       {validateNamespaces(form.namespaces, form.size) && (
-        <p className="text-destructive text-xs">{validateNamespaces(form.namespaces, form.size)}</p>
+        <p className="text-error text-xs">{validateNamespaces(form.namespaces, form.size)}</p>
       )}
 
       {/* Shared persistent storage settings (shown when any namespace uses device) */}
@@ -193,25 +183,21 @@ export function WizardNamespaceStorageStep({
             <Label htmlFor="storage-class">Storage Class</Label>
             <Select
               value={form.storage?.storageClass || "standard"}
-              onValueChange={(v) => {
+              onChange={(e) => {
                 const base = form.storage ?? defaultStorage;
-                updateForm({ storage: { ...base, storageClass: v } });
+                updateForm({ storage: { ...base, storageClass: e.target.value } });
               }}
+              id="storage-class"
             >
-              <SelectTrigger id="storage-class">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {storageClasses.length > 0 ? (
-                  storageClasses.map((sc) => (
-                    <SelectItem key={sc} value={sc}>
-                      {sc}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <SelectItem value="standard">standard</SelectItem>
-                )}
-              </SelectContent>
+              {storageClasses.length > 0 ? (
+                storageClasses.map((sc) => (
+                  <option key={sc} value={sc}>
+                    {sc}
+                  </option>
+                ))
+              ) : (
+                <option value="standard">standard</option>
+              )}
             </Select>
           </div>
 
@@ -219,21 +205,16 @@ export function WizardNamespaceStorageStep({
             <Label htmlFor="pv-size">Volume Size</Label>
             <Select
               value={form.storage?.size || "10Gi"}
-              onValueChange={(v) => {
+              onChange={(e) => {
                 const base = form.storage ?? defaultStorage;
-                updateForm({ storage: { ...base, size: v } });
+                updateForm({ storage: { ...base, size: e.target.value } });
               }}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5Gi">5 GiB</SelectItem>
-                <SelectItem value="10Gi">10 GiB</SelectItem>
-                <SelectItem value="20Gi">20 GiB</SelectItem>
-                <SelectItem value="50Gi">50 GiB</SelectItem>
-                <SelectItem value="100Gi">100 GiB</SelectItem>
-              </SelectContent>
+              <option value="5Gi">5 GiB</option>
+              <option value="10Gi">10 GiB</option>
+              <option value="20Gi">20 GiB</option>
+              <option value="50Gi">50 GiB</option>
+              <option value="100Gi">100 GiB</option>
             </Select>
           </div>
 
@@ -242,7 +223,8 @@ export function WizardNamespaceStorageStep({
               <Label htmlFor="init-method">Init Method</Label>
               <Select
                 value={form.storage?.initMethod || "none"}
-                onValueChange={(v) => {
+                onChange={(e) => {
+                  const v = e.target.value;
                   const base = form.storage ?? {
                     storageClass: "standard",
                     size: "10Gi",
@@ -256,24 +238,21 @@ export function WizardNamespaceStorageStep({
                     },
                   });
                 }}
+                id="init-method"
               >
-                <SelectTrigger id="init-method">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="deleteFiles">Delete Files</SelectItem>
-                  <SelectItem value="dd">DD (zero-fill)</SelectItem>
-                  <SelectItem value="blkdiscard">Block Discard</SelectItem>
-                  <SelectItem value="headerCleanup">Header Cleanup</SelectItem>
-                </SelectContent>
+                <option value="none">None</option>
+                <option value="deleteFiles">Delete Files</option>
+                <option value="dd">DD (zero-fill)</option>
+                <option value="blkdiscard">Block Discard</option>
+                <option value="headerCleanup">Header Cleanup</option>
               </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="wipe-method">Wipe Method</Label>
               <Select
                 value={form.storage?.wipeMethod || "none"}
-                onValueChange={(v) => {
+                onChange={(e) => {
+                  const v = e.target.value;
                   const base = form.storage ?? {
                     storageClass: "standard",
                     size: "10Gi",
@@ -287,24 +266,18 @@ export function WizardNamespaceStorageStep({
                     },
                   });
                 }}
+                id="wipe-method"
               >
-                <SelectTrigger id="wipe-method">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="deleteFiles">Delete Files</SelectItem>
-                  <SelectItem value="dd">DD (zero-fill)</SelectItem>
-                  <SelectItem value="blkdiscard">Block Discard</SelectItem>
-                  <SelectItem value="headerCleanup">Header Cleanup</SelectItem>
-                  <SelectItem value="blkdiscardWithHeaderCleanup">
-                    Block Discard + Header
-                  </SelectItem>
-                </SelectContent>
+                <option value="none">None</option>
+                <option value="deleteFiles">Delete Files</option>
+                <option value="dd">DD (zero-fill)</option>
+                <option value="blkdiscard">Block Discard</option>
+                <option value="headerCleanup">Header Cleanup</option>
+                <option value="blkdiscardWithHeaderCleanup">Block Discard + Header</option>
               </Select>
             </div>
           </div>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-base-content/60 text-xs">
             Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned on pod
             restart.
           </p>

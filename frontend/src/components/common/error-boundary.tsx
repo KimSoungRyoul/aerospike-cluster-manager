@@ -31,7 +31,7 @@ export class ErrorBoundary extends React.Component<
       if (this.props.fallback) return this.props.fallback;
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center">
-          <AlertTriangle className="text-destructive mb-3 h-8 w-8" />
+          <AlertTriangle className="text-error mb-3 h-8 w-8" />
           <h3 className="text-lg font-semibold">Something went wrong</h3>
           <p className="text-muted-foreground mt-1 text-sm">
             {this.state.error?.message || "An unexpected error occurred"}

@@ -18,13 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DataTable } from "@/components/common/data-table";
@@ -33,7 +27,7 @@ import { StatusBadge } from "@/components/common/status-badge";
 import { api } from "@/lib/api/client";
 import type { SecondaryIndex, IndexType, ClusterInfo } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 const INDEX_TYPES: { value: IndexType; label: string }[] = [
   { value: "numeric", label: "Numeric" },
@@ -97,7 +91,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
 
   const handleCreate = async () => {
     if (!formNamespace || !formBin.trim() || !formName.trim()) {
-      toast.error("All fields are required");
+      useToastStore.getState().addToast("error", "All fields are required");
       return;
     }
     setCreating(true);
@@ -109,14 +103,14 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
         name: formName.trim(),
         type: formType,
       });
-      toast.success("Index created");
+      useToastStore.getState().addToast("success", "Index created");
       setCreateOpen(false);
       setFormSet("");
       setFormBin("");
       setFormName("");
       await fetchIndexes();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setCreating(false);
     }
@@ -127,11 +121,11 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
     setDeleting(true);
     try {
       await api.deleteIndex(connId, deleteTarget.name, deleteTarget.namespace);
-      toast.success("Index deleted");
+      useToastStore.getState().addToast("success", "Index deleted");
       setDeleteTarget(null);
       await fetchIndexes();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -199,7 +193,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
           <Button
             variant="ghost"
             size="sm"
-            className="text-destructive h-8 w-8 p-0"
+            className="text-error h-8 w-8 p-0"
             onClick={() => setDeleteTarget(row.original)}
             aria-label="Delete index"
           >
@@ -253,7 +247,7 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
             />
           ) : undefined
         }
-        className="border-border/60 rounded-lg border"
+        className="border-base-300/60 rounded-lg border"
         testId="indexes-table"
         mobileLayout="cards"
       />
@@ -268,17 +262,13 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label>Namespace</Label>
-              <Select value={formNamespace} onValueChange={setFormNamespace}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select namespace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {namespaces.map((ns) => (
-                    <SelectItem key={ns.name} value={ns.name}>
-                      {ns.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Select value={formNamespace} onChange={(e) => setFormNamespace(e.target.value)}>
+                <option value="">Select namespace</option>
+                {namespaces.map((ns) => (
+                  <option key={ns.name} value={ns.name}>
+                    {ns.name}
+                  </option>
+                ))}
               </Select>
             </div>
             <div className="grid gap-2">
@@ -307,17 +297,12 @@ export default function IndexesPage({ params }: { params: Promise<{ connId: stri
             </div>
             <div className="grid gap-2">
               <Label>Type</Label>
-              <Select value={formType} onValueChange={(v) => setFormType(v as IndexType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {INDEX_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+              <Select value={formType} onChange={(e) => setFormType(e.target.value as IndexType)}>
+                {INDEX_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
               </Select>
             </div>
           </div>

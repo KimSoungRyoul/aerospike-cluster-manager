@@ -4,8 +4,7 @@ import { use, useState, useRef, useEffect } from "react";
 import { Terminal, Send, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+
 import { useTerminal } from "@/hooks/use-terminal";
 import { QUICK_COMMANDS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -62,7 +61,7 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
               key={qc.command}
               type="button"
               onClick={() => handleQuickCommand(qc.command)}
-              className="focus-visible:ring-ring hover:bg-accent inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              className="focus-visible:ring-primary hover:bg-accent inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               {qc.label}
             </button>
@@ -81,15 +80,15 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
       </div>
 
       {/* Output Area */}
-      <ScrollArea className="flex-1 bg-[hsl(var(--terminal-bg))]">
+      <div className="flex-1 overflow-auto bg-[var(--terminal-bg)]">
         <div className="space-y-3 p-4 font-mono text-sm">
           {history.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Terminal className="mb-3 h-8 w-8 text-[hsl(var(--terminal-text-dim))]" />
-              <p className="text-[hsl(var(--terminal-text-muted))]">
+              <Terminal className="mb-3 h-8 w-8 text-[var(--terminal-text-dim)]" />
+              <p className="text-[var(--terminal-text-muted)]">
                 Type a command below or use a quick command above.
               </p>
-              <p className="mt-1 text-xs text-[hsl(var(--terminal-text-dim))]">
+              <p className="mt-1 text-xs text-[var(--terminal-text-dim)]">
                 Use Up/Down arrows to navigate command history.
               </p>
             </div>
@@ -98,39 +97,39 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
             <div key={entry.id} className="space-y-1">
               {/* Timestamp + Command */}
               <div className="flex items-start gap-2">
-                <span className="text-xs whitespace-nowrap text-[hsl(var(--terminal-text-dim))]">
+                <span className="text-xs whitespace-nowrap text-[var(--terminal-text-dim)]">
                   {new Date(entry.timestamp).toLocaleTimeString()}
                 </span>
-                <span className="text-[hsl(var(--terminal-prompt))]">$</span>
-                <span className="text-[hsl(var(--terminal-text))]">{entry.command}</span>
+                <span className="text-[var(--terminal-prompt)]">$</span>
+                <span className="text-[var(--terminal-text)]">{entry.command}</span>
               </div>
               {/* Output */}
               <div
                 className={cn(
                   "ml-[4.5rem] break-all whitespace-pre-wrap",
-                  entry.success ? "text-[hsl(var(--terminal-text-muted))]" : "text-destructive",
+                  entry.success ? "text-[var(--terminal-text-muted)]" : "text-error",
                 )}
               >
                 {entry.output}
               </div>
-              <Separator className="bg-[hsl(var(--terminal-border))]" />
+              <div className="divider my-0 bg-[var(--terminal-border)]" />
             </div>
           ))}
           <div ref={outputEndRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Input */}
-      <div className="border-t bg-[hsl(var(--terminal-bg))] px-4 py-3">
+      <div className="border-t bg-[var(--terminal-bg)] px-4 py-3">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <span className="font-mono text-sm text-[hsl(var(--terminal-prompt))]">$</span>
+          <span className="font-mono text-sm text-[var(--terminal-prompt)]">$</span>
           <Input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Enter aql command..."
-            className="focus-visible:ring-accent/30 flex-1 border-[hsl(var(--terminal-border))] bg-[hsl(var(--terminal-input))] font-mono text-base text-[hsl(var(--terminal-text))] placeholder:text-[hsl(var(--terminal-text-dim))] sm:text-sm"
+            className="focus-visible:ring-accent/30 flex-1 border-[var(--terminal-border)] bg-[var(--terminal-input)] font-mono text-base text-[var(--terminal-text)] placeholder:text-[var(--terminal-text-dim)] sm:text-sm"
             disabled={loading}
             autoComplete="off"
             spellCheck={false}
@@ -140,7 +139,7 @@ export default function TerminalPage({ params }: { params: Promise<{ connId: str
             size="sm"
             disabled={loading || !input.trim()}
             variant="outline"
-            className="border-[hsl(var(--terminal-border))] text-[hsl(var(--terminal-text))] hover:bg-[hsl(var(--terminal-border))]"
+            className="border-[var(--terminal-border)] text-[var(--terminal-text)] hover:bg-[var(--terminal-border)]"
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>

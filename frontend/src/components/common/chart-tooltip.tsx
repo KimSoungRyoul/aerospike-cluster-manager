@@ -15,7 +15,7 @@ export function ChartTooltipContent({
 }: ChartTooltipContentProps) {
   if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="bg-popover rounded-md border px-3 py-2 shadow-md">
+    <div className="bg-base-100 rounded-md border px-3 py-2 shadow-md">
       <p className="text-muted-foreground mb-1 text-xs font-medium">{label}</p>
       {payload.map((entry) => (
         <div key={entry.name} className="flex items-center gap-2 text-sm">

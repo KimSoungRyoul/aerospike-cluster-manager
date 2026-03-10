@@ -32,7 +32,7 @@ export function WizardCreationModeStep({
 
   return (
     <div className="space-y-5">
-      <p className="text-muted-foreground text-sm">How would you like to create your cluster?</p>
+      <p className="text-base-content/60 text-sm">How would you like to create your cluster?</p>
 
       {/* Mode selection cards */}
       <div className="grid grid-cols-2 gap-3">
@@ -42,14 +42,14 @@ export function WizardCreationModeStep({
           className={`flex flex-col items-center gap-2 rounded-lg border-2 p-5 text-center transition-colors ${
             creationMode === "scratch"
               ? "border-accent bg-accent/5"
-              : "border-border hover:border-accent/50"
+              : "border-base-300 hover:border-accent/50"
           }`}
         >
           <PenLine
-            className={`h-8 w-8 ${creationMode === "scratch" ? "text-accent" : "text-muted-foreground"}`}
+            className={`h-8 w-8 ${creationMode === "scratch" ? "text-accent" : "text-base-content/60"}`}
           />
           <span className="text-sm font-medium">Start from Scratch</span>
-          <span className="text-muted-foreground text-xs">Configure every setting manually</span>
+          <span className="text-base-content/60 text-xs">Configure every setting manually</span>
         </button>
         <button
           type="button"
@@ -57,14 +57,14 @@ export function WizardCreationModeStep({
           className={`flex flex-col items-center gap-2 rounded-lg border-2 p-5 text-center transition-colors ${
             creationMode === "template"
               ? "border-accent bg-accent/5"
-              : "border-border hover:border-accent/50"
+              : "border-base-300 hover:border-accent/50"
           }`}
         >
           <FileText
-            className={`h-8 w-8 ${creationMode === "template" ? "text-accent" : "text-muted-foreground"}`}
+            className={`h-8 w-8 ${creationMode === "template" ? "text-accent" : "text-base-content/60"}`}
           />
           <span className="text-sm font-medium">Start from Template</span>
-          <span className="text-muted-foreground text-xs">Pre-fill settings from a template</span>
+          <span className="text-base-content/60 text-xs">Pre-fill settings from a template</span>
         </button>
       </div>
 
@@ -73,8 +73,8 @@ export function WizardCreationModeStep({
         <div className="space-y-3">
           {templates.length === 0 ? (
             <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
-              <FileText className="text-muted-foreground h-10 w-10" />
-              <p className="text-muted-foreground text-sm">No templates found</p>
+              <FileText className="text-base-content/60 h-10 w-10" />
+              <p className="text-base-content/60 text-sm">No templates found</p>
               <Link
                 href="/k8s/templates/new"
                 className="text-accent text-xs underline underline-offset-2"
@@ -101,11 +101,11 @@ export function WizardCreationModeStep({
                       <span className="text-sm font-medium">{t.name}</span>
                     </div>
                     {t.description && (
-                      <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                      <p className="text-base-content/60 mt-0.5 truncate text-xs">
                         {t.description}
                       </p>
                     )}
-                    <div className="text-muted-foreground mt-1 flex gap-3 text-[10px]">
+                    <div className="text-base-content/60 mt-1 flex gap-3 text-[10px]">
                       {t.image && <span>{t.image}</span>}
                       {t.size != null && (
                         <span>
@@ -134,7 +134,7 @@ export function WizardCreationModeStep({
                   if (!formatted) return null;
                   return (
                     <div key={key} className="contents">
-                      <span className="text-muted-foreground">{label}</span>
+                      <span className="text-base-content/60">{label}</span>
                       <span className="font-medium">{formatted}</span>
                     </div>
                   );
@@ -145,7 +145,7 @@ export function WizardCreationModeStep({
                 ((templateDetail.status as Record<string, unknown>).usedBy as string[]).length >
                   0 && (
                   <div className="mt-2 text-[10px]">
-                    <span className="text-muted-foreground">Used by: </span>
+                    <span className="text-base-content/60">Used by: </span>
                     <span>
                       {((templateDetail.status as Record<string, unknown>).usedBy as string[]).join(
                         ", ",
@@ -153,7 +153,7 @@ export function WizardCreationModeStep({
                     </span>
                   </div>
                 )}
-              <p className="text-muted-foreground mt-3 text-[10px]">
+              <p className="text-base-content/60 mt-3 text-[10px]">
                 These values will pre-fill the wizard. You can modify them in subsequent steps.
               </p>
             </div>

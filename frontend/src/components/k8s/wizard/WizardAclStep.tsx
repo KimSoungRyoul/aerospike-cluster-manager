@@ -1,13 +1,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AEROSPIKE_PRIVILEGES } from "@/lib/validations/k8s-acl";
 import type { WizardAclStepProps } from "./types";
@@ -108,7 +102,7 @@ export function WizardAclStep({ form, updateForm, k8sSecrets }: WizardAclStepPro
                   </Button>
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-muted-foreground text-xs">Privileges</Label>
+                  <Label className="text-base-content/60 text-xs">Privileges</Label>
                   <div className="flex flex-wrap gap-2">
                     {AEROSPIKE_PRIVILEGES.map((priv) => (
                       <label key={priv} className="flex items-center gap-1 text-xs">
@@ -129,7 +123,7 @@ export function WizardAclStep({ form, updateForm, k8sSecrets }: WizardAclStepPro
                   </div>
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-muted-foreground text-xs">
+                  <Label className="text-base-content/60 text-xs">
                     Whitelist CIDRs (comma-separated, optional)
                   </Label>
                   <Input
@@ -203,13 +197,12 @@ export function WizardAclStep({ form, updateForm, k8sSecrets }: WizardAclStepPro
                   </Button>
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-muted-foreground text-xs">
-                    K8s Secret Name (password)
-                  </Label>
+                  <Label className="text-base-content/60 text-xs">K8s Secret Name (password)</Label>
                   {k8sSecrets.length > 0 ? (
                     <Select
                       value={user.secretName || "__none__"}
-                      onValueChange={(v) => {
+                      onChange={(e) => {
+                        const v = e.target.value;
                         const users = [...form.acl!.users];
                         users[ui] = {
                           ...users[ui],
@@ -218,17 +211,12 @@ export function WizardAclStep({ form, updateForm, k8sSecrets }: WizardAclStepPro
                         updateForm({ acl: { ...form.acl!, users } });
                       }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a secret" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Select a secret...</SelectItem>
-                        {k8sSecrets.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                      <option value="__none__">Select a secret...</option>
+                      {k8sSecrets.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
                     </Select>
                   ) : (
                     <Input
@@ -243,7 +231,7 @@ export function WizardAclStep({ form, updateForm, k8sSecrets }: WizardAclStepPro
                   )}
                 </div>
                 <div className="grid gap-1">
-                  <Label className="text-muted-foreground text-xs">Roles</Label>
+                  <Label className="text-base-content/60 text-xs">Roles</Label>
                   <div className="flex flex-wrap gap-2">
                     {[
                       ...AEROSPIKE_PRIVILEGES.map((p) => p as string),

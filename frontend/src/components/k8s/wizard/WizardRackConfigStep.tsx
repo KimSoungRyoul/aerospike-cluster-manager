@@ -4,20 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import type { WizardRackConfigStepProps } from "./types";
 import type { RackConfig, TolerationConfig } from "@/lib/api/types";
 
 function RackOverridesSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-muted/30 mt-2 rounded border">
+    <div className="bg-base-200/30 mt-2 rounded border">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -176,15 +170,13 @@ function RackTolerationsEditor({
             <Label className="text-[10px]">Operator</Label>
             <Select
               value={tol.operator ?? "Equal"}
-              onValueChange={(v) => updateToleration(idx, { operator: v as "Equal" | "Exists" })}
+              onChange={(e) =>
+                updateToleration(idx, { operator: e.target.value as "Equal" | "Exists" })
+              }
+              className="h-8 w-24 text-xs"
             >
-              <SelectTrigger className="h-8 w-24 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Equal">Equal</SelectItem>
-                <SelectItem value="Exists">Exists</SelectItem>
-              </SelectContent>
+              <option value="Equal">Equal</option>
+              <option value="Exists">Exists</option>
             </Select>
           </div>
           <div className="grid gap-1">
@@ -201,18 +193,17 @@ function RackTolerationsEditor({
             <Label className="text-[10px]">Effect</Label>
             <Select
               value={tol.effect ?? ""}
-              onValueChange={(v) =>
-                updateToleration(idx, { effect: v as TolerationConfig["effect"] })
+              onChange={(e) =>
+                updateToleration(idx, {
+                  effect: (e.target.value || undefined) as TolerationConfig["effect"],
+                })
               }
+              className="h-8 w-36 text-xs"
             >
-              <SelectTrigger className="h-8 w-36 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NoSchedule">NoSchedule</SelectItem>
-                <SelectItem value="PreferNoSchedule">PreferNoSchedule</SelectItem>
-                <SelectItem value="NoExecute">NoExecute</SelectItem>
-              </SelectContent>
+              <option value="">—</option>
+              <option value="NoSchedule">NoSchedule</option>
+              <option value="PreferNoSchedule">PreferNoSchedule</option>
+              <option value="NoExecute">NoExecute</option>
             </Select>
           </div>
           <div className="grid gap-1">
@@ -354,17 +345,13 @@ function RackAffinityEditor({
             <Label className="text-[10px]">Operator</Label>
             <Select
               value={expr.operator}
-              onValueChange={(v) => updateExpression(idx, "operator", v)}
+              onChange={(e) => updateExpression(idx, "operator", e.target.value)}
+              className="h-8 w-32 text-xs"
             >
-              <SelectTrigger className="h-8 w-32 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="In">In</SelectItem>
-                <SelectItem value="NotIn">NotIn</SelectItem>
-                <SelectItem value="Exists">Exists</SelectItem>
-                <SelectItem value="DoesNotExist">DoesNotExist</SelectItem>
-              </SelectContent>
+              <option value="In">In</option>
+              <option value="NotIn">NotIn</option>
+              <option value="Exists">Exists</option>
+              <option value="DoesNotExist">DoesNotExist</option>
             </Select>
           </div>
           <div className="grid gap-1">
@@ -557,14 +544,14 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure multi-rack deployment for zone-aware pod distribution. Each rack gets its own
         StatefulSet with optional zone affinity.
       </p>
 
       {racks.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center">
-          <p className="text-muted-foreground mb-3 text-sm">
+          <p className="text-base-content/60 mb-3 text-sm">
             No racks configured. The cluster will use a single default rack.
           </p>
           <Button
@@ -594,7 +581,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                 }
                 placeholder="e.g. 1 or 25%"
               />
-              <p className="text-muted-foreground text-[10px]">
+              <p className="text-base-content/60 text-[10px]">
                 Tolerate stuck pods during reconciliation
               </p>
             </div>
@@ -607,9 +594,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                 }
                 placeholder="e.g. 1 or 25%"
               />
-              <p className="text-muted-foreground text-[10px]">
-                Per-rack rolling update batch size
-              </p>
+              <p className="text-base-content/60 text-[10px]">Per-rack rolling update batch size</p>
             </div>
             <div className="grid gap-1">
               <Label className="text-xs">Scale Down Batch Size</Label>
@@ -630,7 +615,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-destructive h-7 px-2"
+                  className="text-error h-7 px-2"
                   onClick={() => {
                     const newRacks = racks.filter((_, i) => i !== idx);
                     updateRackConfig({ racks: newRacks });
@@ -645,22 +630,18 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                   {uniqueZones.length > 0 ? (
                     <Select
                       value={rack.zone || ""}
-                      onValueChange={(v) => {
+                      onChange={(e) => {
                         const newRacks = [...racks];
-                        newRacks[idx] = { ...rack, zone: v };
+                        newRacks[idx] = { ...rack, zone: e.target.value };
                         updateRackConfig({ racks: newRacks });
                       }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {uniqueZones.map((z) => (
-                          <SelectItem key={z} value={z}>
-                            {z}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                      <option value="">Select zone</option>
+                      {uniqueZones.map((z) => (
+                        <option key={z} value={z}>
+                          {z}
+                        </option>
+                      ))}
                     </Select>
                   ) : (
                     <Input
@@ -714,7 +695,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
           >
             + Add Rack
           </Button>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-base-content/60 text-xs">
             Tip: For {form.size} nodes across {racks.length} racks, approximately{" "}
             {`${Math.floor(form.size / racks.length)}-${Math.ceil(form.size / racks.length)}`} pods
             per rack.

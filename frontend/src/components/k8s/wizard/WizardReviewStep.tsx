@@ -6,13 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { AEROSPIKE_IMAGES } from "@/lib/constants";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import type { WizardReviewStepProps } from "./types";
 
 type EditingField = string | null;
@@ -23,7 +17,7 @@ function EditButton({ onClick, className }: { onClick: () => void; className?: s
       type="button"
       onClick={onClick}
       className={cn(
-        "text-muted-foreground hover:text-accent ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded transition-colors",
+        "text-base-content/60 hover:text-accent ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded transition-colors",
         className,
       )}
       title="Edit"
@@ -47,7 +41,7 @@ function InlineActions({ onSave, onCancel }: { onSave: () => void; onCancel: () 
       <button
         type="button"
         onClick={onCancel}
-        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive inline-flex h-5 w-5 items-center justify-center rounded transition-colors"
+        className="text-base-content/60 hover:bg-error/10 hover:text-error inline-flex h-5 w-5 items-center justify-center rounded transition-colors"
         title="Cancel"
       >
         <X className="h-3 w-3" />
@@ -185,20 +179,20 @@ export function WizardReviewStep({
   return (
     <div className="space-y-3">
       {editable && (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-base-content/60 text-xs">
           Hover over a value and click <Pencil className="mb-0.5 inline h-3 w-3" /> to override
           template defaults.
         </p>
       )}
 
       <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
-        <span className="text-muted-foreground">Name</span>
+        <span className="text-base-content/60">Name</span>
         <span className="font-medium">{form.name}</span>
 
-        <span className="text-muted-foreground">Namespace</span>
+        <span className="text-base-content/60">Namespace</span>
         <span className="font-medium">{form.namespace}</span>
 
-        <span className="text-muted-foreground">Size</span>
+        <span className="text-base-content/60">Size</span>
         {renderEditable(
           "size",
           <>
@@ -209,25 +203,19 @@ export function WizardReviewStep({
           "w-16",
         )}
 
-        <span className="text-muted-foreground">Image</span>
+        <span className="text-base-content/60">Image</span>
         {editable && editing === "image" ? (
           <span className="inline-flex items-center gap-1">
             <Select
               value={draft}
-              onValueChange={(v) => {
-                setDraft(v);
-              }}
+              onChange={(e) => setDraft(e.target.value)}
+              className="h-7 w-48 px-2 text-xs"
             >
-              <SelectTrigger className="h-7 w-48 px-2 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {AEROSPIKE_IMAGES.map((img) => (
-                  <SelectItem key={img} value={img} className="text-xs">
-                    {img}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+              {AEROSPIKE_IMAGES.map((img) => (
+                <option key={img} value={img}>
+                  {img}
+                </option>
+              ))}
             </Select>
             <InlineActions onSave={() => saveEdit("image")} onCancel={cancelEdit} />
           </span>
@@ -243,21 +231,21 @@ export function WizardReviewStep({
           <span className="font-mono text-xs font-medium">{form.image}</span>
         )}
 
-        <span className="text-muted-foreground">Namespaces</span>
+        <span className="text-base-content/60">Namespaces</span>
         <span className="font-medium">{form.namespaces.length}</span>
 
         {form.namespaces.map((ns, ni) => (
           <div key={`review-ns-${ni}`} className="col-span-2 ml-2 rounded border p-2 text-xs">
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <span className="text-muted-foreground">Name</span>
+              <span className="text-base-content/60">Name</span>
               <span className="font-medium">{ns.name}</span>
-              <span className="text-muted-foreground">Storage</span>
+              <span className="text-base-content/60">Storage</span>
               <span className="font-medium">
                 {ns.storageEngine.type === "device"
                   ? `Persistent (${form.storage?.size || "10Gi"})`
                   : `In-Memory (${formatBytes(ns.storageEngine.dataSize || 1073741824)})`}
               </span>
-              <span className="text-muted-foreground">Replication</span>
+              <span className="text-base-content/60">Replication</span>
               <span className="font-medium">{ns.replicationFactor}</span>
             </div>
           </div>
@@ -265,10 +253,10 @@ export function WizardReviewStep({
 
         {form.resources && (
           <>
-            <span className="text-muted-foreground">Resources</span>
+            <span className="text-base-content/60">Resources</span>
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-muted-foreground w-8">CPU:</span>
+                <span className="text-base-content/60 w-8">CPU:</span>
                 {renderEditable(
                   "cpuReq",
                   form.resources.requests.cpu,
@@ -276,7 +264,7 @@ export function WizardReviewStep({
                   "text",
                   "w-16",
                 )}
-                <span className="text-muted-foreground mx-0.5">/</span>
+                <span className="text-base-content/60 mx-0.5">/</span>
                 {renderEditable(
                   "cpuLim",
                   form.resources.limits.cpu,
@@ -286,7 +274,7 @@ export function WizardReviewStep({
                 )}
               </div>
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-muted-foreground w-8">Mem:</span>
+                <span className="text-base-content/60 w-8">Mem:</span>
                 {renderEditable(
                   "memReq",
                   form.resources.requests.memory,
@@ -294,7 +282,7 @@ export function WizardReviewStep({
                   "text",
                   "w-20",
                 )}
-                <span className="text-muted-foreground mx-0.5">/</span>
+                <span className="text-base-content/60 mx-0.5">/</span>
                 {renderEditable(
                   "memLim",
                   form.resources.limits.memory,
@@ -307,7 +295,7 @@ export function WizardReviewStep({
           </>
         )}
 
-        <span className="text-muted-foreground">Monitoring</span>
+        <span className="text-base-content/60">Monitoring</span>
         {editable ? (
           <span className="inline-flex items-center gap-2 font-medium">
             <Switch
@@ -361,14 +349,14 @@ export function WizardReviewStep({
 
         {form.templateRef && (
           <>
-            <span className="text-muted-foreground">Template</span>
+            <span className="text-base-content/60">Template</span>
             <span className="font-medium">
               Created from <span className="text-accent">{form.templateRef.name}</span>
             </span>
           </>
         )}
 
-        <span className="text-muted-foreground">Dynamic Config</span>
+        <span className="text-base-content/60">Dynamic Config</span>
         {editable ? (
           <span className="inline-flex items-center gap-2 font-medium">
             <Switch
@@ -381,7 +369,7 @@ export function WizardReviewStep({
           <span className="font-medium">{form.enableDynamicConfig ? "Enabled" : "Disabled"}</span>
         )}
 
-        <span className="text-muted-foreground">ACL</span>
+        <span className="text-base-content/60">ACL</span>
         <span className="font-medium">
           {form.acl?.enabled
             ? `Enabled (${form.acl.roles.length} role${form.acl.roles.length !== 1 ? "s" : ""}, ${form.acl.users.length} user${form.acl.users.length !== 1 ? "s" : ""})`
@@ -390,12 +378,12 @@ export function WizardReviewStep({
 
         {form.acl?.enabled && (
           <>
-            <span className="text-muted-foreground">ACL Timeout</span>
+            <span className="text-base-content/60">ACL Timeout</span>
             <span className="font-medium">{form.acl.adminPolicyTimeout}ms</span>
           </>
         )}
 
-        <span className="text-muted-foreground">Rolling Update</span>
+        <span className="text-base-content/60">Rolling Update</span>
         <span className="font-medium">
           {form.rollingUpdate
             ? [
@@ -411,7 +399,7 @@ export function WizardReviewStep({
 
         {(form.rackConfig?.racks ?? []).length > 0 && (
           <>
-            <span className="text-muted-foreground">Racks</span>
+            <span className="text-base-content/60">Racks</span>
             <div className="space-y-1">
               {form.rackConfig!.racks.map((rack) => (
                 <span key={rack.id} className="block font-mono text-xs">
@@ -426,7 +414,7 @@ export function WizardReviewStep({
 
         {form.networkPolicy && form.networkPolicy.accessType !== "pod" && (
           <>
-            <span className="text-muted-foreground">Network Access</span>
+            <span className="text-base-content/60">Network Access</span>
             <span className="font-medium">
               {form.networkPolicy.accessType}
               {form.networkPolicy.fabricType ? `, fabric: ${form.networkPolicy.fabricType}` : ""}
@@ -436,7 +424,7 @@ export function WizardReviewStep({
 
         {(form.k8sNodeBlockList ?? []).length > 0 && (
           <>
-            <span className="text-muted-foreground">Node Block List</span>
+            <span className="text-base-content/60">Node Block List</span>
             <span className="font-medium">{form.k8sNodeBlockList!.join(", ")}</span>
           </>
         )}
@@ -444,7 +432,7 @@ export function WizardReviewStep({
         {form.podScheduling?.nodeSelector &&
           Object.keys(form.podScheduling.nodeSelector).length > 0 && (
             <>
-              <span className="text-muted-foreground">Node Selector</span>
+              <span className="text-base-content/60">Node Selector</span>
               <span className="font-medium">
                 {Object.entries(form.podScheduling.nodeSelector)
                   .map(([k, v]) => `${k}=${v}`)
@@ -455,7 +443,7 @@ export function WizardReviewStep({
 
         {(form.podScheduling?.tolerations ?? []).length > 0 && (
           <>
-            <span className="text-muted-foreground">Tolerations</span>
+            <span className="text-base-content/60">Tolerations</span>
             <span className="font-medium">
               {form.podScheduling!.tolerations!.length} toleration
               {form.podScheduling!.tolerations!.length !== 1 ? "s" : ""}
@@ -465,49 +453,49 @@ export function WizardReviewStep({
 
         {form.podScheduling?.multiPodPerHost && (
           <>
-            <span className="text-muted-foreground">Multi Pod Per Host</span>
+            <span className="text-base-content/60">Multi Pod Per Host</span>
             <span className="font-medium">Enabled</span>
           </>
         )}
 
         {form.podScheduling?.hostNetwork && (
           <>
-            <span className="text-muted-foreground">Host Network</span>
+            <span className="text-base-content/60">Host Network</span>
             <span className="font-medium">Enabled</span>
           </>
         )}
 
         {form.podScheduling?.serviceAccountName && (
           <>
-            <span className="text-muted-foreground">Service Account</span>
+            <span className="text-base-content/60">Service Account</span>
             <span className="font-medium">{form.podScheduling.serviceAccountName}</span>
           </>
         )}
 
         {form.podScheduling?.terminationGracePeriodSeconds != null && (
           <>
-            <span className="text-muted-foreground">Termination Grace Period</span>
+            <span className="text-base-content/60">Termination Grace Period</span>
             <span className="font-medium">{form.podScheduling.terminationGracePeriodSeconds}s</span>
           </>
         )}
 
         {(form.podScheduling?.imagePullSecrets ?? []).length > 0 && (
           <>
-            <span className="text-muted-foreground">Image Pull Secrets</span>
+            <span className="text-base-content/60">Image Pull Secrets</span>
             <span className="font-medium">{form.podScheduling!.imagePullSecrets!.join(", ")}</span>
           </>
         )}
 
         {form.validationPolicy?.skipWorkDirValidate && (
           <>
-            <span className="text-muted-foreground">Validation Policy</span>
+            <span className="text-base-content/60">Validation Policy</span>
             <span className="font-medium">Skip WorkDir Validate</span>
           </>
         )}
 
         {(form.bandwidthConfig?.ingress || form.bandwidthConfig?.egress) && (
           <>
-            <span className="text-muted-foreground">Bandwidth Limits</span>
+            <span className="text-base-content/60">Bandwidth Limits</span>
             <span className="font-medium">
               {[
                 form.bandwidthConfig?.ingress ? `Ingress: ${form.bandwidthConfig.ingress}` : null,
@@ -521,7 +509,7 @@ export function WizardReviewStep({
 
         {form.storage && (
           <>
-            <span className="text-muted-foreground">Storage</span>
+            <span className="text-base-content/60">Storage</span>
             <span className="font-medium">
               {editable ? (
                 <span className="inline-flex flex-wrap items-center gap-1">
@@ -532,7 +520,7 @@ export function WizardReviewStep({
                     "text",
                     "w-16",
                   )}
-                  <span className="text-muted-foreground">(</span>
+                  <span className="text-base-content/60">(</span>
                   {renderEditable(
                     "storageClass",
                     form.storage.storageClass,
@@ -540,7 +528,7 @@ export function WizardReviewStep({
                     "text",
                     "w-24",
                   )}
-                  <span className="text-muted-foreground">)</span>
+                  <span className="text-base-content/60">)</span>
                 </span>
               ) : (
                 <>
@@ -554,7 +542,7 @@ export function WizardReviewStep({
           </>
         )}
 
-        <span className="text-muted-foreground">Auto-connect</span>
+        <span className="text-base-content/60">Auto-connect</span>
         {editable ? (
           <span className="inline-flex items-center gap-2 font-medium">
             <Switch

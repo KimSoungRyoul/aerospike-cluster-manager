@@ -25,7 +25,7 @@ export function WizardRollingUpdateStep({ form, updateForm }: WizardRollingUpdat
             });
           }}
         />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-base-content/60 text-xs">
           Number of pods to update at a time during rolling restarts.
         </p>
       </div>
@@ -46,7 +46,7 @@ export function WizardRollingUpdateStep({ form, updateForm }: WizardRollingUpdat
             })
           }
         />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-base-content/60 text-xs">
           Maximum number or percentage of pods that can be unavailable during update.
         </p>
       </div>

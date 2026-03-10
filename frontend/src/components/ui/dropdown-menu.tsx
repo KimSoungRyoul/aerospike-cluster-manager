@@ -41,7 +41,7 @@ const DropdownMenu: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   return (
     <DropdownMenuContext.Provider value={{ open, setOpen }}>
-      <div ref={ref} className="relative inline-block">
+      <div ref={ref} className="dropdown relative inline-block">
         {children}
       </div>
     </DropdownMenuContext.Provider>
@@ -90,7 +90,7 @@ const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContent
         ref={ref}
         role="menu"
         className={cn(
-          "border-border bg-popover text-popover-foreground absolute z-50 mt-1 min-w-[8rem] overflow-hidden rounded-lg border p-1 shadow-lg",
+          "dropdown-content menu border-base-300 bg-base-100 text-base-content rounded-box absolute z-50 mt-1 min-w-[8rem] overflow-hidden border p-2 shadow-lg",
           align === "end" ? "right-0" : "left-0",
           className,
         )}
@@ -117,7 +117,7 @@ const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>
         ref={ref}
         role="menuitem"
         className={cn(
-          "hover:bg-muted relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors outline-none select-none",
+          "hover:bg-base-200 relative flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors outline-none select-none",
           inset && "pl-8",
           disabled && "pointer-events-none opacity-50",
           className,
@@ -156,7 +156,7 @@ const DropdownMenuSeparator = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("bg-border -mx-1 my-1 h-px", className)} {...props} />
+  <div ref={ref} className={cn("bg-base-300 -mx-1 my-1 h-px", className)} {...props} />
 ));
 DropdownMenuSeparator.displayName = "DropdownMenuSeparator";
 

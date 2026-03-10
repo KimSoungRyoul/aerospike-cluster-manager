@@ -5,13 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import type {
   NetworkAccessType,
   LoadBalancerSpec,
@@ -58,9 +52,9 @@ function KeyValueEditor({
     <div className="space-y-2">
       {entries.map(([k, v]) => (
         <div key={k} className="flex items-center gap-2">
-          <code className="bg-muted truncate rounded px-2 py-1 text-xs">{k}</code>
-          <span className="text-muted-foreground text-xs">=</span>
-          <code className="bg-muted flex-1 truncate rounded px-2 py-1 text-xs">{v}</code>
+          <code className="bg-base-200 truncate rounded px-2 py-1 text-xs">{k}</code>
+          <span className="text-base-content/60 text-xs">=</span>
+          <code className="bg-base-200 flex-1 truncate rounded px-2 py-1 text-xs">{v}</code>
           <Button
             type="button"
             variant="ghost"
@@ -147,12 +141,12 @@ function MultiValueInput({
           {items.map((item, idx) => (
             <span
               key={item}
-              className="bg-muted inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs"
+              className="bg-base-200 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs"
             >
               {item}
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground"
+                className="text-base-content/60 hover:text-base-content"
                 onClick={() => removeItem(idx)}
               >
                 <X className="h-3 w-3" />
@@ -211,12 +205,12 @@ function CollapsibleSection({
       >
         <div>
           <span className="text-sm font-medium">{title}</span>
-          <span className="text-muted-foreground ml-2 text-xs">{summary}</span>
+          <span className="text-base-content/60 ml-2 text-xs">{summary}</span>
         </div>
         {open ? (
-          <ChevronDown className="text-muted-foreground h-4 w-4" />
+          <ChevronDown className="text-base-content/60 h-4 w-4" />
         ) : (
-          <ChevronRight className="text-muted-foreground h-4 w-4" />
+          <ChevronRight className="text-base-content/60 h-4 w-4" />
         )}
       </button>
       {open && <div className="space-y-4 border-t px-4 pt-4 pb-4">{children}</div>}
@@ -318,7 +312,7 @@ function ExporterResourcesEditor({
               />
             </div>
           </div>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-base-content/60 text-xs">
             Resource requests/limits for the Prometheus exporter sidecar container.
           </p>
         </div>
@@ -460,7 +454,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                   })
                 }
               />
-              <p className="text-muted-foreground text-xs">
+              <p className="text-base-content/60 text-xs">
                 Port for the Aerospike Prometheus exporter sidecar (default: 9145).
               </p>
             </div>
@@ -476,7 +470,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                 }
                 placeholder="aerospike/aerospike-prometheus-exporter:latest"
               />
-              <p className="text-muted-foreground text-xs">
+              <p className="text-base-content/60 text-xs">
                 Custom exporter sidecar image. Leave blank for the operator default.
               </p>
             </div>
@@ -485,7 +479,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
           {/* ── Metric Labels ── */}
           <div className="space-y-2 rounded-lg border p-4">
             <span className="text-sm font-medium">Metric Labels</span>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-base-content/60 text-xs">
               Custom labels added to all exported Prometheus metrics.
             </p>
             <KeyValueEditor
@@ -560,14 +554,14 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                       placeholder="30s"
                       className="max-w-[200px]"
                     />
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-base-content/60 text-xs">
                       How often Prometheus scrapes metrics (e.g. &quot;30s&quot;, &quot;1m&quot;).
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <Label className="text-xs">ServiceMonitor Labels</Label>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-base-content/60 text-xs">
                       Labels for ServiceMonitor discovery (must match your Prometheus selector).
                     </p>
                     <KeyValueEditor
@@ -616,7 +610,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                 <>
                   <div className="space-y-2">
                     <Label className="text-xs">PrometheusRule Labels</Label>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-base-content/60 text-xs">
                       Labels for PrometheusRule discovery (must match your Prometheus rule
                       selector).
                     </p>
@@ -660,7 +654,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
 
       <div className="space-y-3 rounded-lg border p-4">
         <span className="text-sm font-medium">Network Access</span>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-base-content/60 text-xs">
           Configure how clients and nodes communicate with the Aerospike cluster.
         </p>
         <div className="grid grid-cols-2 gap-3">
@@ -670,7 +664,8 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
             </Label>
             <Select
               value={form.networkPolicy?.accessType || "pod"}
-              onValueChange={(v) => {
+              onChange={(e) => {
+                const v = e.target.value;
                 const current = form.networkPolicy ?? { accessType: "pod" as const };
                 updateForm({
                   networkPolicy:
@@ -679,16 +674,12 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                       : { ...current, accessType: v as NetworkAccessType },
                 });
               }}
+              id="access-type"
             >
-              <SelectTrigger id="access-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pod">Pod IP (default)</SelectItem>
-                <SelectItem value="hostInternal">Host Internal IP</SelectItem>
-                <SelectItem value="hostExternal">Host External IP</SelectItem>
-                <SelectItem value="configuredIP">Configured IP</SelectItem>
-              </SelectContent>
+              <option value="pod">Pod IP (default)</option>
+              <option value="hostInternal">Host Internal IP</option>
+              <option value="hostExternal">Host External IP</option>
+              <option value="configuredIP">Configured IP</option>
             </Select>
           </div>
           <div className="grid gap-2">
@@ -697,7 +688,8 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
             </Label>
             <Select
               value={form.networkPolicy?.fabricType || "pod"}
-              onValueChange={(v) => {
+              onChange={(e) => {
+                const v = e.target.value;
                 const current = form.networkPolicy ?? { accessType: "pod" as const };
                 updateForm({
                   networkPolicy: {
@@ -706,15 +698,11 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                   },
                 });
               }}
+              id="fabric-type"
             >
-              <SelectTrigger id="fabric-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pod">Pod IP (default)</SelectItem>
-                <SelectItem value="hostInternal">Host Internal IP</SelectItem>
-                <SelectItem value="hostExternal">Host External IP</SelectItem>
-              </SelectContent>
+              <option value="pod">Pod IP (default)</option>
+              <option value="hostInternal">Host Internal IP</option>
+              <option value="hostExternal">Host External IP</option>
             </Select>
           </div>
         </div>
@@ -818,7 +806,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
             Auto-generate Kubernetes NetworkPolicy
           </Label>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-base-content/60 text-xs">
           Automatically create K8s NetworkPolicy resources to restrict traffic to Aerospike pods.
         </p>
         {form.networkPolicyConfig?.enabled && (
@@ -828,22 +816,18 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
             </Label>
             <Select
               value={form.networkPolicyConfig.type}
-              onValueChange={(v) =>
+              onChange={(e) =>
                 updateForm({
                   networkPolicyConfig: {
                     enabled: true,
-                    type: v as "kubernetes" | "cilium",
+                    type: e.target.value as "kubernetes" | "cilium",
                   },
                 })
               }
+              id="netpol-type"
             >
-              <SelectTrigger id="netpol-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="kubernetes">Kubernetes (standard)</SelectItem>
-                <SelectItem value="cilium">Cilium</SelectItem>
-              </SelectContent>
+              <option value="kubernetes">Kubernetes (standard)</option>
+              <option value="cilium">Cilium</option>
             </Select>
           </div>
         )}
@@ -871,7 +855,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
             Enable Seeds Finder LoadBalancer
           </Label>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-base-content/60 text-xs">
           Creates a LoadBalancer service for external seed discovery. Required for multi-cluster
           topologies or external client access.
         </p>
@@ -912,17 +896,15 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                 </Label>
                 <Select
                   value={form.seedsFinderServices.loadBalancer.externalTrafficPolicy ?? "Cluster"}
-                  onValueChange={(v) =>
-                    updateLoadBalancer({ externalTrafficPolicy: v as "Cluster" | "Local" })
+                  onChange={(e) =>
+                    updateLoadBalancer({
+                      externalTrafficPolicy: e.target.value as "Cluster" | "Local",
+                    })
                   }
+                  id="sfs-traffic-policy"
                 >
-                  <SelectTrigger id="sfs-traffic-policy">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Cluster">Cluster (default)</SelectItem>
-                    <SelectItem value="Local">Local</SelectItem>
-                  </SelectContent>
+                  <option value="Cluster">Cluster (default)</option>
+                  <option value="Local">Local</option>
                 </Select>
               </div>
             </div>
@@ -936,9 +918,9 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
               >
                 <span className="text-xs font-medium">Advanced LoadBalancer Settings</span>
                 {showLBAdvanced ? (
-                  <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
+                  <ChevronDown className="text-base-content/60 h-3.5 w-3.5" />
                 ) : (
-                  <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+                  <ChevronRight className="text-base-content/60 h-3.5 w-3.5" />
                 )}
               </button>
               {showLBAdvanced && (
@@ -946,7 +928,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                   {/* Annotations */}
                   <div className="grid gap-1.5">
                     <Label className="text-xs">Annotations</Label>
-                    <p className="text-muted-foreground text-[10px]">
+                    <p className="text-base-content/60 text-[10px]">
                       Cloud-specific LoadBalancer annotations (e.g.
                       service.beta.kubernetes.io/aws-load-balancer-type).
                     </p>
@@ -962,7 +944,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                   {/* Labels */}
                   <div className="grid gap-1.5">
                     <Label className="text-xs">Labels</Label>
-                    <p className="text-muted-foreground text-[10px]">
+                    <p className="text-base-content/60 text-[10px]">
                       Custom labels applied to the LoadBalancer Service resource.
                     </p>
                     <KeyValueEditor
@@ -977,7 +959,7 @@ export function WizardMonitoringStep({ form, updateForm }: WizardMonitoringStepP
                   {/* Load Balancer Source Ranges */}
                   <div className="grid gap-1.5">
                     <Label className="text-xs">Load Balancer Source Ranges</Label>
-                    <p className="text-muted-foreground text-[10px]">
+                    <p className="text-base-content/60 text-[10px]">
                       Restrict access to the LoadBalancer by specifying allowed CIDR ranges. Leave
                       empty to allow all sources.
                     </p>

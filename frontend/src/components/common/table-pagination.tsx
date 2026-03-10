@@ -1,13 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/formatters";
 import { PAGE_SIZE_OPTIONS } from "@/lib/constants";
@@ -52,7 +46,7 @@ export function TablePagination({
   return (
     <div
       className={cn(
-        "border-border/50 bg-card/80 safe-bottom flex w-full min-w-0 shrink-0 flex-col gap-3 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6",
+        "border-base-300/50 bg-base-100/80 safe-bottom flex w-full min-w-0 shrink-0 flex-col gap-3 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6",
         className,
       )}
     >
@@ -60,30 +54,23 @@ export function TablePagination({
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
           {start}–{end}
-          <span className="text-muted-foreground/40 mx-1.5">of</span>
+          <span className="text-muted-foreground/60 mx-1.5">of</span>
           {formatNumber(total)}
         </span>
         <Select
           value={String(pageSize)}
-          onValueChange={(val) => onPageSizeChange(parseInt(val, 10))}
+          onChange={(e) => onPageSizeChange(parseInt(e.target.value, 10))}
+          className="border-base-300/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px]"
+          disabled={loading}
+          aria-label="Rows per page"
         >
-          <SelectTrigger
-            className="border-border/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px] [&>svg]:h-3 [&>svg]:w-3"
-            data-compact
-            disabled={loading}
-            aria-label="Rows per page"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {pageSizeOptions.map((size) => (
-              <SelectItem key={size} value={String(size)} className="font-mono text-xs">
-                {size}
-              </SelectItem>
-            ))}
-          </SelectContent>
+          {pageSizeOptions.map((size) => (
+            <option key={size} value={String(size)}>
+              {size}
+            </option>
+          ))}
         </Select>
-        <span className="text-muted-foreground/40 hidden text-[10px] tracking-wider uppercase sm:inline">
+        <span className="text-muted-foreground/60 hidden text-[10px] tracking-wider uppercase sm:inline">
           per page
         </span>
       </div>
@@ -117,7 +104,7 @@ export function TablePagination({
             p === "ellipsis" ? (
               <span
                 key={`dots-${i}`}
-                className="text-muted-foreground/30 px-1 font-mono text-[11px] select-none"
+                className="text-muted-foreground/50 px-1 font-mono text-[11px] select-none"
                 aria-hidden="true"
               >
                 ···

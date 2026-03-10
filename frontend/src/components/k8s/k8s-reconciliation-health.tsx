@@ -47,12 +47,10 @@ export function K8sReconciliationHealth({
     return (
       <Card className={className}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-muted-foreground text-sm font-normal">
-            Reconciliation
-          </CardTitle>
+          <CardTitle className="text-base-content/60 text-sm font-normal">Reconciliation</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="bg-muted h-8 animate-pulse rounded" />
+          <div className="bg-base-200 h-8 animate-pulse rounded" />
         </CardContent>
       </Card>
     );
@@ -70,7 +68,7 @@ export function K8sReconciliationHealth({
   return (
     <Card
       className={cn(
-        status.circuitBreakerActive ? "border-destructive/50" : "border-amber-500/50",
+        status.circuitBreakerActive ? "border-error/50" : "border-amber-500/50",
         className,
       )}
     >
@@ -78,8 +76,8 @@ export function K8sReconciliationHealth({
         <CardTitle className="flex items-center gap-2 text-sm font-normal">
           {status.circuitBreakerActive ? (
             <>
-              <Zap className="text-destructive h-4 w-4" />
-              <span className="text-destructive">Circuit Breaker Active</span>
+              <Zap className="text-error h-4 w-4" />
+              <span className="text-error">Circuit Breaker Active</span>
             </>
           ) : (
             <>
@@ -92,7 +90,7 @@ export function K8sReconciliationHealth({
       <CardContent className="space-y-3">
         {/* Progress toward circuit breaker */}
         <div>
-          <div className="text-muted-foreground mb-1 flex items-center justify-between text-xs">
+          <div className="text-base-content/60 mb-1 flex items-center justify-between text-xs">
             <span>
               Failures: {status.failedReconcileCount} / {status.circuitBreakerThreshold}
             </span>
@@ -102,11 +100,11 @@ export function K8sReconciliationHealth({
               </Badge>
             )}
           </div>
-          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
+          <div className="bg-base-200 h-2 w-full overflow-hidden rounded-full">
             <div
               className={cn(
                 "h-full rounded-full transition-all",
-                status.circuitBreakerActive ? "bg-destructive" : "bg-amber-500",
+                status.circuitBreakerActive ? "bg-error" : "bg-amber-500",
               )}
               style={{ width: `${progressPct}%` }}
             />
@@ -115,7 +113,7 @@ export function K8sReconciliationHealth({
 
         {/* Backoff info */}
         {status.estimatedBackoffSeconds && (
-          <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          <div className="text-base-content/60 flex items-center gap-1.5 text-xs">
             <Clock className="h-3 w-3" />
             <span>Next retry in ~{status.estimatedBackoffSeconds}s</span>
           </div>
@@ -123,9 +121,9 @@ export function K8sReconciliationHealth({
 
         {/* Last error */}
         {status.lastReconcileError && (
-          <div className="bg-destructive/5 rounded p-2">
-            <p className="text-destructive text-xs font-medium">Last error:</p>
-            <p className="text-muted-foreground mt-0.5 line-clamp-3 text-xs">
+          <div className="bg-error/5 rounded p-2">
+            <p className="text-error text-xs font-medium">Last error:</p>
+            <p className="text-base-content/60 mt-0.5 line-clamp-3 text-xs">
               {status.lastReconcileError}
             </p>
           </div>

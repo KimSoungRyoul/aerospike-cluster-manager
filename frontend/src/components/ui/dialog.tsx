@@ -135,7 +135,7 @@ const DialogDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <p ref={ref} className={cn("text-muted-foreground text-sm", className)} {...props} />
+  <p ref={ref} className={cn("text-base-content/60 text-sm", className)} {...props} />
 ));
 DialogDescription.displayName = "DialogDescription";
 

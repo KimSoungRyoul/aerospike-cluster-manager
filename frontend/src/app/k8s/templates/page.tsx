@@ -11,7 +11,7 @@ import { InlineAlert } from "@/components/common/inline-alert";
 import { PageHeader } from "@/components/common/page-header";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 import { getErrorMessage } from "@/lib/utils";
 import type { K8sTemplateSummary } from "@/lib/api/types";
 
@@ -30,10 +30,10 @@ export default function K8sTemplatesPage() {
     setDeleting(true);
     try {
       await deleteTemplate(deleteTarget.name);
-      toast.success(`Template "${deleteTarget.name}" deleted`);
+      useToastStore.getState().addToast("success", `Template "${deleteTarget.name}" deleted`);
       setDeleteTarget(null);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -93,7 +93,7 @@ export default function K8sTemplatesPage() {
           {templates.map((tmpl) => (
             <div
               key={tmpl.name}
-              className="bg-card hover:border-accent/50 group cursor-pointer rounded-xl border p-5 shadow-sm transition-all"
+              className="bg-base-100 hover:border-accent/50 group cursor-pointer rounded-xl border p-5 shadow-sm transition-all"
               onClick={() => router.push(`/k8s/templates/${tmpl.name}`)}
             >
               <div className="flex items-start justify-between">
@@ -112,31 +112,29 @@ export default function K8sTemplatesPage() {
                     setDeleteTarget(tmpl);
                   }}
                 >
-                  <Trash2 className="text-destructive h-3.5 w-3.5" />
+                  <Trash2 className="text-error h-3.5 w-3.5" />
                 </Button>
               </div>
               {tmpl.description && (
-                <p className="text-muted-foreground mt-2 line-clamp-2 text-xs">
-                  {tmpl.description}
-                </p>
+                <p className="text-base-content/60 mt-2 line-clamp-2 text-xs">{tmpl.description}</p>
               )}
               <div className="mt-3 flex gap-4 text-xs">
                 {tmpl.image && (
-                  <span className="text-muted-foreground truncate">
-                    Image: <span className="text-foreground">{tmpl.image}</span>
+                  <span className="text-base-content/60 truncate">
+                    Image: <span className="text-base-content">{tmpl.image}</span>
                   </span>
                 )}
                 {tmpl.size != null && (
-                  <span className="text-muted-foreground">
-                    Size: <span className="text-foreground">{tmpl.size}</span>
+                  <span className="text-base-content/60">
+                    Size: <span className="text-base-content">{tmpl.size}</span>
                   </span>
                 )}
               </div>
               {tmpl.age && (
-                <p className="text-muted-foreground mt-2 text-[10px]">Created {tmpl.age} ago</p>
+                <p className="text-base-content/60 mt-2 text-[10px]">Created {tmpl.age} ago</p>
               )}
               <div className="mt-2">
-                <span className="text-muted-foreground text-[10px]">Referenced By: </span>
+                <span className="text-base-content/60 text-[10px]">Referenced By: </span>
                 {tmpl.usedBy && tmpl.usedBy.length > 0 ? (
                   <span className="mt-0.5 inline-flex flex-wrap gap-1">
                     {tmpl.usedBy.map((ref) => (
@@ -146,7 +144,7 @@ export default function K8sTemplatesPage() {
                     ))}
                   </span>
                 ) : (
-                  <span className="text-muted-foreground text-[10px]">&mdash;</span>
+                  <span className="text-base-content/60 text-[10px]">&mdash;</span>
                 )}
               </div>
             </div>

@@ -88,7 +88,7 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
           {selectedCategory && (
             <button
               onClick={() => setSelectedCategory(null)}
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs"
+              className="text-base-content/60 hover:text-base-content flex items-center gap-1 text-xs"
             >
               <Filter className="h-3 w-3" />
               Clear filter
@@ -108,7 +108,7 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
                   "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
                   isSelected
                     ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted text-muted-foreground",
+                    : "border-base-300 hover:bg-base-200 text-base-content/60",
                 )}
               >
                 <Icon className={cn("h-3 w-3", config.color)} />
@@ -121,7 +121,7 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
       </CardHeader>
       <CardContent>
         {filteredEvents.length === 0 ? (
-          <p className="text-muted-foreground py-4 text-center text-sm">No events</p>
+          <p className="text-base-content/60 py-4 text-center text-sm">No events</p>
         ) : (
           <div className="space-y-1">
             {filteredEvents.map((event, i) => {
@@ -134,12 +134,12 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
                   key={`${event.reason}-${event.lastTimestamp}-${i}`}
                   className={cn(
                     "flex items-start gap-2 rounded-md px-2 py-1.5 text-sm",
-                    isWarning ? "bg-destructive/5" : "hover:bg-muted/50",
+                    isWarning ? "bg-error/5" : "hover:bg-base-200/50",
                   )}
                 >
                   <div className="mt-0.5 flex-shrink-0">
                     {isWarning ? (
-                      <AlertTriangle className="text-destructive h-3.5 w-3.5" />
+                      <AlertTriangle className="text-error h-3.5 w-3.5" />
                     ) : (
                       <Icon className={cn("h-3.5 w-3.5", config.color)} />
                     )}
@@ -153,9 +153,9 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-muted-foreground truncate text-xs">{event.message}</p>
+                    <p className="text-base-content/60 truncate text-xs">{event.message}</p>
                   </div>
-                  <span className="text-muted-foreground flex-shrink-0 text-xs">
+                  <span className="text-base-content/60 flex-shrink-0 text-xs">
                     {formatTimestamp(event.lastTimestamp)}
                   </span>
                 </div>

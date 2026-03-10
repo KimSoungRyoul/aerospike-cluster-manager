@@ -8,8 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
+
+import { useToastStore } from "@/stores/toast-store";
 
 interface BatchReadDialogProps {
   open: boolean;
@@ -26,8 +26,8 @@ export function BatchReadDialog({
 }: BatchReadDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="border-border/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
-        <DialogHeader className="border-border/40 space-y-0 border-b px-5 pt-5 pb-3">
+      <DialogContent className="border-base-300/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
+        <DialogHeader className="border-base-300/40 space-y-0 border-b px-5 pt-5 pb-3">
           <div className="flex items-center justify-between">
             <DialogTitle className="font-mono text-sm font-medium">batch_read Code</DialogTitle>
             <span className="text-accent ml-4 font-mono text-[11px]">{selectedCount} keys</span>
@@ -36,16 +36,16 @@ export function BatchReadDialog({
             Python aerospike-py async client batch_read snippet
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="max-h-[calc(80vh-100px)]">
+        <div className="max-h-[calc(80vh-100px)] overflow-auto">
           <div className="p-5">
-            <div className="border-border/40 bg-background/50 relative overflow-hidden rounded-md border">
-              <div className="border-border/30 flex items-center justify-end border-b px-3 py-1.5">
+            <div className="border-base-300/40 bg-base-100/50 relative overflow-hidden rounded-md border">
+              <div className="border-base-300/30 flex items-center justify-end border-b px-3 py-1.5">
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(generateCode());
-                    toast.success("Copied to clipboard");
+                    useToastStore.getState().addToast("success", "Copied to clipboard");
                   }}
-                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 font-mono text-[11px] transition-colors"
+                  className="text-muted-foreground hover:text-base-content inline-flex items-center gap-1.5 font-mono text-[11px] transition-colors"
                 >
                   <Copy className="h-3 w-3" />
                   Copy
@@ -56,7 +56,7 @@ export function BatchReadDialog({
               </pre>
             </div>
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

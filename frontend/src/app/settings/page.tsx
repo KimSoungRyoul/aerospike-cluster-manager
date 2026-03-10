@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
 import { useUIStore, type Theme } from "@/stores/ui-store";
 import { CE_LIMITS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -63,7 +63,7 @@ export default function SettingsPage() {
                   "flex flex-col items-center gap-2 rounded-xl border-2 p-4 transition-all duration-200",
                   theme === opt.value
                     ? "border-accent bg-accent/5 shadow-sm"
-                    : "border-border/60 hover:border-accent/40 hover:bg-muted/30",
+                    : "border-base-300/60 hover:border-accent/40 hover:bg-base-200/30",
                 )}
               >
                 <opt.icon
@@ -76,7 +76,7 @@ export default function SettingsPage() {
                   <span
                     className={cn(
                       "block text-sm font-medium",
-                      theme === opt.value ? "text-accent" : "text-foreground",
+                      theme === opt.value ? "text-accent" : "text-base-content",
                     )}
                   >
                     {opt.label}
@@ -102,7 +102,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
+            <div className="border-base-300/60 hover:bg-base-200/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
                 <Server className="text-muted-foreground h-4 w-4" />
                 <div>
@@ -117,7 +117,7 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
+            <div className="border-base-300/60 hover:bg-base-200/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
                 <Database className="text-muted-foreground h-4 w-4" />
                 <div>
@@ -132,7 +132,7 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
+            <div className="border-base-300/60 hover:bg-base-200/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
                 <HardDrive className="text-muted-foreground h-4 w-4" />
                 <div>
@@ -147,7 +147,7 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
+            <div className="border-base-300/60 hover:bg-base-200/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
                 <Trash2 className="text-muted-foreground h-4 w-4" />
                 <div>
@@ -162,7 +162,7 @@ export default function SettingsPage() {
               </Badge>
             </div>
 
-            <div className="border-border/60 hover:bg-muted/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
+            <div className="border-base-300/60 hover:bg-base-200/20 flex items-center justify-between rounded-lg border px-4 py-3 transition-colors">
               <div className="flex items-center gap-3">
                 <Server className="text-muted-foreground h-4 w-4" />
                 <div>
@@ -192,39 +192,39 @@ export default function SettingsPage() {
               <span className="text-muted-foreground">Application</span>
               <span className="font-medium">Aerospike Cluster Manager</span>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Version</span>
               <span className="font-mono text-xs">0.1.0</span>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Framework</span>
               <span className="font-mono text-xs">Next.js 16</span>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">UI Library</span>
               <span className="font-mono text-xs">shadcn/ui + Tailwind CSS</span>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Backend Client</span>
               <span className="font-mono text-xs">aerospike-py</span>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Observability</span>
               <span className="font-mono text-xs">OpenTelemetry / Prometheus</span>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Desktop</span>
               <span className="font-mono text-xs">Tauri 2 (planned)</span>
             </div>
           </div>
 
-          <div className="bg-muted/40 text-muted-foreground dark:bg-muted/20 rounded-lg p-3.5 text-xs leading-relaxed">
+          <div className="bg-base-200/40 text-muted-foreground dark:bg-base-200/20 rounded-lg p-3.5 text-xs leading-relaxed">
             This application is designed for managing Aerospike Community Edition clusters. It
             provides data browsing, query building, index management, user/role administration, UDF
             management, and OTel-based observability through a modern web interface.
@@ -242,22 +242,22 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between py-0.5">
               <span className="text-muted-foreground">Toggle Sidebar</span>
               <div className="flex gap-1">
-                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
+                <kbd className="bg-base-200/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   Cmd
                 </kbd>
-                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
+                <kbd className="bg-base-200/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   B
                 </kbd>
               </div>
             </div>
-            <Separator className="bg-border/50" />
+            <div className="divider bg-border/50 my-0" />
             <div className="flex items-center justify-between py-0.5">
               <span className="text-muted-foreground">Toggle Terminal</span>
               <div className="flex gap-1">
-                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
+                <kbd className="bg-base-200/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   Cmd
                 </kbd>
-                <kbd className="bg-muted/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
+                <kbd className="bg-base-200/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
                   `
                 </kbd>
               </div>

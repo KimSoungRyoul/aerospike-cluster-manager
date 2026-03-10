@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import {
   Sheet,
   SheetContent,
@@ -93,7 +93,7 @@ export function RecordDetailSections({ record }: { record: AerospikeRecord }) {
           <span className="text-muted-foreground/30">({Object.keys(record.bins).length})</span>
           <span className="bg-border/30 h-px flex-1" />
         </h4>
-        <div className="border-border/40 bg-background/50 max-h-[300px] overflow-auto rounded-md border p-3">
+        <div className="border-base-300/40 bg-base-100/50 max-h-[300px] overflow-auto rounded-md border p-3">
           <JsonViewer data={record.bins} />
         </div>
       </section>
@@ -103,17 +103,17 @@ export function RecordDetailSections({ record }: { record: AerospikeRecord }) {
 
 export function RecordDetailContent({ record }: { record: AerospikeRecord }) {
   return (
-    <ScrollArea className="max-h-[calc(80vh-60px)]">
+    <div className="max-h-[calc(80vh-60px)] overflow-auto">
       <RecordDetailSections record={record} />
-    </ScrollArea>
+    </div>
   );
 }
 
 export function RecordViewDialog({ record, onClose }: RecordViewDialogProps) {
   return (
     <Dialog open={!!record} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="border-border/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
-        <DialogHeader className="border-border/40 space-y-0 border-b px-5 pt-5 pb-3">
+      <DialogContent className="border-base-300/50 max-h-[80vh] gap-0 overflow-hidden p-0 sm:max-w-[620px]">
+        <DialogHeader className="border-base-300/40 space-y-0 border-b px-5 pt-5 pb-3">
           <div className="flex items-center justify-between">
             <DialogTitle className="font-mono text-sm font-medium">Record Detail</DialogTitle>
             <span className="text-accent ml-4 max-w-[250px] truncate font-mono text-[11px]">
@@ -137,7 +137,7 @@ export function RecordViewSheet({ record, onClose }: RecordViewDialogProps) {
         className="max-h-[85vh] gap-0 overflow-hidden p-0"
         data-testid="record-view-sheet"
       >
-        <SheetHeader className="border-border/40 space-y-0 border-b px-5 pt-1 pb-3">
+        <SheetHeader className="border-base-300/40 space-y-0 border-b px-5 pt-1 pb-3">
           <div className="flex items-center justify-between pr-10">
             <SheetTitle className="font-mono text-sm font-medium">Record Detail</SheetTitle>
             <span className="text-accent ml-4 max-w-[180px] truncate font-mono text-[11px]">
