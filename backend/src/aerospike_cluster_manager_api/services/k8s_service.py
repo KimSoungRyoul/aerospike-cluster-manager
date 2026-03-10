@@ -197,6 +197,8 @@ def build_monitoring(mon: Any) -> dict[str, Any]:
         pr: dict[str, Any] = {"enabled": mon.prometheus_rule.enabled}
         if mon.prometheus_rule.labels:
             pr["labels"] = mon.prometheus_rule.labels
+        if mon.prometheus_rule.custom_rules:
+            pr["customRules"] = mon.prometheus_rule.custom_rules
         result["prometheusRule"] = pr
     if mon.exporter_env:
         result["env"] = mon.exporter_env
@@ -305,7 +307,7 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             data_vol["initMethod"] = req.storage.init_method
         if req.storage.wipe_method:
             data_vol["wipeMethod"] = req.storage.wipe_method
-        cr["spec"]["storage"] = {
+        storage_spec: dict[str, Any] = {
             "volumes": [
                 data_vol,
                 {
@@ -315,6 +317,13 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
                 },
             ]
         }
+        if req.storage.cleanup_threads is not None:
+            storage_spec["cleanupThreads"] = req.storage.cleanup_threads
+        if req.storage.filesystem_volume_policy is not None:
+            storage_spec["filesystemVolumePolicy"] = req.storage.filesystem_volume_policy
+        if req.storage.block_volume_policy is not None:
+            storage_spec["blockVolumePolicy"] = req.storage.block_volume_policy
+        cr["spec"]["storage"] = storage_spec
 
     # Pod resources
     if req.resources:
@@ -564,12 +573,38 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
             storage["accessModes"] = req.storage.access_modes
         if req.storage.size:
             storage["resources"] = {"requests": {"storage": req.storage.size}}
+        if req.storage.local_pv_required is not None:
+            storage["localPVRequired"] = req.storage.local_pv_required
         if storage:
             cr["spec"]["storage"] = storage
     if req.network_policy:
         cr["spec"]["aerospikeNetworkPolicy"] = build_network_policy(req.network_policy)
     if req.aerospike_config:
         cr["spec"]["aerospikeConfig"] = {"namespaceDefaults": req.aerospike_config}
+    if req.service_config:
+        svc_cfg: dict[str, Any] = {}
+        if req.service_config.feature_key_file:
+            svc_cfg["featureKeyFile"] = req.service_config.feature_key_file
+        if svc_cfg:
+            cr["spec"]["serviceConfig"] = svc_cfg
+    if req.network_config:
+        net_cfg: dict[str, Any] = {}
+        if req.network_config.heartbeat_mode:
+            net_cfg["heartbeatMode"] = req.network_config.heartbeat_mode
+        if req.network_config.heartbeat_port is not None:
+            net_cfg["heartbeatPort"] = req.network_config.heartbeat_port
+        if req.network_config.heartbeat_interval is not None:
+            net_cfg["heartbeatInterval"] = req.network_config.heartbeat_interval
+        if req.network_config.heartbeat_timeout is not None:
+            net_cfg["heartbeatTimeout"] = req.network_config.heartbeat_timeout
+        if net_cfg:
+            cr["spec"]["networkConfig"] = net_cfg
+    if req.rack_config:
+        rack_cfg: dict[str, Any] = {}
+        if req.rack_config.max_racks_per_node is not None:
+            rack_cfg["maxRacksPerNode"] = req.rack_config.max_racks_per_node
+        if rack_cfg:
+            cr["spec"]["rackConfig"] = rack_cfg
 
     return cr
 
@@ -608,12 +643,38 @@ def build_template_update_patch(body: UpdateK8sTemplateRequest) -> dict[str, Any
             storage["accessModes"] = body.storage.access_modes
         if body.storage.size:
             storage["resources"] = {"requests": {"storage": body.storage.size}}
+        if body.storage.local_pv_required is not None:
+            storage["localPVRequired"] = body.storage.local_pv_required
         if storage:
             patch["spec"]["storage"] = storage
     if body.network_policy is not None:
         patch["spec"]["aerospikeNetworkPolicy"] = build_network_policy(body.network_policy)
     if body.aerospike_config is not None:
         patch["spec"]["aerospikeConfig"] = {"namespaceDefaults": body.aerospike_config}
+    if body.service_config is not None:
+        svc_cfg: dict[str, Any] = {}
+        if body.service_config.feature_key_file:
+            svc_cfg["featureKeyFile"] = body.service_config.feature_key_file
+        if svc_cfg:
+            patch["spec"]["serviceConfig"] = svc_cfg
+    if body.network_config is not None:
+        net_cfg: dict[str, Any] = {}
+        if body.network_config.heartbeat_mode:
+            net_cfg["heartbeatMode"] = body.network_config.heartbeat_mode
+        if body.network_config.heartbeat_port is not None:
+            net_cfg["heartbeatPort"] = body.network_config.heartbeat_port
+        if body.network_config.heartbeat_interval is not None:
+            net_cfg["heartbeatInterval"] = body.network_config.heartbeat_interval
+        if body.network_config.heartbeat_timeout is not None:
+            net_cfg["heartbeatTimeout"] = body.network_config.heartbeat_timeout
+        if net_cfg:
+            patch["spec"]["networkConfig"] = net_cfg
+    if body.rack_config is not None:
+        rack_cfg: dict[str, Any] = {}
+        if body.rack_config.max_racks_per_node is not None:
+            rack_cfg["maxRacksPerNode"] = body.rack_config.max_racks_per_node
+        if rack_cfg:
+            patch["spec"]["rackConfig"] = rack_cfg
     return patch
 
 

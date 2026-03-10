@@ -41,6 +41,19 @@ class StorageVolumeConfig(BaseModel):
         Literal["none", "deleteFiles", "dd", "blkdiscard", "headerCleanup", "blkdiscardWithHeaderCleanup"] | None
     ) = Field(default=None, alias="wipeMethod", description="Volume wipe method for dirty volumes")
     cascade_delete: bool = Field(default=True, alias="cascadeDelete", description="Delete PVCs on CR deletion")
+    cleanup_threads: int | None = Field(
+        default=None, ge=1, alias="cleanupThreads", description="Number of threads for storage cleanup operations"
+    )
+    filesystem_volume_policy: dict | None = Field(
+        default=None,
+        alias="filesystemVolumePolicy",
+        description="Policy for filesystem volume initialization (e.g. initMethod, wipeMethod defaults)",
+    )
+    block_volume_policy: dict | None = Field(
+        default=None,
+        alias="blockVolumePolicy",
+        description="Policy for block volume initialization (e.g. initMethod, wipeMethod defaults)",
+    )
 
 
 class NetworkAccessConfig(BaseModel):
@@ -276,6 +289,7 @@ class PrometheusRuleConfig(BaseModel):
 
     enabled: bool = Field(default=False)
     labels: dict[str, str] | None = Field(default=None, description="Additional labels for discovery")
+    custom_rules: list[dict[str, Any]] | None = Field(None, description="Custom Prometheus rule groups")
 
 
 class MonitoringConfig(BaseModel):
@@ -775,6 +789,43 @@ class TemplateSchedulingConfig(BaseModel):
     )
 
 
+class TemplateServiceConfig(BaseModel):
+    """Service-level configuration for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    feature_key_file: str | None = Field(default=None, alias="featureKeyFile", description="Path to feature key file")
+
+
+class TemplateNetworkConfig(BaseModel):
+    """Network/heartbeat configuration for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    heartbeat_mode: Literal["mesh", "multicast"] | None = Field(
+        default=None, alias="heartbeatMode", description="Heartbeat mode (mesh or multicast)"
+    )
+    heartbeat_port: int | None = Field(
+        default=None, ge=1024, le=65535, alias="heartbeatPort", description="Heartbeat port"
+    )
+    heartbeat_interval: int | None = Field(
+        default=None, ge=50, alias="heartbeatInterval", description="Heartbeat interval in milliseconds"
+    )
+    heartbeat_timeout: int | None = Field(
+        default=None, ge=1, alias="heartbeatTimeout", description="Heartbeat timeout (number of intervals)"
+    )
+
+
+class TemplateRackConfig(BaseModel):
+    """Rack configuration defaults for a template."""
+
+    model_config = {"populate_by_name": True}
+
+    max_racks_per_node: int | None = Field(
+        default=None, ge=1, alias="maxRacksPerNode", description="Maximum racks allowed per node"
+    )
+
+
 class TemplateStorageConfig(BaseModel):
     """Storage defaults for a template."""
 
@@ -784,6 +835,9 @@ class TemplateStorageConfig(BaseModel):
     volume_mode: Literal["Filesystem", "Block"] | None = Field(default=None, alias="volumeMode")
     access_modes: list[str] | None = Field(default=None, alias="accessModes")
     size: str | None = Field(default=None, description="Default volume size (e.g. 10Gi)")
+    local_pv_required: bool | None = Field(
+        default=None, alias="localPVRequired", description="Whether local PV is required"
+    )
 
 
 class CreateK8sTemplateRequest(BaseModel):
@@ -805,6 +859,15 @@ class CreateK8sTemplateRequest(BaseModel):
     aerospike_config: dict[str, Any] | None = Field(
         default=None, alias="aerospikeConfig", description="Aerospike config defaults"
     )
+    service_config: TemplateServiceConfig | None = Field(
+        default=None, alias="serviceConfig", description="Service-level configuration"
+    )
+    network_config: TemplateNetworkConfig | None = Field(
+        default=None, alias="networkConfig", description="Network/heartbeat configuration"
+    )
+    rack_config: TemplateRackConfig | None = Field(
+        default=None, alias="rackConfig", description="Rack configuration defaults"
+    )
 
 
 class UpdateK8sTemplateRequest(BaseModel):
@@ -822,6 +885,15 @@ class UpdateK8sTemplateRequest(BaseModel):
     network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
     aerospike_config: dict[str, Any] | None = Field(
         default=None, alias="aerospikeConfig", description="Aerospike config defaults"
+    )
+    service_config: TemplateServiceConfig | None = Field(
+        default=None, alias="serviceConfig", description="Service-level configuration"
+    )
+    network_config: TemplateNetworkConfig | None = Field(
+        default=None, alias="networkConfig", description="Network/heartbeat configuration"
+    )
+    rack_config: TemplateRackConfig | None = Field(
+        default=None, alias="rackConfig", description="Rack configuration defaults"
     )
 
 
