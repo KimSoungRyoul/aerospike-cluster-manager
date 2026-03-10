@@ -147,8 +147,8 @@ Create, scale, update, and delete Aerospike clusters through a guided 9-step wiz
 4. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
 5. **Security (ACL)** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
 6. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
-7. **Rack Config** — Multi-rack deployment with zone affinity, per-rack overrides (aerospikeConfig, storage, podSpec), batch scaling controls (maxIgnorablePods, rollingUpdateBatchSize, scaleDownBatchSize)
-8. **Advanced** — Pod management policy, DNS policy, readiness gate, pod metadata (labels/annotations), bandwidth throttling (CNI ingress/egress limits), node block list (select K8s nodes to exclude from scheduling), validation policy, service metadata, rack ID override, nodeSelector, tolerations, hostNetwork, multiPodPerHost, imagePullSecrets, serviceAccountName, terminationGracePeriod
+7. **Rack Config** — Multi-rack deployment with zone affinity, per-rack storage overrides (different StorageClass, volume size per rack), per-rack tolerations/affinity/nodeSelector overrides, per-rack aerospikeConfig overrides, batch scaling controls (maxIgnorablePods, rollingUpdateBatchSize, scaleDownBatchSize)
+8. **Advanced** — Pod management policy, DNS policy, readiness gate, pod metadata (labels/annotations), headless service metadata (annotations/labels), per-pod service metadata (annotations/labels), bandwidth throttling (CNI ingress/egress limits), node block list (select K8s nodes to exclude from scheduling), validation policy, rack ID override, nodeSelector, tolerations, hostNetwork, multiPodPerHost, imagePullSecrets, serviceAccountName, terminationGracePeriod
 9. **Review** — Summary of all settings before creation
 
 ### Cluster Phases
@@ -235,6 +235,32 @@ The cluster list and detail pages automatically poll for updates when any cluste
 ### Auto-connect
 
 When creating a cluster, the "Auto-connect" option (enabled by default) automatically creates a connection profile pointing to the cluster's headless service (`<name>.<namespace>.svc.cluster.local`), so you can immediately browse data through the Aerospike connection features.
+
+### PrometheusRule Custom Rules
+
+The monitoring configuration wizard supports PrometheusRule with optional `customRules`. When custom rules are provided, the operator's built-in alerts (NodeDown, StopWrites, HighDiskUsage, HighMemoryUsage) are replaced entirely with user-defined alerting and recording rules. Each custom rule entry is a complete Prometheus rule group object containing `name` and `rules` fields. This allows teams to define cluster-specific alerts tailored to their SLOs and operational requirements.
+
+### Per-Rack Storage Overrides
+
+The Rack Config wizard step supports per-rack storage overrides. Each rack can specify a different StorageClass and volume size, enabling heterogeneous storage configurations across availability zones. For example, rack 1 in `us-east-1a` can use `io2` SSD volumes with 100Gi, while rack 2 in `us-east-1b` uses the cluster-level default `gp3` with 50Gi.
+
+### Per-Rack Tolerations and Affinity
+
+Each rack can override the cluster-level scheduling settings:
+
+- **tolerations** -- Allow pods in a specific rack to tolerate node taints unique to that availability zone
+- **affinity** -- Set rack-specific node affinity rules (e.g., target specific instance types per zone)
+- **nodeSelector** -- Constrain a rack to nodes with specific labels
+
+These overrides are configured in the Rack Config wizard step and the cluster edit dialog.
+
+### Service Metadata
+
+The Advanced wizard step and cluster edit dialog support custom metadata for Kubernetes services:
+
+- **Headless Service Metadata** -- Add custom annotations and labels to the headless service (`<cluster-name>-headless`) used for DNS-based pod discovery. Useful for External DNS integration, Prometheus scrape annotations, and service mesh configuration.
+- **Per-Pod Service Metadata** -- When pod services are enabled, each pod gets an individual ClusterIP Service. Custom annotations and labels can be added for External DNS, load balancer configuration, or service mesh integration.
+- **Pod Metadata** -- Add custom labels and annotations directly to Aerospike pods for service mesh sidecar injection (e.g., Istio), monitoring label selectors, cost allocation tags, or external tool integration.
 
 ### K8s API Endpoints
 
