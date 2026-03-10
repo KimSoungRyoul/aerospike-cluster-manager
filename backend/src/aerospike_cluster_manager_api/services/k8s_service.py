@@ -155,14 +155,6 @@ def build_pod_scheduling(sched: Any) -> dict[str, Any]:
             meta["annotations"] = sched.metadata.annotations
         if meta:
             result["metadata"] = meta
-    if sched.topology_spread_constraints:
-        result["topologySpreadConstraints"] = sched.topology_spread_constraints
-    if sched.affinity:
-        result["affinity"] = sched.affinity
-    if sched.security_context:
-        result["securityContext"] = sched.security_context
-    if sched.image_pull_secrets:
-        result["imagePullSecrets"] = sched.image_pull_secrets
     if sched.priority_class_name:
         result["priorityClassName"] = sched.priority_class_name
     return result
@@ -548,7 +540,7 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
             "limits": {"cpu": req.resources.limits.cpu, "memory": req.resources.limits.memory},
         }
     if req.monitoring:
-        cr["spec"]["monitoring"] = {"enabled": req.monitoring.enabled, "port": req.monitoring.port}
+        cr["spec"]["monitoring"] = build_monitoring(req.monitoring)
     if req.scheduling:
         scheduling: dict[str, Any] = {}
         if req.scheduling.pod_anti_affinity_level:
@@ -624,13 +616,19 @@ def build_template_update_patch(body: UpdateK8sTemplateRequest) -> dict[str, Any
             "limits": {"cpu": body.resources.limits.cpu, "memory": body.resources.limits.memory},
         }
     if body.monitoring is not None:
-        patch["spec"]["monitoring"] = {"enabled": body.monitoring.enabled, "port": body.monitoring.port}
+        patch["spec"]["monitoring"] = build_monitoring(body.monitoring)
     if body.scheduling is not None:
         scheduling: dict[str, Any] = {}
         if body.scheduling.pod_anti_affinity_level:
             scheduling["podAntiAffinityLevel"] = body.scheduling.pod_anti_affinity_level
         if body.scheduling.pod_management_policy:
             scheduling["podManagementPolicy"] = body.scheduling.pod_management_policy
+        if body.scheduling.tolerations:
+            scheduling["tolerations"] = body.scheduling.tolerations
+        if body.scheduling.node_affinity:
+            scheduling["nodeAffinity"] = body.scheduling.node_affinity
+        if body.scheduling.topology_spread_constraints:
+            scheduling["topologySpreadConstraints"] = body.scheduling.topology_spread_constraints
         if scheduling:
             patch["spec"]["scheduling"] = scheduling
     if body.storage is not None:
