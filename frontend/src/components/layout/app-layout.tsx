@@ -20,16 +20,16 @@ function ThemeHandler() {
 
     if (theme === "system") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.setAttribute("data-theme", prefersDark ? "custom-dark" : "custom-light");
+      root.setAttribute("data-theme", prefersDark ? "dracula" : "bumblebee");
 
       const listener = (e: MediaQueryListEvent) => {
-        root.setAttribute("data-theme", e.matches ? "custom-dark" : "custom-light");
+        root.setAttribute("data-theme", e.matches ? "dracula" : "bumblebee");
       };
       const mq = window.matchMedia("(prefers-color-scheme: dark)");
       mq.addEventListener("change", listener);
       return () => mq.removeEventListener("change", listener);
     } else {
-      root.setAttribute("data-theme", theme === "dark" ? "custom-dark" : "custom-light");
+      root.setAttribute("data-theme", theme === "dark" ? "dracula" : "bumblebee");
     }
   }, [theme]);
 

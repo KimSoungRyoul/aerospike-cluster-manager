@@ -1,40 +1,42 @@
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: false;
+}
 
 /* Dark mode variant using data-theme attribute */
-@custom-variant dark (&:is([data-theme="custom-dark"] *));
+@custom-variant dark (&:is([data-theme="dracula"] *));
 
-/* ─── Custom Light Theme ─────────────────────────────── */
+/* ─── Bumblebee Light Theme ──────────────────────────── */
 @plugin "daisyui/theme" {
-  name: "custom-light";
+  name: "bumblebee";
   default: true;
   prefersdark: false;
-  color-scheme: light;
+  color-scheme: "light";
 
-  --color-base-100: oklch(97.5% 0.005 260);
-  --color-base-200: oklch(94.5% 0.008 260);
-  --color-base-300: oklch(92% 0.006 260);
-  --color-base-content: oklch(22% 0.04 260);
-  --color-primary: oklch(20% 0.06 255);
-  --color-primary-content: oklch(87% 0.19 95);
-  --color-secondary: oklch(94.5% 0.008 260);
-  --color-secondary-content: oklch(22% 0.04 260);
-  --color-accent: oklch(58% 0.145 230);
+  --color-base-100: oklch(100% 0 0);
+  --color-base-200: oklch(97% 0 0);
+  --color-base-300: oklch(92% 0 0);
+  --color-base-content: oklch(20% 0 0);
+  --color-primary: oklch(85% 0.199 91.936);
+  --color-primary-content: oklch(42% 0.095 57.708);
+  --color-secondary: oklch(75% 0.183 55.934);
+  --color-secondary-content: oklch(40% 0.123 38.172);
+  --color-accent: oklch(0% 0 0);
   --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(38% 0.02 260);
-  --color-neutral-content: oklch(97.5% 0.005 260);
-  --color-info: oklch(60% 0.22 265);
-  --color-info-content: oklch(100% 0 0);
-  --color-success: oklch(58% 0.145 165);
-  --color-success-content: oklch(100% 0 0);
-  --color-warning: oklch(78% 0.17 75);
-  --color-warning-content: oklch(100% 0 0);
-  --color-error: oklch(56% 0.24 27);
-  --color-error-content: oklch(100% 0 0);
+  --color-neutral: oklch(37% 0.01 67.558);
+  --color-neutral-content: oklch(92% 0.003 48.717);
+  --color-info: oklch(74% 0.16 232.661);
+  --color-info-content: oklch(39% 0.09 240.876);
+  --color-success: oklch(76% 0.177 163.223);
+  --color-success-content: oklch(37% 0.077 168.94);
+  --color-warning: oklch(82% 0.189 84.429);
+  --color-warning-content: oklch(41% 0.112 45.904);
+  --color-error: oklch(70% 0.191 22.216);
+  --color-error-content: oklch(39% 0.141 25.723);
 
-  --radius-selector: 0.5rem;
+  --radius-selector: 1rem;
   --radius-field: 0.5rem;
-  --radius-box: 0.625rem;
+  --radius-box: 1rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
@@ -42,62 +44,62 @@
   --noise: 0;
 }
 
-/* ─── Custom Dark Theme ──────────────────────────────── */
+/* ─── Dracula Dark Theme ─────────────────────────────── */
 @plugin "daisyui/theme" {
-  name: "custom-dark";
+  name: "dracula";
   default: false;
   prefersdark: true;
-  color-scheme: dark;
+  color-scheme: "dark";
 
-  --color-base-100: oklch(14% 0.025 260);
-  --color-base-200: oklch(18% 0.03 255);
-  --color-base-300: oklch(23% 0.025 260);
-  --color-base-content: oklch(92% 0.01 255);
-  --color-primary: oklch(87% 0.19 95);
-  --color-primary-content: oklch(14% 0.025 260);
-  --color-secondary: oklch(21% 0.025 260);
-  --color-secondary-content: oklch(92% 0.01 255);
-  --color-accent: oklch(62% 0.145 230);
-  --color-accent-content: oklch(100% 0 0);
-  --color-neutral: oklch(38% 0.02 260);
-  --color-neutral-content: oklch(92% 0.01 255);
-  --color-info: oklch(66% 0.2 265);
-  --color-info-content: oklch(100% 0 0);
-  --color-success: oklch(62% 0.145 165);
-  --color-success-content: oklch(100% 0 0);
-  --color-warning: oklch(80% 0.17 80);
-  --color-warning-content: oklch(100% 0 0);
-  --color-error: oklch(62% 0.24 25);
-  --color-error-content: oklch(100% 0 0);
+  --color-base-100: oklch(28.822% 0.022 277.508);
+  --color-base-200: oklch(26.805% 0.02 277.508);
+  --color-base-300: oklch(24.787% 0.019 277.508);
+  --color-base-content: oklch(97.747% 0.007 106.545);
+  --color-primary: oklch(75.461% 0.183 346.812);
+  --color-primary-content: oklch(15.092% 0.036 346.812);
+  --color-secondary: oklch(74.202% 0.148 301.883);
+  --color-secondary-content: oklch(14.84% 0.029 301.883);
+  --color-accent: oklch(83.392% 0.124 66.558);
+  --color-accent-content: oklch(16.678% 0.024 66.558);
+  --color-neutral: oklch(39.445% 0.032 275.524);
+  --color-neutral-content: oklch(87.889% 0.006 275.524);
+  --color-info: oklch(88.263% 0.093 212.846);
+  --color-info-content: oklch(17.652% 0.018 212.846);
+  --color-success: oklch(87.099% 0.219 148.024);
+  --color-success-content: oklch(17.419% 0.043 148.024);
+  --color-warning: oklch(95.533% 0.134 112.757);
+  --color-warning-content: oklch(19.106% 0.026 112.757);
+  --color-error: oklch(68.22% 0.206 24.43);
+  --color-error-content: oklch(13.644% 0.041 24.43);
 
-  --radius-selector: 0.5rem;
+  --radius-selector: 1rem;
   --radius-field: 0.5rem;
-  --radius-box: 0.625rem;
+  --radius-box: 1rem;
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
-  --depth: 1;
+  --depth: 0;
   --noise: 0;
 }
 
 /* ─── Custom Theme Extensions (non-DaisyUI tokens) ──── */
-@theme inline {
+@theme {
   /* Muted foreground — no DaisyUI equivalent */
-  --color-muted-foreground: oklch(52% 0.02 260);
+  --color-muted-foreground: oklch(55% 0 0);
 
-  /* Sidebar colors */
-  --color-sidebar: oklch(97.5% 0.005 260);
-  --color-sidebar-foreground: oklch(22% 0.04 260);
-  --color-sidebar-border: oklch(92% 0.006 260);
-  --color-sidebar-accent: oklch(94.5% 0.008 260);
-  --color-sidebar-accent-foreground: oklch(22% 0.04 260);
+  /* Sidebar colors — derived from bumblebee base tones */
+  --color-sidebar: oklch(100% 0 0);
+  --color-sidebar-foreground: oklch(20% 0 0);
+  --color-sidebar-border: oklch(92% 0 0);
+  --color-sidebar-accent: oklch(97% 0 0);
+  --color-sidebar-accent-foreground: oklch(20% 0 0);
 
-  /* Chart palette */
-  --color-chart-1: oklch(58% 0.145 230);
-  --color-chart-2: oklch(87% 0.19 95);
-  --color-chart-3: oklch(58% 0.145 165);
-  --color-chart-4: oklch(75% 0.15 55);
-  --color-chart-5: oklch(62% 0.22 350);
+  /* Chart palette — mapped to semantic colors */
+  --color-chart-1: oklch(74% 0.16 232.661);
+  --color-chart-2: oklch(85% 0.199 91.936);
+  --color-chart-3: oklch(76% 0.177 163.223);
+  --color-chart-4: oklch(82% 0.189 84.429);
+  --color-chart-5: oklch(70% 0.191 22.216);
 
   /* Fonts */
   --font-sans: var(--font-outfit);
@@ -180,18 +182,18 @@
 }
 
 /* Dark theme overrides for custom tokens */
-[data-theme="custom-dark"] {
-  --color-muted-foreground: oklch(60% 0.02 260);
-  --color-sidebar: oklch(11% 0.025 265);
-  --color-sidebar-foreground: oklch(92% 0.01 255);
-  --color-sidebar-border: oklch(21% 0.025 260);
-  --color-sidebar-accent: oklch(19% 0.025 260);
-  --color-sidebar-accent-foreground: oklch(92% 0.01 255);
-  --color-chart-1: oklch(62% 0.145 230);
-  --color-chart-2: oklch(89% 0.19 95);
-  --color-chart-3: oklch(62% 0.145 165);
-  --color-chart-4: oklch(78% 0.15 55);
-  --color-chart-5: oklch(65% 0.22 350);
+[data-theme="dracula"] {
+  --color-muted-foreground: oklch(65% 0.01 277);
+  --color-sidebar: oklch(26.805% 0.02 277.508);
+  --color-sidebar-foreground: oklch(97.747% 0.007 106.545);
+  --color-sidebar-border: oklch(24.787% 0.019 277.508);
+  --color-sidebar-accent: oklch(28.822% 0.022 277.508);
+  --color-sidebar-accent-foreground: oklch(97.747% 0.007 106.545);
+  --color-chart-1: oklch(88.263% 0.093 212.846);
+  --color-chart-2: oklch(75.461% 0.183 346.812);
+  --color-chart-3: oklch(87.099% 0.219 148.024);
+  --color-chart-4: oklch(95.533% 0.134 112.757);
+  --color-chart-5: oklch(68.22% 0.206 24.43);
 }
 
 /* ─── Shadow Variables ───────────────────────────────── */
@@ -202,8 +204,8 @@
   --card-hover-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
 }
 
-[data-theme="custom-dark"] {
-  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 0 0 1px oklch(23% 0.025 260 / 0.4);
+[data-theme="dracula"] {
+  --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.25), 0 0 0 1px oklch(24.787% 0.019 277.508 / 0.4);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.35), 0 2px 4px -2px rgb(0 0 0 / 0.3);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
   --card-hover-shadow:
@@ -241,7 +243,7 @@
   pointer-events: none;
   z-index: -1;
 }
-[data-theme="custom-dark"] .ambient-glow::before {
+[data-theme="dracula"] .ambient-glow::before {
   background: radial-gradient(
     ellipse,
     color-mix(in oklch, var(--color-accent) 6%, transparent) 0%,
@@ -315,7 +317,7 @@
   background-size: 20px 20px;
 }
 
-[data-theme="custom-dark"] .dot-pattern {
+[data-theme="dracula"] .dot-pattern {
   background-image: radial-gradient(
     color-mix(in oklch, var(--color-base-content) 3%, transparent) 1px,
     transparent 1px
@@ -406,7 +408,7 @@ kbd {
   background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
 }
 
-[data-theme="custom-dark"] .record-grid-row:hover {
+[data-theme="dracula"] .record-grid-row:hover {
   background: color-mix(in oklch, var(--color-base-200) 30%, transparent);
 }
 
@@ -437,7 +439,7 @@ kbd {
   box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--color-base-300) 50%, transparent);
 }
 
-[data-theme="custom-dark"] .grid-header th {
+[data-theme="dracula"] .grid-header th {
   box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--color-base-300) 30%, transparent);
 }
 
