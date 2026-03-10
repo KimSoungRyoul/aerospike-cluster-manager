@@ -316,6 +316,10 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             storage_spec["filesystemVolumePolicy"] = req.storage.filesystem_volume_policy
         if req.storage.block_volume_policy is not None:
             storage_spec["blockVolumePolicy"] = req.storage.block_volume_policy
+        if req.storage.local_storage_classes is not None:
+            storage_spec["localStorageClasses"] = req.storage.local_storage_classes
+        if req.storage.delete_local_storage_on_restart is not None:
+            storage_spec["deleteLocalStorageOnRestart"] = req.storage.delete_local_storage_on_restart
         cr["spec"]["storage"] = storage_spec
 
     # Pod resources
@@ -378,6 +382,45 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
                 overrides["aerospikeNetworkPolicy"] = build_network_policy(req.template_overrides.network_policy)
             if req.template_overrides.enable_dynamic_config is not None:
                 overrides["enableDynamicConfigUpdate"] = req.template_overrides.enable_dynamic_config
+            if req.template_overrides.scheduling:
+                sched = req.template_overrides.scheduling
+                sched_dict: dict[str, Any] = {}
+                if sched.pod_anti_affinity_level is not None:
+                    sched_dict["podAntiAffinityLevel"] = sched.pod_anti_affinity_level
+                if sched.pod_management_policy is not None:
+                    sched_dict["podManagementPolicy"] = sched.pod_management_policy
+                if sched.tolerations is not None:
+                    sched_dict["tolerations"] = sched.tolerations
+                if sched.node_affinity is not None:
+                    sched_dict["nodeAffinity"] = sched.node_affinity
+                if sched.topology_spread_constraints is not None:
+                    sched_dict["topologySpreadConstraints"] = sched.topology_spread_constraints
+                if sched_dict:
+                    overrides["scheduling"] = sched_dict
+            if req.template_overrides.storage:
+                stor = req.template_overrides.storage
+                stor_dict: dict[str, Any] = {}
+                if stor.storage_class_name is not None:
+                    stor_dict["storageClassName"] = stor.storage_class_name
+                if stor.volume_mode is not None:
+                    stor_dict["volumeMode"] = stor.volume_mode
+                if stor.access_modes is not None:
+                    stor_dict["accessModes"] = stor.access_modes
+                if stor.size is not None:
+                    stor_dict["size"] = stor.size
+                if stor.local_pv_required is not None:
+                    stor_dict["localPVRequired"] = stor.local_pv_required
+                if stor_dict:
+                    overrides["storage"] = stor_dict
+            if req.template_overrides.rack_config:
+                rc = req.template_overrides.rack_config
+                rc_dict: dict[str, Any] = {}
+                if rc.max_racks_per_node is not None:
+                    rc_dict["maxRacksPerNode"] = rc.max_racks_per_node
+                if rc_dict:
+                    overrides["rackConfig"] = rc_dict
+            if req.template_overrides.aerospike_config is not None:
+                overrides["aerospikeConfig"] = req.template_overrides.aerospike_config
             if overrides:
                 cr["spec"]["overrides"] = overrides
 
@@ -713,12 +756,20 @@ def extract_detail(item: dict[str, Any], pods_raw: list[dict[str, Any]]) -> K8sC
     op_status_raw = status.get("operationStatus")
     operation_status = None
     if op_status_raw:
+        # Resolve target pod list from spec operations matching by id
+        op_id = op_status_raw.get("id")
+        op_pod_list: list[str] = []
+        for op in spec.get("operations", []):
+            if op.get("id") == op_id:
+                op_pod_list = op.get("podList", [])
+                break
         operation_status = OperationStatusResponse(
-            id=op_status_raw.get("id"),
+            id=op_id,
             kind=op_status_raw.get("kind"),
             phase=op_status_raw.get("phase"),
             completedPods=op_status_raw.get("completedPods", []),
             failedPods=op_status_raw.get("failedPods", []),
+            podList=op_pod_list,
         )
 
     # Extract conditions from operator status
