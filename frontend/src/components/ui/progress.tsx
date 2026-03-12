@@ -2,27 +2,20 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
+interface ProgressProps extends React.HTMLAttributes<HTMLProgressElement> {
   value?: number;
   max?: number;
 }
 
-const Progress = React.forwardRef<HTMLDivElement, ProgressProps>(
+const Progress = React.forwardRef<HTMLProgressElement, ProgressProps>(
   ({ className, value = 0, max = 100, ...props }, ref) => (
-    <div
+    <progress
       ref={ref}
-      role="progressbar"
-      aria-valuenow={value}
-      aria-valuemin={0}
-      aria-valuemax={max}
-      className={cn("bg-secondary relative h-2 w-full overflow-hidden rounded-full", className)}
+      className={cn("progress progress-primary w-full", className)}
+      value={value}
+      max={max}
       {...props}
-    >
-      <div
-        className="bg-accent h-full transition-all duration-300"
-        style={{ width: `${Math.min(100, (value / max) * 100)}%` }}
-      />
-    </div>
+    />
   ),
 );
 Progress.displayName = "Progress";

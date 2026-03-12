@@ -5,8 +5,6 @@ import { useRouter, usePathname } from "next/navigation";
 import { FileCode, MoreHorizontal, Plus, Search, Server, Table2, Settings, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -68,8 +66,8 @@ const ConnectionItem = React.memo(function ConnectionItem({
             isChecking && !status
               ? "ring-muted-foreground/30"
               : status?.connected
-                ? "status-glow-green ring-success/30"
-                : "status-glow-red ring-destructive/30",
+                ? "shadow-success/40 ring-success/30 shadow-[0_0_6px_1px]"
+                : "shadow-error/40 ring-error/30 shadow-[0_0_6px_1px]",
           )}
           style={{ backgroundColor: connection.color }}
         />
@@ -81,7 +79,7 @@ const ConnectionItem = React.memo(function ConnectionItem({
               ? "bg-muted-foreground animate-pulse"
               : status?.connected
                 ? "bg-success"
-                : "bg-destructive",
+                : "bg-error",
           )}
         >
           <span className="sr-only">
@@ -164,7 +162,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1 px-2">
+      <div className="flex-1 overflow-auto px-2">
         <div className="space-y-0.5 py-1">
           {filteredConnections.length === 0 && search && (
             <p className="text-muted-foreground px-2 py-4 text-center text-xs">
@@ -175,9 +173,9 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
             <ConnectionItem key={conn.id} connection={conn} isMobileOrTablet={isMobileOrTablet} />
           ))}
         </div>
-      </ScrollArea>
+      </div>
 
-      <Separator className="bg-sidebar-border" />
+      <div className="divider my-0 px-2" />
 
       <div className="space-y-1 p-2.5">
         <Button
@@ -203,7 +201,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
             <Button
               variant="ghost"
               size="sm"
-              className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
+              className="text-muted-foreground hover:text-base-content h-8 w-full justify-start gap-2 text-xs"
               onClick={() => handleNavigation("/k8s/templates")}
             >
               <FileCode className="h-3.5 w-3.5" />
@@ -214,7 +212,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
         <Button
           variant="ghost"
           size="sm"
-          className="text-muted-foreground hover:text-foreground h-8 w-full justify-start gap-2 text-xs"
+          className="text-muted-foreground hover:text-base-content h-8 w-full justify-start gap-2 text-xs"
           onClick={() => handleNavigation("/settings")}
         >
           <Settings className="h-3.5 w-3.5" />
@@ -248,7 +246,7 @@ export function Sidebar() {
       {/* Backdrop */}
       {mobileNavOpen && (
         <div
-          className="bg-background/80 fixed inset-0 z-40 backdrop-blur-sm"
+          className="bg-base-100/80 fixed inset-0 z-40 backdrop-blur-sm"
           onClick={() => setMobileNavOpen(false)}
         />
       )}
@@ -266,14 +264,14 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-muted-foreground hover:text-foreground h-8 w-8"
+            className="text-muted-foreground hover:text-base-content h-8 w-8"
             onClick={() => setMobileNavOpen(false)}
             aria-label="Close sidebar"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <Separator className="bg-sidebar-border" />
+        <div className="divider my-0 px-2" />
         <SidebarContent isMobileOrTablet={true} />
       </aside>
     </>

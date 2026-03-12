@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { ErrorBoundary } from "@/components/common/error-boundary";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
@@ -18,21 +17,19 @@ function ThemeHandler() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.remove("light", "dark");
 
     if (theme === "system") {
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.add(prefersDark ? "dark" : "light");
+      root.setAttribute("data-theme", prefersDark ? "bumblebee-dark" : "bumblebee");
 
       const listener = (e: MediaQueryListEvent) => {
-        root.classList.remove("light", "dark");
-        root.classList.add(e.matches ? "dark" : "light");
+        root.setAttribute("data-theme", e.matches ? "bumblebee-dark" : "bumblebee");
       };
       const mq = window.matchMedia("(prefers-color-scheme: dark)");
       mq.addEventListener("change", listener);
       return () => mq.removeEventListener("change", listener);
     } else {
-      root.classList.add(theme);
+      root.setAttribute("data-theme", theme === "dark" ? "bumblebee-dark" : "bumblebee");
     }
   }, [theme]);
 
@@ -69,9 +66,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <TooltipProvider delayDuration={150}>
+    <>
       <ThemeHandler />
-      <div className="bg-background flex h-screen flex-col">
+      <div className="bg-base-100 flex h-screen flex-col">
         <Header />
         <div className="flex min-w-0 flex-1 overflow-hidden">
           <Sidebar />
@@ -91,6 +88,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Mobile bottom navigation */}
         {connId && !isConnectionPage && !isDesktop && <MobileNav connId={connId} />}
       </div>
-    </TooltipProvider>
+    </>
   );
 }

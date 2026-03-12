@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
-import { Toaster } from "sonner";
 import { AppLayout } from "@/components/layout/app-layout";
+import { ToastContainer } from "@/components/common/toast-container";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -30,13 +30,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${outfit.variable} ${jetbrainsMono.variable} antialiased`}>
         <AppLayout>{children}</AppLayout>
-        <Toaster
-          position="bottom-right"
-          richColors
-          toastOptions={{
-            className: "font-sans",
-          }}
-        />
+        <ToastContainer />
       </body>
     </html>
   );

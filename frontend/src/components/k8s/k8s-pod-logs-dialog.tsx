@@ -3,17 +3,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 import { Copy, Download, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 interface K8sPodLogsDialogProps {
   open: boolean;
@@ -68,9 +62,9 @@ export function K8sPodLogsDialog({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(logs);
-      toast.success("Logs copied to clipboard");
+      useToastStore.getState().addToast("success", "Logs copied to clipboard");
     } catch {
-      toast.error("Failed to copy logs");
+      useToastStore.getState().addToast("error", "Failed to copy logs");
     }
   };
 
@@ -91,16 +85,11 @@ export function K8sPodLogsDialog({
           <DialogTitle className="font-mono text-sm">{podName} — Logs</DialogTitle>
         </DialogHeader>
         <div className="flex items-center gap-2 py-2">
-          <Select value={tailLines} onValueChange={setTailLines}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="100">100 lines</SelectItem>
-              <SelectItem value="500">500 lines</SelectItem>
-              <SelectItem value="1000">1000 lines</SelectItem>
-              <SelectItem value="5000">5000 lines</SelectItem>
-            </SelectContent>
+          <Select value={tailLines} onChange={(e) => setTailLines(e.target.value)} className="w-32">
+            <option value="100">100 lines</option>
+            <option value="500">500 lines</option>
+            <option value="1000">1000 lines</option>
+            <option value="5000">5000 lines</option>
           </Select>
           <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading}>
             <RefreshCw className={`mr-2 h-3 w-3 ${loading ? "animate-spin" : ""}`} />
@@ -117,7 +106,7 @@ export function K8sPodLogsDialog({
         </div>
         <pre
           ref={logRef}
-          className="bg-muted max-h-[60vh] min-h-[300px] flex-1 overflow-auto rounded-lg p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap"
+          className="bg-base-200 max-h-[60vh] min-h-[300px] flex-1 overflow-auto rounded-lg p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap"
         >
           {loading ? "Loading logs..." : logs}
         </pre>

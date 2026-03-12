@@ -23,9 +23,9 @@ export function FullPageError({
   return (
     <div className="animate-fade-in flex flex-col items-center justify-center p-12">
       <div className="relative mb-5">
-        <div className="bg-destructive/10 absolute inset-0 scale-150 rounded-2xl blur-xl" />
-        <div className="bg-muted/80 relative rounded-2xl p-4">
-          <Icon className="text-destructive h-7 w-7" />
+        <div className="bg-error/10 absolute inset-0 scale-150 rounded-2xl blur-xl" />
+        <div className="bg-base-200/80 relative rounded-2xl p-4">
+          <Icon className="text-error h-7 w-7" />
         </div>
       </div>
       <h3 className="text-lg font-semibold">{title}</h3>

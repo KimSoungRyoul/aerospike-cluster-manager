@@ -1,5 +1,16 @@
 import { useState } from "react";
-import { Activity, AlertTriangle, ChevronDown, ChevronRight, Clock, Layers, X } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Layers,
+  RefreshCw,
+  X,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +50,7 @@ function getPhaseBorderClass(phase: K8sClusterPhase | string): string {
     case "Completed":
       return "border-success/40";
     case "Error":
-      return "border-destructive/40";
+      return "border-error/40";
     case "InProgress":
     case "WaitingForMigration":
     case "RollingRestart":
@@ -49,7 +60,7 @@ function getPhaseBorderClass(phase: K8sClusterPhase | string): string {
     case "ACLSync":
       return "border-info/40";
     default:
-      return "border-border";
+      return "border-base-300";
   }
 }
 
@@ -88,14 +99,14 @@ export function ClusterAckoInfoTab({
           <CardContent className="space-y-3">
             <K8sClusterStatusBadge phase={k8sDetail.phase} />
             {k8sDetail.phaseReason && (
-              <p className="text-muted-foreground text-sm">{k8sDetail.phaseReason}</p>
+              <p className="text-base-content/60 text-sm">{k8sDetail.phaseReason}</p>
             )}
             <div className="flex items-baseline gap-1.5 pt-1">
               <span className="text-3xl font-bold">{k8sDetail.size}</span>
-              <span className="text-muted-foreground text-sm">nodes</span>
+              <span className="text-base-content/60 text-sm">nodes</span>
               {k8sDetail.aerospikeClusterSize != null &&
                 k8sDetail.aerospikeClusterSize !== k8sDetail.size && (
-                  <span className="text-muted-foreground ml-2 text-xs">
+                  <span className="text-base-content/60 ml-2 text-xs">
                     (AS: {k8sDetail.aerospikeClusterSize})
                   </span>
                 )}
@@ -117,7 +128,7 @@ export function ClusterAckoInfoTab({
                   <span className="text-3xl font-bold">
                     {health.readyPods}/{health.desiredPods}
                   </span>
-                  <span className="text-muted-foreground text-sm">Pods Ready</span>
+                  <span className="text-base-content/60 text-sm">Pods Ready</span>
                   {health.pendingRestartCount > 0 && (
                     <Badge
                       variant="outline"
@@ -157,7 +168,7 @@ export function ClusterAckoInfoTab({
                       "text-[11px]",
                       health.available
                         ? "bg-success/10 text-success border-success/20"
-                        : "bg-destructive/10 text-destructive border-destructive/20",
+                        : "bg-error/10 text-error border-error/20",
                     )}
                   >
                     {health.available ? "Available" : "Unavailable"}
@@ -176,7 +187,7 @@ export function ClusterAckoInfoTab({
                 </div>
                 {health.rackDistribution.length > 1 && (
                   <div className="flex flex-wrap items-center gap-1">
-                    <span className="text-muted-foreground mr-1 text-xs">Racks:</span>
+                    <span className="text-base-content/60 mr-1 text-xs">Racks:</span>
                     {health.rackDistribution.map((r) => (
                       <Badge key={r.id} variant="outline" className="px-1.5 text-[10px]">
                         R{r.id}: {r.ready}/{r.total}
@@ -199,22 +210,22 @@ export function ClusterAckoInfoTab({
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Layers className="text-muted-foreground h-4 w-4" />
+            <Layers className="text-base-content/60 h-4 w-4" />
             Cluster Info
           </CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="space-y-2.5 text-sm">
             <div className="flex items-start justify-between gap-4">
-              <dt className="text-muted-foreground shrink-0">Image</dt>
+              <dt className="text-base-content/60 shrink-0">Image</dt>
               <dd className="truncate text-right font-mono text-xs">{k8sDetail.image}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Age</dt>
+              <dt className="text-base-content/60">Age</dt>
               <dd className="font-medium">{k8sDetail.age || "—"}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-muted-foreground">Dynamic Config</dt>
+              <dt className="text-base-content/60">Dynamic Config</dt>
               <dd>
                 <Badge
                   variant="outline"
@@ -222,7 +233,7 @@ export function ClusterAckoInfoTab({
                     "text-[11px]",
                     k8sDetail.spec?.enableDynamicConfigUpdate
                       ? "bg-success/10 text-success border-success/20"
-                      : "bg-muted text-muted-foreground border-border",
+                      : "bg-base-200 text-base-content/60 border-base-300",
                   )}
                 >
                   {k8sDetail.spec?.enableDynamicConfigUpdate ? "Enabled" : "Disabled"}
@@ -231,7 +242,7 @@ export function ClusterAckoInfoTab({
             </div>
             {k8sDetail.lastReconcileTime && (
               <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground flex items-center gap-1">
+                <dt className="text-base-content/60 flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   Last Reconcile
                 </dt>
@@ -242,13 +253,13 @@ export function ClusterAckoInfoTab({
             )}
             {k8sDetail.operatorVersion && (
               <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground">Operator Version</dt>
+                <dt className="text-base-content/60">Operator Version</dt>
                 <dd className="font-mono text-xs">{k8sDetail.operatorVersion}</dd>
               </div>
             )}
             {k8sDetail.failedReconcileCount > 0 && (
               <div className="flex items-center justify-between">
-                <dt className="text-muted-foreground flex items-center gap-1">
+                <dt className="text-base-content/60 flex items-center gap-1">
                   <AlertTriangle className="text-warning h-3 w-3" />
                   Reconcile Errors
                 </dt>
@@ -258,6 +269,165 @@ export function ClusterAckoInfoTab({
           </dl>
         </CardContent>
       </Card>
+
+      {/* ── Template Sync Status ── */}
+      {k8sDetail.templateSnapshot && (
+        <Card
+          className={cn(
+            "border",
+            k8sDetail.templateSnapshot.synced
+              ? "border-success/30"
+              : "border-warning/30 bg-warning/5",
+          )}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Layers className="text-base-content/60 h-4 w-4" />
+              Template Sync
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-base-content/60 text-xs">Template:</span>
+                  <span className="font-mono text-xs font-medium">
+                    {k8sDetail.templateSnapshot.name || "—"}
+                  </span>
+                </div>
+                {k8sDetail.templateSnapshot.snapshotTimestamp && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-base-content/60 text-xs">Last synced:</span>
+                    <span className="text-xs">
+                      {formatRelativeTime(k8sDetail.templateSnapshot.snapshotTimestamp)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-[11px]",
+                  k8sDetail.templateSnapshot.synced
+                    ? "bg-success/10 text-success border-success/20"
+                    : "bg-warning/10 text-warning border-warning/20",
+                )}
+              >
+                {k8sDetail.templateSnapshot.synced ? (
+                  <>
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                    Synced
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="mr-1 h-3 w-3" />
+                    Out of Sync
+                  </>
+                )}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Operation Status ── */}
+      {k8sDetail.operationStatus && k8sDetail.operationStatus.kind && (
+        <Card className="border-info/30 bg-info/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <RefreshCw className="text-info h-4 w-4 animate-spin" />
+              Active Operation
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="bg-info/10 text-info border-info/20 text-[11px]"
+                >
+                  {k8sDetail.operationStatus.kind}
+                </Badge>
+                {k8sDetail.operationStatus.id && (
+                  <span className="text-base-content/60 font-mono text-xs">
+                    #{k8sDetail.operationStatus.id}
+                  </span>
+                )}
+              </div>
+              {k8sDetail.operationStatus.phase && (
+                <Badge variant="outline" className="text-[11px]">
+                  {k8sDetail.operationStatus.phase}
+                </Badge>
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {(() => {
+              const total = k8sDetail.operationStatus.podList?.length || k8sDetail.pods.length;
+              const completed = k8sDetail.operationStatus.completedPods?.length || 0;
+              const failed = k8sDetail.operationStatus.failedPods?.length || 0;
+              const pct = total > 0 ? Math.round(((completed + failed) / total) * 100) : 0;
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-base-content/60">Progress</span>
+                    <span className="font-medium">
+                      {completed + failed}/{total} ({pct}%)
+                    </span>
+                  </div>
+                  <div className="bg-base-200 h-2 overflow-hidden rounded-full">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all",
+                        failed > 0 ? "bg-warning" : "bg-success",
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Completed/Failed pods */}
+            <div className="flex flex-wrap gap-4 text-xs">
+              {k8sDetail.operationStatus.completedPods?.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-success flex items-center gap-1 font-medium">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Completed ({k8sDetail.operationStatus.completedPods.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {k8sDetail.operationStatus.completedPods.map((pod) => (
+                      <Badge key={pod} variant="outline" className="bg-success/5 text-[10px]">
+                        {pod}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {k8sDetail.operationStatus.failedPods?.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-error flex items-center gap-1 font-medium">
+                    <XCircle className="h-3 w-3" />
+                    Failed ({k8sDetail.operationStatus.failedPods.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {k8sDetail.operationStatus.failedPods.map((pod) => (
+                      <Badge
+                        key={pod}
+                        variant="outline"
+                        className="bg-error/5 text-error text-[10px]"
+                      >
+                        {pod}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Pods ── */}
       <div className="space-y-4">
@@ -285,7 +455,7 @@ export function ClusterAckoInfoTab({
             <CardContent>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs transition-colors"
+                className="text-base-content/60 hover:text-base-content flex items-center gap-1 text-xs transition-colors"
                 onClick={() => setPendingPodsExpanded(!pendingPodsExpanded)}
               >
                 {pendingPodsExpanded ? (
@@ -333,7 +503,7 @@ export function ClusterAckoInfoTab({
       {/* ── Conditions ── */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <Activity className="text-muted-foreground h-4 w-4" />
+          <Activity className="text-base-content/60 h-4 w-4" />
           Conditions ({k8sDetail.conditions?.length ?? 0})
         </h2>
         {!k8sDetail.conditions || k8sDetail.conditions.length === 0 ? (
@@ -353,12 +523,12 @@ export function ClusterAckoInfoTab({
                   <span
                     className={cn(
                       "h-2 w-2 rounded-full",
-                      cond.status === "True" ? "bg-success" : "bg-muted-foreground",
+                      cond.status === "True" ? "bg-success" : "bg-base-content/40",
                     )}
                   />
                   <span className="font-medium">{cond.type}</span>
                 </div>
-                <div className="text-muted-foreground flex items-center gap-4">
+                <div className="text-base-content/60 flex items-center gap-4">
                   {cond.reason && <span>{cond.reason}</span>}
                   {cond.message && (
                     <span className="max-w-xs truncate" title={cond.message}>
@@ -375,7 +545,7 @@ export function ClusterAckoInfoTab({
       {/* ── Events ── */}
       <div>
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <Activity className="text-muted-foreground h-4 w-4" />
+          <Activity className="text-base-content/60 h-4 w-4" />
           Events ({events.length})
         </h2>
         {events.length === 0 ? (
@@ -398,11 +568,11 @@ export function ClusterAckoInfoTab({
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{event.reason}</span>
                     {event.count && event.count > 1 && (
-                      <span className="text-muted-foreground text-xs">x{event.count}</span>
+                      <span className="text-base-content/60 text-xs">x{event.count}</span>
                     )}
                   </div>
                   {event.message && (
-                    <p className="text-muted-foreground mt-0.5 text-xs">{event.message}</p>
+                    <p className="text-base-content/60 mt-0.5 text-xs">{event.message}</p>
                   )}
                 </div>
               </div>

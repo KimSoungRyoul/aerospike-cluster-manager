@@ -5,7 +5,7 @@ import { Play, Search, SlidersHorizontal, X, ChevronDown, ChevronUp } from "luci
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { LoadingButton } from "@/components/common/loading-button";
@@ -13,7 +13,7 @@ import { InlineAlert } from "@/components/common/inline-alert";
 import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
 import { useQueryStore } from "@/stores/query-store";
 import type { PredicateOperator } from "@/lib/api/types";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 export type ViewMode = "browse" | "query" | "pk";
 
@@ -91,7 +91,7 @@ export function QueryToolbar({
   const handleExecute = useCallback(async () => {
     if (viewMode === "pk") {
       if (!store.primaryKey.trim()) {
-        toast.error("Primary key is required");
+        useToastStore.getState().addToast("error", "Primary key is required");
         return;
       }
       store.setNamespace(namespace);
@@ -99,7 +99,7 @@ export function QueryToolbar({
       store.setPredicate(null);
     } else if (viewMode === "query") {
       if (!predBin.trim()) {
-        toast.error("Predicate bin is required");
+        useToastStore.getState().addToast("error", "Predicate bin is required");
         return;
       }
       store.setNamespace(namespace);
@@ -131,27 +131,24 @@ export function QueryToolbar({
   const showBadge = viewMode !== "browse" && store.hasExecuted;
 
   return (
-    <div className="border-border/50 bg-card/60 space-y-0 border-b px-3 py-2 sm:px-6">
+    <div className="border-base-300/50 bg-base-100/60 space-y-0 border-b px-3 py-2 sm:px-6">
       {/* ── Main filter row ──────────────────────────── */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Mode icon */}
         <SlidersHorizontal className="text-muted-foreground h-4 w-4 shrink-0" />
 
         {/* Mode select */}
-        <Select value={viewMode} onValueChange={(v) => onViewModeChange(v as ViewMode)}>
-          <SelectTrigger
-            className="h-8 w-[140px] text-xs font-medium"
-            data-testid="filter-mode-select"
-          >
-            <span className="truncate">{currentModeLabel}</span>
-          </SelectTrigger>
-          <SelectContent>
-            {MODE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
+        <Select
+          value={viewMode}
+          onChange={(e) => onViewModeChange(e.target.value as ViewMode)}
+          className="h-8 w-[140px] text-xs font-medium"
+          data-testid="filter-mode-select"
+        >
+          {MODE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
         </Select>
 
         {/* PK Lookup inline fields */}
@@ -186,19 +183,16 @@ export function QueryToolbar({
               onChange={(e) => setPredBin(e.target.value)}
               className="h-8 w-[120px] text-xs"
             />
-            <Select value={predOp} onValueChange={(v) => setPredOp(v as PredicateOperator)}>
-              <SelectTrigger className="h-8 w-[130px] text-xs">
-                <span className="truncate">
-                  {OPERATORS.find((o) => o.value === predOp)?.label ?? "Equals"}
-                </span>
-              </SelectTrigger>
-              <SelectContent>
-                {OPERATORS.map((op) => (
-                  <SelectItem key={op.value} value={op.value}>
-                    {op.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <Select
+              value={predOp}
+              onChange={(e) => setPredOp(e.target.value as PredicateOperator)}
+              className="h-8 w-[130px] text-xs"
+            >
+              {OPERATORS.map((op) => (
+                <option key={op.value} value={op.value}>
+                  {op.label}
+                </option>
+              ))}
             </Select>
             <Input
               placeholder="value"
@@ -235,7 +229,7 @@ export function QueryToolbar({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="text-muted-foreground hover:text-foreground h-8 gap-1 px-2 text-xs"
+            className="text-muted-foreground hover:text-base-content h-8 gap-1 px-2 text-xs"
           >
             <X className="h-3.5 w-3.5" />
             Clear
@@ -253,7 +247,7 @@ export function QueryToolbar({
         {viewMode === "query" && (
           <button
             onClick={() => setAdvancedOpen(!advancedOpen)}
-            className="text-muted-foreground hover:text-foreground ml-auto flex items-center gap-1 text-xs transition-colors"
+            className="text-muted-foreground hover:text-base-content ml-auto flex items-center gap-1 text-xs transition-colors"
           >
             {advancedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             Advanced
@@ -293,7 +287,7 @@ export function QueryToolbar({
           {knownBins.length > 0 && (
             <div>
               <Label className="text-xs">Select Bins (optional)</Label>
-              <div className="border-border/60 mt-1 flex max-h-[120px] flex-wrap gap-3 overflow-auto rounded-lg border p-3">
+              <div className="border-base-300/60 mt-1 flex max-h-[120px] flex-wrap gap-3 overflow-auto rounded-lg border p-3">
                 {knownBins.map((bin) => (
                   <div key={bin} className="flex items-center gap-1.5">
                     <Checkbox

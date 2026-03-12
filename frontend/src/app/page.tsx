@@ -46,7 +46,7 @@ import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import type { ConnectionProfile } from "@/lib/api/types";
 import { cn, getErrorMessage } from "@/lib/utils";
 import { PRESET_COLORS } from "@/lib/constants";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 interface ConnectionFormData {
   name: string;
@@ -159,16 +159,16 @@ export default function ConnectionsPage() {
       };
       if (editingId) {
         await updateConnection(editingId, data);
-        toast.success("Connection updated");
+        useToastStore.getState().addToast("success", "Connection updated");
       } else {
         await createConnection(data);
-        toast.success("Connection created");
+        useToastStore.getState().addToast("success", "Connection created");
       }
       setDialogOpen(false);
       // Refresh health after create/update
       fetchAllHealth();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -199,10 +199,10 @@ export default function ConnectionsPage() {
     setDeleting(true);
     try {
       await deleteConnection(deleteTarget.id);
-      toast.success("Connection deleted");
+      useToastStore.getState().addToast("success", "Connection deleted");
       setDeleteTarget(null);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -244,12 +244,12 @@ export default function ConnectionsPage() {
         actions={
           <>
             {k8sAvailable && (
-              <Button variant="outline" onClick={() => router.push("/k8s/clusters/new")}>
+              <Button variant="info" onClick={() => router.push("/k8s/clusters/new")}>
                 <Boxes className="mr-2 h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Create Cluster</span>
               </Button>
             )}
-            <Button variant="outline" onClick={openCreateDialog}>
+            <Button variant="success" onClick={openCreateDialog}>
               <Plus className="mr-2 h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">New Connection</span>
             </Button>
@@ -286,13 +286,22 @@ export default function ConnectionsPage() {
               <Card
                 key={conn.id}
                 className={cn(
-                  "group card-interactive animate-fade-in-up cursor-pointer",
+                  "group animate-fade-in-up cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
                   "hover:border-accent/30",
                 )}
                 style={{ animationDelay: `${idx * 0.05}s`, animationFillMode: "backwards" }}
                 role="button"
                 tabIndex={0}
-                onClick={() => navigateToConnection(conn)}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.closest('[role="menu"]') ||
+                    target.closest('[role="menuitem"]') ||
+                    target.closest(".dropdown")
+                  )
+                    return;
+                  navigateToConnection(conn);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
@@ -346,7 +355,7 @@ export default function ConnectionsPage() {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
+                          className="text-error focus:text-error"
                           onClick={(e) => {
                             e.stopPropagation();
                             setDeleteTarget(conn);
@@ -508,7 +517,7 @@ export default function ConnectionsPage() {
                     className={cn(
                       "h-8 w-8 rounded-full transition-all duration-150",
                       form.color === color
-                        ? "ring-offset-background scale-110 ring-2 ring-offset-2"
+                        ? "ring-offset-base-100 scale-110 ring-2 ring-offset-2"
                         : "opacity-70 hover:scale-110 hover:opacity-100",
                     )}
                     style={{
@@ -530,7 +539,7 @@ export default function ConnectionsPage() {
                   "animate-scale-in flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm",
                   testResult.success
                     ? "border-success/20 bg-success/5 text-success"
-                    : "border-destructive/20 bg-destructive/5 text-destructive",
+                    : "border-error/20 bg-error/5 text-error",
                 )}
               >
                 {testResult.success ? (

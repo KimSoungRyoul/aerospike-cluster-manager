@@ -37,7 +37,7 @@ export function MobileNav({ connId }: MobileNavProps) {
       {moreOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setMoreOpen(false)}>
           <div
-            className="bg-card border-border safe-bottom absolute right-2 bottom-16 z-50 rounded-lg border shadow-lg"
+            className="bg-base-100 border-base-300 safe-bottom absolute right-2 bottom-16 z-50 rounded-lg border shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             {moreTabs.map((tab) => {
@@ -48,7 +48,7 @@ export function MobileNav({ connId }: MobileNavProps) {
                   onClick={() => handleClick(tab.path)}
                   className={cn(
                     "flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors",
-                    isActive ? "text-accent" : "text-muted-foreground hover:text-foreground",
+                    isActive ? "text-accent" : "text-muted-foreground hover:text-base-content",
                   )}
                 >
                   <tab.icon className="h-4 w-4" />
@@ -61,7 +61,7 @@ export function MobileNav({ connId }: MobileNavProps) {
       )}
 
       {/* Bottom nav bar */}
-      <nav className="bg-card/95 border-border fixed right-0 bottom-0 left-0 z-30 flex h-16 items-center justify-around border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden">
+      <nav className="bg-base-100/95 border-base-300 fixed right-0 bottom-0 left-0 z-30 flex h-16 items-center justify-around border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden">
         {primaryTabs.map((tab) => {
           const isActive = pathname?.startsWith(`/${tab.path}/`);
           return (

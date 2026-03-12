@@ -41,7 +41,7 @@ export function WizardResourcesStep({
             onChange={(e) => updateResource("requests", "cpu", e.target.value)}
           />
           {validateK8sCpu(form.resources?.requests.cpu || "500m") && (
-            <p className="text-destructive text-xs">
+            <p className="text-error text-xs">
               {validateK8sCpu(form.resources?.requests.cpu || "500m")}
             </p>
           )}
@@ -54,7 +54,7 @@ export function WizardResourcesStep({
             onChange={(e) => updateResource("limits", "cpu", e.target.value)}
           />
           {validateK8sCpu(form.resources?.limits.cpu || "2") && (
-            <p className="text-destructive text-xs">
+            <p className="text-error text-xs">
               {validateK8sCpu(form.resources?.limits.cpu || "2")}
             </p>
           )}
@@ -69,7 +69,7 @@ export function WizardResourcesStep({
             onChange={(e) => updateResource("requests", "memory", e.target.value)}
           />
           {validateK8sMemory(form.resources?.requests.memory || "1Gi") && (
-            <p className="text-destructive text-xs">
+            <p className="text-error text-xs">
               {validateK8sMemory(form.resources?.requests.memory || "1Gi")}
             </p>
           )}
@@ -82,7 +82,7 @@ export function WizardResourcesStep({
             onChange={(e) => updateResource("limits", "memory", e.target.value)}
           />
           {validateK8sMemory(form.resources?.limits.memory || "4Gi") && (
-            <p className="text-destructive text-xs">
+            <p className="text-error text-xs">
               {validateK8sMemory(form.resources?.limits.memory || "4Gi")}
             </p>
           )}
@@ -96,11 +96,11 @@ export function WizardResourcesStep({
         return (
           <>
             {cpuValid && parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu) && (
-              <p className="text-destructive text-xs">CPU limit must be &gt;= request</p>
+              <p className="text-error text-xs">CPU limit must be &gt;= request</p>
             )}
             {memValid &&
               parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory) && (
-                <p className="text-destructive text-xs">Memory limit must be &gt;= request</p>
+                <p className="text-error text-xs">Memory limit must be &gt;= request</p>
               )}
           </>
         );

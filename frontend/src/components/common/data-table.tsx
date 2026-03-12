@@ -172,9 +172,9 @@ export function DataTable<TData, TValue>({
           const pinnedIndex = header.column.getPinnedIndex();
           const pinnedShadow =
             pinned === "left"
-              ? "1px 0 0 hsl(var(--border))"
+              ? "1px 0 0 var(--color-base-300)"
               : pinned === "right"
-                ? "-1px 0 0 hsl(var(--border))"
+                ? "-1px 0 0 var(--color-base-300)"
                 : undefined;
           const canSort = onSortingChange && header.column.getCanSort();
           const sorted = header.column.getIsSorted();
@@ -185,7 +185,7 @@ export function DataTable<TData, TValue>({
               key={header.id}
               className={cn(
                 "text-muted-foreground overflow-hidden text-left text-[11px] font-semibold tracking-wider text-ellipsis whitespace-nowrap uppercase",
-                pinned ? "bg-muted dark:bg-muted" : "bg-muted/50 dark:bg-muted/30",
+                pinned ? "bg-base-200 dark:bg-base-200" : "bg-base-200/50 dark:bg-base-200/30",
                 pinned && "relative isolate",
                 pad.th,
                 canSort && "cursor-pointer select-none",
@@ -209,7 +209,7 @@ export function DataTable<TData, TValue>({
                   : {}),
                 ...(pinned
                   ? {
-                      backgroundColor: "hsl(var(--muted))",
+                      backgroundColor: "var(--color-base-200)",
                       backgroundClip: "padding-box",
                       boxShadow: pinnedShadow,
                       isolation: "isolate",
@@ -228,7 +228,7 @@ export function DataTable<TData, TValue>({
                     {sorted === "asc" && <ChevronUp className="text-accent h-3 w-3 shrink-0" />}
                     {sorted === "desc" && <ChevronDown className="text-accent h-3 w-3 shrink-0" />}
                     {!sorted && (
-                      <ChevronsUpDown className="text-muted-foreground/30 h-3 w-3 shrink-0" />
+                      <ChevronsUpDown className="text-muted-foreground/50 h-3 w-3 shrink-0" />
                     )}
                   </>
                 )}
@@ -243,7 +243,7 @@ export function DataTable<TData, TValue>({
     <tr
       key={row.id}
       className={cn(
-        "record-grid-row border-border/20 group border-b last:border-b-0",
+        "record-grid-row border-base-300 group border-b last:border-b-0",
         onRowClick && "cursor-pointer",
         onRowClick && "focus-visible:ring-primary focus:outline-none focus-visible:ring-2",
       )}
@@ -264,9 +264,9 @@ export function DataTable<TData, TValue>({
         const pinnedIndex = cell.column.getPinnedIndex();
         const pinnedShadow =
           pinned === "left"
-            ? "1px 0 0 hsl(var(--border))"
+            ? "1px 0 0 var(--color-base-300)"
             : pinned === "right"
-              ? "-1px 0 0 hsl(var(--border))"
+              ? "-1px 0 0 var(--color-base-300)"
               : undefined;
         const meta = cell.column.columnDef.meta;
 
@@ -276,7 +276,7 @@ export function DataTable<TData, TValue>({
             className={cn(
               "overflow-hidden text-ellipsis whitespace-nowrap",
               pad.td,
-              pinned && "bg-card",
+              pinned && "bg-base-100",
               pinned && "relative isolate",
               meta?.cellClassName ?? meta?.className,
             )}
@@ -298,7 +298,7 @@ export function DataTable<TData, TValue>({
                 : {}),
               ...(pinned
                 ? {
-                    backgroundColor: "hsl(var(--card))",
+                    backgroundColor: "var(--color-base-100)",
                     backgroundClip: "padding-box",
                     boxShadow: pinnedShadow,
                     isolation: "isolate",
@@ -336,7 +336,7 @@ export function DataTable<TData, TValue>({
       <div
         key={row.id}
         className={cn(
-          "record-card border-border/50 bg-card/90 animate-fade-in rounded-2xl border p-4 shadow-sm",
+          "record-card border-base-300 bg-base-100/90 animate-fade-in rounded-2xl border p-4 shadow-sm",
           onRowClick && "cursor-pointer",
         )}
         style={{ animationDelay: `${idx * 25}ms` }}
@@ -356,7 +356,7 @@ export function DataTable<TData, TValue>({
               sections.title.map((entry, titleIndex) => (
                 <div key={entry.key} className="min-w-0">
                   {titleIndex === 0 ? (
-                    <div className="text-foreground truncate text-sm font-semibold">
+                    <div className="text-base-content truncate text-sm font-semibold">
                       {entry.content}
                     </div>
                   ) : (
@@ -386,14 +386,14 @@ export function DataTable<TData, TValue>({
             {sections.meta.map((entry) => (
               <div key={entry.key} className="text-muted-foreground flex items-center gap-1.5">
                 <span className="uppercase opacity-60">{entry.label}</span>
-                <span className="text-foreground">{entry.content}</span>
+                <span className="text-base-content">{entry.content}</span>
               </div>
             ))}
           </div>
         )}
 
         {sections.content.length > 0 && (
-          <div className="border-border/40 mt-3 space-y-2 border-t pt-3">
+          <div className="border-base-300/40 mt-3 space-y-2 border-t pt-3">
             {sections.content.map((entry) => (
               <div key={entry.key} className="flex items-start gap-3 text-sm">
                 <span className="text-muted-foreground/70 w-24 shrink-0 text-[11px] font-medium uppercase">
@@ -414,7 +414,7 @@ export function DataTable<TData, TValue>({
         <div className={cn("relative min-w-0 flex-1", className)} data-testid={testId}>
           <div className="space-y-3" data-testid={`${testId}-skeleton`}>
             {Array.from({ length: Math.ceil(loadingRows / 2) }).map((_, idx) => (
-              <div key={idx} className="border-border/50 bg-card rounded-2xl border p-4">
+              <div key={idx} className="border-base-300 bg-base-100 rounded-2xl border p-4">
                 <Skeleton className="mb-3 h-4 w-32" />
                 <div className="space-y-2">
                   <Skeleton className="h-3 w-20" />
@@ -431,7 +431,7 @@ export function DataTable<TData, TValue>({
     return (
       <div className={cn("relative min-w-0 flex-1 overflow-auto", className)} data-testid={testId}>
         <div
-          className="border-border/50 bg-card overflow-hidden rounded-lg border"
+          className="border-base-300 bg-base-100 overflow-hidden rounded-lg border"
           data-testid={`${testId}-skeleton`}
         >
           <table className="table w-full table-fixed">
@@ -441,7 +441,7 @@ export function DataTable<TData, TValue>({
                   <th
                     key={i}
                     className={cn(
-                      "bg-muted/50 text-muted-foreground dark:bg-muted/30 text-[11px] font-semibold tracking-wider uppercase",
+                      "bg-base-200/50 text-muted-foreground dark:bg-base-200/30 text-[11px] font-semibold tracking-wider uppercase",
                       pad.th,
                     )}
                   >
@@ -454,7 +454,7 @@ export function DataTable<TData, TValue>({
               {Array.from({ length: loadingRows }).map((_, rowIdx) => (
                 <tr
                   key={rowIdx}
-                  className="border-border/20 border-b last:border-b-0"
+                  className="border-base-300 border-b last:border-b-0"
                   style={{ animationDelay: `${rowIdx * 60}ms` }}
                 >
                   {responsiveColumns.map((_, colIdx) => (
@@ -512,7 +512,7 @@ export function DataTable<TData, TValue>({
     return (
       <div className={cn("relative min-h-0 min-w-0 flex-1", className)} data-testid={testId}>
         {loadingBar}
-        <div className="border-border/50 bg-card min-w-0 overflow-hidden rounded-lg border">
+        <div className="border-base-300 bg-base-100 min-w-0 overflow-hidden rounded-lg border">
           <div ref={parentRef} className="w-full overflow-auto" style={{ maxHeight }}>
             <table
               className={cn("table table-fixed", !tableMinWidth && "w-full")}
@@ -560,7 +560,7 @@ export function DataTable<TData, TValue>({
       data-testid={testId}
     >
       {loadingBar}
-      <div className="border-border/50 bg-card min-w-0 overflow-hidden rounded-lg border">
+      <div className="border-base-300 bg-base-100 min-w-0 overflow-hidden rounded-lg border">
         <div className="w-full overflow-auto">
           <table
             className={cn("table table-fixed", !tableMinWidth && "w-full")}

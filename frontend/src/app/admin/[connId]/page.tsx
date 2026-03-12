@@ -26,7 +26,7 @@ import { EmptyState } from "@/components/common/empty-state";
 import { useAdminStore } from "@/stores/admin-store";
 import type { AerospikeUser, AerospikeRole, Privilege } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 const AVAILABLE_PRIVILEGES = [
   "read",
@@ -93,7 +93,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
 
   const handleCreateUser = async () => {
     if (!newUsername.trim() || !newPassword.trim()) {
-      toast.error("Username and password are required");
+      useToastStore.getState().addToast("error", "Username and password are required");
       return;
     }
     setCreatingUser(true);
@@ -103,13 +103,13 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
         password: newPassword,
         roles: newUserRoles,
       });
-      toast.success("User created");
+      useToastStore.getState().addToast("success", "User created");
       setCreateUserOpen(false);
       setNewUsername("");
       setNewPassword("");
       setNewUserRoles([]);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setCreatingUser(false);
     }
@@ -120,10 +120,10 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
     setDeletingUser(true);
     try {
       await deleteUser(connId, deleteUserTarget);
-      toast.success("User deleted");
+      useToastStore.getState().addToast("success", "User deleted");
       setDeleteUserTarget(null);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeletingUser(false);
     }
@@ -131,7 +131,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
 
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) {
-      toast.error("Role name is required");
+      useToastStore.getState().addToast("error", "Role name is required");
       return;
     }
     setCreatingRole(true);
@@ -150,7 +150,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
         readQuota: parseInt(newRoleReadQuota, 10) || 0,
         writeQuota: parseInt(newRoleWriteQuota, 10) || 0,
       });
-      toast.success("Role created");
+      useToastStore.getState().addToast("success", "Role created");
       setCreateRoleOpen(false);
       setNewRoleName("");
       setNewRolePrivileges([]);
@@ -158,7 +158,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
       setNewRoleReadQuota("0");
       setNewRoleWriteQuota("0");
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setCreatingRole(false);
     }
@@ -169,10 +169,10 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
     setDeletingRole(true);
     try {
       await deleteRole(connId, deleteRoleTarget);
-      toast.success("Role deleted");
+      useToastStore.getState().addToast("success", "Role deleted");
       setDeleteRoleTarget(null);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeletingRole(false);
     }
@@ -245,7 +245,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
             <Button
               variant="ghost"
               size="sm"
-              className="text-destructive h-8 w-8 p-0"
+              className="text-error h-8 w-8 p-0"
               aria-label={`Delete user ${row.original.username}`}
               onClick={() => setDeleteUserTarget(row.original.username)}
             >
@@ -318,7 +318,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
           <Button
             variant="ghost"
             size="sm"
-            className="text-destructive h-8 w-8 p-0"
+            className="text-error h-8 w-8 p-0"
             aria-label={`Delete role ${row.original.name}`}
             onClick={() => setDeleteRoleTarget(row.original.name)}
           >
@@ -337,7 +337,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
         title="Administration"
         description="Manage users and roles"
         actions={
-          <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <Button variant="neutral" size="sm" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
@@ -352,9 +352,13 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
           <h3 className="text-lg font-semibold">Security Not Enabled</h3>
           <p className="text-muted-foreground mt-2 max-w-md">
             User and role management requires security to be enabled. Add a{" "}
-            <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">security {"{ }"}</code>{" "}
+            <code className="bg-base-200 rounded px-1 py-0.5 font-mono text-xs">
+              security {"{ }"}
+            </code>{" "}
             block to your{" "}
-            <code className="bg-muted rounded px-1 py-0.5 font-mono text-xs">aerospike.conf</code>{" "}
+            <code className="bg-base-200 rounded px-1 py-0.5 font-mono text-xs">
+              aerospike.conf
+            </code>{" "}
             to enable this feature.
           </p>
         </div>
@@ -374,7 +378,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
           {/* Users Tab */}
           <TabsContent value="users" className="mt-4 space-y-4">
             <div className="flex justify-end">
-              <Button onClick={() => setCreateUserOpen(true)}>
+              <Button variant="success" onClick={() => setCreateUserOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create User
               </Button>
@@ -405,7 +409,7 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
           {/* Roles Tab */}
           <TabsContent value="roles" className="mt-4 space-y-4">
             <div className="flex justify-end">
-              <Button onClick={() => setCreateRoleOpen(true)}>
+              <Button variant="info" onClick={() => setCreateRoleOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create Role
               </Button>
@@ -539,10 +543,11 @@ export default function AdminPage({ params }: { params: Promise<{ connId: string
                 setChangingPass(true);
                 try {
                   await changePassword(connId, changePassUser, newPass);
-                  toast.success("Password updated");
+                  useToastStore.getState().addToast("success", "Password updated");
+                  setNewPass("");
                   setChangePassOpen(false);
                 } catch (err) {
-                  toast.error(getErrorMessage(err));
+                  useToastStore.getState().addToast("error", getErrorMessage(err));
                 } finally {
                   setChangingPass(false);
                 }

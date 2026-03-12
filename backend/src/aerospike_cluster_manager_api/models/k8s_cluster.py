@@ -112,9 +112,7 @@ class VolumeSpec(BaseModel):
         default="persistentVolume", description="Volume source type"
     )
     # Source-specific fields
-    persistent_volume: PersistentVolumeClaimSource | None = Field(
-        default=None, alias="persistentVolume"
-    )
+    persistent_volume: PersistentVolumeClaimSource | None = Field(default=None, alias="persistentVolume")
     empty_dir: dict | None = Field(default=None, alias="emptyDir")
     secret: dict | None = None
     config_map: dict | None = Field(default=None, alias="configMap")
@@ -139,12 +137,8 @@ class StorageSpec(BaseModel):
     model_config = {"populate_by_name": True}
 
     volumes: list[VolumeSpec] = Field(default_factory=list)
-    filesystem_volume_policy: dict | None = Field(
-        default=None, alias="filesystemVolumePolicy"
-    )
-    block_volume_policy: dict | None = Field(
-        default=None, alias="blockVolumePolicy"
-    )
+    filesystem_volume_policy: dict | None = Field(default=None, alias="filesystemVolumePolicy")
+    block_volume_policy: dict | None = Field(default=None, alias="blockVolumePolicy")
     cleanup_threads: int | None = Field(default=None, ge=1, alias="cleanupThreads")
     local_storage_classes: list[str] | None = Field(default=None, alias="localStorageClasses")
     delete_local_storage_on_restart: bool = Field(default=False, alias="deleteLocalStorageOnRestart")
@@ -383,7 +377,9 @@ class PrometheusRuleConfig(BaseModel):
 
     enabled: bool = Field(default=False)
     labels: dict[str, str] | None = Field(default=None, description="Additional labels for discovery")
-    custom_rules: list[dict[str, Any]] | None = Field(None, description="Custom Prometheus rule groups")
+    custom_rules: list[dict[str, Any]] | None = Field(
+        default=None, alias="customRules", description="Custom Prometheus rule groups"
+    )
 
 
 class MonitoringConfig(BaseModel):
@@ -539,6 +535,7 @@ class OperationStatusResponse(BaseModel):
     phase: str | None = None
     completed_pods: list[str] = Field(default_factory=list, alias="completedPods")
     failed_pods: list[str] = Field(default_factory=list, alias="failedPods")
+    pod_list: list[str] = Field(default_factory=list, alias="podList", description="Target pods for this operation")
 
 
 class TemplateOverrides(BaseModel):
@@ -552,6 +549,16 @@ class TemplateOverrides(BaseModel):
     monitoring: MonitoringConfig | None = None
     network_policy: NetworkAccessConfig | None = Field(default=None, alias="networkPolicy")
     enable_dynamic_config: bool | None = Field(default=None, alias="enableDynamicConfig")
+    scheduling: TemplateSchedulingConfig | None = Field(
+        default=None, description="Override template scheduling defaults"
+    )
+    storage: TemplateStorageConfig | None = Field(default=None, description="Override template storage defaults")
+    rack_config: TemplateRackConfig | None = Field(
+        default=None, alias="rackConfig", description="Override template rack config defaults"
+    )
+    aerospike_config: dict[str, Any] | None = Field(
+        default=None, alias="aerospikeConfig", description="Override template Aerospike config defaults"
+    )
 
 
 class BandwidthConfig(BaseModel):
@@ -809,6 +816,17 @@ class K8sClusterCondition(BaseModel):
     lastTransitionTime: str | None = None
 
 
+class TemplateSnapshotStatus(BaseModel):
+    """Template sync status from operator's status.templateSnapshot."""
+
+    model_config = {"populate_by_name": True}
+
+    name: str | None = None
+    resource_version: str | None = Field(default=None, alias="resourceVersion")
+    snapshot_timestamp: str | None = Field(default=None, alias="snapshotTimestamp")
+    synced: bool | None = None
+
+
 class K8sClusterDetail(BaseModel):
     model_config = {"populate_by_name": True}
 
@@ -831,6 +849,7 @@ class K8sClusterDetail(BaseModel):
     pending_restart_pods: list[str] = Field(default_factory=list, alias="pendingRestartPods")
     last_reconcile_time: str | None = Field(default=None, alias="lastReconcileTime")
     operator_version: str | None = Field(default=None, alias="operatorVersion")
+    template_snapshot: TemplateSnapshotStatus | None = Field(default=None, alias="templateSnapshot")
 
 
 class EventCategory(StrEnum):

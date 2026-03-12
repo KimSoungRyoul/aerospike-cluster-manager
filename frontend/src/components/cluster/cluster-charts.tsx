@@ -45,7 +45,7 @@ export function ClusterCharts({
           <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={tpsData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-base-300" />
                 <XAxis
                   dataKey="time"
                   tick={{ fontSize: 11 }}
@@ -58,7 +58,7 @@ export function ClusterCharts({
                 <Line
                   type="monotone"
                   dataKey="reads"
-                  stroke="hsl(var(--chart-1))"
+                  stroke="var(--color-chart-1)"
                   strokeWidth={2}
                   dot={false}
                   name="Reads"
@@ -66,7 +66,7 @@ export function ClusterCharts({
                 <Line
                   type="monotone"
                   dataKey="writes"
-                  stroke="hsl(var(--chart-2))"
+                  stroke="var(--color-chart-2)"
                   strokeWidth={2}
                   dot={false}
                   name="Writes"
@@ -86,7 +86,7 @@ export function ClusterCharts({
           <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={connData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-base-300" />
                 <XAxis
                   dataKey="time"
                   tick={{ fontSize: 11 }}
@@ -98,7 +98,7 @@ export function ClusterCharts({
                 <Line
                   type="monotone"
                   dataKey="connections"
-                  stroke="hsl(var(--chart-3))"
+                  stroke="var(--color-chart-3)"
                   strokeWidth={2}
                   dot={false}
                   name="Connections"
@@ -121,7 +121,7 @@ export function ClusterCharts({
           <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={memData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-base-300" />
                 <XAxis
                   dataKey="time"
                   tick={{ fontSize: 11 }}
@@ -168,7 +168,7 @@ export function ClusterCharts({
           <div className="h-[180px] sm:h-[220px] lg:h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={devData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-base-300" />
                 <XAxis
                   dataKey="time"
                   tick={{ fontSize: 11 }}

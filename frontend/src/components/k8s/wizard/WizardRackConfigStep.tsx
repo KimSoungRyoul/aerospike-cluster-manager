@@ -1,22 +1,17 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, ChevronRight } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import type { WizardRackConfigStepProps } from "./types";
+import type { RackConfig, TolerationConfig } from "@/lib/api/types";
 
 function RackOverridesSection({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="bg-muted/30 mt-2 rounded border">
+    <div className="bg-base-200/30 mt-2 rounded border">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -26,6 +21,508 @@ function RackOverridesSection({ title, children }: { title: string; children: Re
         {title}
       </button>
       {open && <div className="space-y-2 px-3 pb-3">{children}</div>}
+    </div>
+  );
+}
+
+/** Storage volume override for a single rack volume entry. */
+function RackStorageVolumeEditor({
+  volumes,
+  onChange,
+}: {
+  volumes: Record<string, unknown>[] | undefined;
+  onChange: (v: Record<string, unknown>[] | undefined) => void;
+}) {
+  const items = volumes ?? [];
+
+  const addVolume = () => {
+    onChange([
+      ...items,
+      { name: "", storageClass: "", size: "10Gi", mountPath: "/opt/aerospike/data" },
+    ]);
+  };
+
+  const updateVolume = (idx: number, field: string, value: string) => {
+    const next = [...items];
+    next[idx] = { ...next[idx], [field]: value || undefined };
+    onChange(next);
+  };
+
+  const removeVolume = (idx: number) => {
+    const next = items.filter((_, i) => i !== idx);
+    onChange(next.length > 0 ? next : undefined);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Storage Volume Overrides</Label>
+      <p className="text-muted-foreground text-[10px]">
+        Override storage volumes for this rack (e.g. different storage class or size).
+      </p>
+      {items.map((vol, idx) => (
+        <div
+          key={idx}
+          className="grid grid-cols-[1fr_1fr_auto_1fr_auto] items-end gap-2 rounded border p-2"
+        >
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Name</Label>
+            <Input
+              value={String(vol.name ?? "")}
+              onChange={(e) => updateVolume(idx, "name", e.target.value)}
+              placeholder="e.g. data-vol"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Storage Class</Label>
+            <Input
+              value={String(vol.storageClass ?? "")}
+              onChange={(e) => updateVolume(idx, "storageClass", e.target.value)}
+              placeholder="e.g. gp3"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Size</Label>
+            <Input
+              value={String(vol.size ?? "")}
+              onChange={(e) => updateVolume(idx, "size", e.target.value)}
+              placeholder="e.g. 50Gi"
+              className="h-8 w-24 text-xs"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Mount Path</Label>
+            <Input
+              value={String(vol.mountPath ?? "")}
+              onChange={(e) => updateVolume(idx, "mountPath", e.target.value)}
+              placeholder="/opt/aerospike/data"
+              className="h-8 text-xs"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => removeVolume(idx)}
+            className="text-muted-foreground hover:text-destructive mb-1 self-end p-1"
+            title="Remove volume"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addVolume}
+        className="text-accent hover:text-accent/80 flex items-center gap-1 text-xs font-medium"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add Volume Override
+      </button>
+    </div>
+  );
+}
+
+/** Per-rack tolerations editor. */
+function RackTolerationsEditor({
+  tolerations,
+  onChange,
+}: {
+  tolerations: TolerationConfig[] | undefined;
+  onChange: (v: TolerationConfig[] | undefined) => void;
+}) {
+  const items = tolerations ?? [];
+
+  const addToleration = () => {
+    onChange([...items, { key: "", operator: "Equal", value: "", effect: "NoSchedule" }]);
+  };
+
+  const updateToleration = (idx: number, updates: Partial<TolerationConfig>) => {
+    const next = [...items];
+    next[idx] = { ...next[idx], ...updates };
+    onChange(next);
+  };
+
+  const removeToleration = (idx: number) => {
+    const next = items.filter((_, i) => i !== idx);
+    onChange(next.length > 0 ? next : undefined);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Tolerations</Label>
+      <p className="text-muted-foreground text-[10px]">
+        Allow this rack&apos;s pods to be scheduled on nodes with matching taints.
+      </p>
+      {items.map((tol, idx) => (
+        <div
+          key={idx}
+          className="grid grid-cols-[1fr_auto_1fr_auto_auto_auto] items-end gap-2 rounded border p-2"
+        >
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Key</Label>
+            <Input
+              value={tol.key ?? ""}
+              onChange={(e) => updateToleration(idx, { key: e.target.value || undefined })}
+              placeholder="e.g. dedicated"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Operator</Label>
+            <Select
+              value={tol.operator ?? "Equal"}
+              onChange={(e) =>
+                updateToleration(idx, { operator: e.target.value as "Equal" | "Exists" })
+              }
+              className="h-8 w-24 text-xs"
+            >
+              <option value="Equal">Equal</option>
+              <option value="Exists">Exists</option>
+            </Select>
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Value</Label>
+            <Input
+              value={tol.value ?? ""}
+              onChange={(e) => updateToleration(idx, { value: e.target.value || undefined })}
+              placeholder={tol.operator === "Exists" ? "(ignored)" : "e.g. aerospike"}
+              disabled={tol.operator === "Exists"}
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Effect</Label>
+            <Select
+              value={tol.effect ?? ""}
+              onChange={(e) =>
+                updateToleration(idx, {
+                  effect: (e.target.value || undefined) as TolerationConfig["effect"],
+                })
+              }
+              className="h-8 w-36 text-xs"
+            >
+              <option value="">—</option>
+              <option value="NoSchedule">NoSchedule</option>
+              <option value="PreferNoSchedule">PreferNoSchedule</option>
+              <option value="NoExecute">NoExecute</option>
+            </Select>
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Seconds</Label>
+            <Input
+              type="number"
+              min={0}
+              value={tol.tolerationSeconds ?? ""}
+              onChange={(e) =>
+                updateToleration(idx, {
+                  tolerationSeconds: e.target.value ? parseInt(e.target.value, 10) : undefined,
+                })
+              }
+              placeholder="n/a"
+              className="h-8 w-20 text-xs"
+              disabled={tol.effect !== "NoExecute"}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => removeToleration(idx)}
+            className="text-muted-foreground hover:text-destructive mb-1 self-end p-1"
+            title="Remove toleration"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addToleration}
+        className="text-accent hover:text-accent/80 flex items-center gap-1 text-xs font-medium"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add Toleration
+      </button>
+    </div>
+  );
+}
+
+/** Per-rack node affinity editor (simplified - required node affinity expressions). */
+function RackAffinityEditor({
+  affinity,
+  onChange,
+}: {
+  affinity: Record<string, unknown> | undefined;
+  onChange: (v: Record<string, unknown> | undefined) => void;
+}) {
+  // Extract existing node selector terms from the nested affinity structure
+  const getExpressions = (): { key: string; operator: string; values: string }[] => {
+    try {
+      const terms = (
+        affinity as Record<string, Record<string, Record<string, Record<string, unknown>[]>>>
+      )?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms?.[0]
+        ?.matchExpressions as { key: string; operator: string; values?: string[] }[] | undefined;
+      return (terms ?? []).map((expr) => ({
+        key: expr.key ?? "",
+        operator: expr.operator ?? "In",
+        values: (expr.values ?? []).join(", "),
+      }));
+    } catch {
+      return [];
+    }
+  };
+
+  const [expressions, setExpressions] = useState<
+    { key: string; operator: string; values: string }[]
+  >(() => getExpressions());
+
+  const buildAffinity = (exprs: { key: string; operator: string; values: string }[]) => {
+    const valid = exprs.filter((e) => e.key.trim());
+    if (valid.length === 0) {
+      onChange(undefined);
+      return;
+    }
+    onChange({
+      nodeAffinity: {
+        requiredDuringSchedulingIgnoredDuringExecution: {
+          nodeSelectorTerms: [
+            {
+              matchExpressions: valid.map((e) => ({
+                key: e.key,
+                operator: e.operator,
+                ...(e.operator !== "Exists" && e.operator !== "DoesNotExist"
+                  ? {
+                      values: e.values
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    }
+                  : {}),
+              })),
+            },
+          ],
+        },
+      },
+    });
+  };
+
+  const addExpression = () => {
+    const next = [...expressions, { key: "", operator: "In", values: "" }];
+    setExpressions(next);
+  };
+
+  const updateExpression = (idx: number, field: string, value: string) => {
+    const next = [...expressions];
+    next[idx] = { ...next[idx], [field]: value };
+    setExpressions(next);
+    buildAffinity(next);
+  };
+
+  const removeExpression = (idx: number) => {
+    const next = expressions.filter((_, i) => i !== idx);
+    setExpressions(next);
+    buildAffinity(next);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-xs font-semibold">Node Affinity Expressions</Label>
+      <p className="text-muted-foreground text-[10px]">
+        Required node affinity match expressions for this rack. Pods will only schedule on nodes
+        matching all expressions.
+      </p>
+      {expressions.map((expr, idx) => (
+        <div
+          key={idx}
+          className="grid grid-cols-[1fr_auto_1fr_auto] items-end gap-2 rounded border p-2"
+        >
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Key</Label>
+            <Input
+              value={expr.key}
+              onChange={(e) => updateExpression(idx, "key", e.target.value)}
+              placeholder="e.g. topology.kubernetes.io/zone"
+              className="h-8 text-xs"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Operator</Label>
+            <Select
+              value={expr.operator}
+              onChange={(e) => updateExpression(idx, "operator", e.target.value)}
+              className="h-8 w-32 text-xs"
+            >
+              <option value="In">In</option>
+              <option value="NotIn">NotIn</option>
+              <option value="Exists">Exists</option>
+              <option value="DoesNotExist">DoesNotExist</option>
+            </Select>
+          </div>
+          <div className="grid gap-1">
+            <Label className="text-[10px]">Values (comma-separated)</Label>
+            <Input
+              value={expr.values}
+              onChange={(e) => updateExpression(idx, "values", e.target.value)}
+              placeholder="e.g. us-east-1a, us-east-1b"
+              className="h-8 text-xs"
+              disabled={expr.operator === "Exists" || expr.operator === "DoesNotExist"}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => removeExpression(idx)}
+            className="text-muted-foreground hover:text-destructive mb-1 self-end p-1"
+            title="Remove expression"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addExpression}
+        className="text-accent hover:text-accent/80 flex items-center gap-1 text-xs font-medium"
+      >
+        <Plus className="h-3.5 w-3.5" /> Add Expression
+      </button>
+    </div>
+  );
+}
+
+/** Aerospike config override editor with JSON validation feedback. */
+function RackConfigJsonEditor({
+  config,
+  onChange,
+}: {
+  config: Record<string, unknown> | undefined;
+  onChange: (v: Record<string, unknown> | undefined) => void;
+}) {
+  const [rawText, setRawText] = useState(() => (config ? JSON.stringify(config, null, 2) : ""));
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  const handleChange = useCallback(
+    (text: string) => {
+      setRawText(text);
+      if (!text.trim()) {
+        setParseError(null);
+        onChange(undefined);
+        return;
+      }
+      try {
+        const parsed = JSON.parse(text);
+        if (typeof parsed !== "object" || Array.isArray(parsed) || parsed === null) {
+          setParseError("Must be a JSON object");
+          return;
+        }
+        setParseError(null);
+        onChange(parsed);
+      } catch {
+        setParseError("Invalid JSON");
+      }
+    },
+    [onChange],
+  );
+
+  return (
+    <div className="grid gap-2">
+      <Label className="text-xs">Aerospike Config Override (JSON)</Label>
+      <Textarea
+        value={rawText}
+        onChange={(e) => handleChange(e.target.value)}
+        rows={3}
+        className={`font-mono text-xs ${parseError ? "border-red-500" : ""}`}
+        placeholder='{"namespaces": [...]}'
+      />
+      {parseError && <p className="text-xs text-red-500">{parseError}</p>}
+    </div>
+  );
+}
+
+/** Unified rack overrides content: config, storage, scheduling. */
+function RackOverridesContent({
+  rack,
+  racks,
+  idx,
+  updateRackConfig,
+}: {
+  rack: RackConfig;
+  racks: RackConfig[];
+  idx: number;
+  updateRackConfig: (updates: { racks: RackConfig[] }) => void;
+}) {
+  const updateRack = (updates: Partial<RackConfig>) => {
+    const newRacks = [...racks];
+    newRacks[idx] = { ...rack, ...updates };
+    updateRackConfig({ racks: newRacks });
+  };
+
+  const updatePodSpec = (updates: Partial<NonNullable<RackConfig["podSpec"]>>) => {
+    updateRack({
+      podSpec: {
+        ...rack.podSpec,
+        ...updates,
+      },
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Aerospike Config Override */}
+      <RackConfigJsonEditor
+        config={rack.aerospikeConfig}
+        onChange={(parsed) => updateRack({ aerospikeConfig: parsed })}
+      />
+
+      {/* Node Selector */}
+      <div className="grid gap-1">
+        <Label className="text-xs">Node Selector (key=value, ...)</Label>
+        <Input
+          value={
+            rack.podSpec?.nodeSelector
+              ? Object.entries(rack.podSpec.nodeSelector)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join(", ")
+              : ""
+          }
+          onChange={(e) => {
+            const entries = e.target.value
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const nodeSelector: Record<string, string> = {};
+            for (const entry of entries) {
+              const [k, v] = entry.split("=").map((s) => s.trim());
+              if (k && v) nodeSelector[k] = v;
+            }
+            updatePodSpec({
+              nodeSelector: Object.keys(nodeSelector).length > 0 ? nodeSelector : undefined,
+            });
+          }}
+          placeholder="e.g. disktype=ssd, tier=high"
+        />
+      </div>
+
+      {/* Storage Volume Overrides (Feature 3) */}
+      <RackStorageVolumeEditor
+        volumes={rack.storage?.volumes}
+        onChange={(volumes) => {
+          updateRack({
+            storage: volumes ? { volumes } : undefined,
+          });
+        }}
+      />
+
+      {/* Tolerations (Feature 4) */}
+      <RackTolerationsEditor
+        tolerations={rack.podSpec?.tolerations}
+        onChange={(tolerations) => {
+          updatePodSpec({ tolerations });
+        }}
+      />
+
+      {/* Node Affinity (Feature 4) */}
+      <RackAffinityEditor
+        affinity={rack.podSpec?.affinity}
+        onChange={(affinity) => {
+          updatePodSpec({ affinity });
+        }}
+      />
     </div>
   );
 }
@@ -47,14 +544,14 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure multi-rack deployment for zone-aware pod distribution. Each rack gets its own
         StatefulSet with optional zone affinity.
       </p>
 
       {racks.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center">
-          <p className="text-muted-foreground mb-3 text-sm">
+          <p className="text-base-content/60 mb-3 text-sm">
             No racks configured. The cluster will use a single default rack.
           </p>
           <Button
@@ -84,7 +581,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                 }
                 placeholder="e.g. 1 or 25%"
               />
-              <p className="text-muted-foreground text-[10px]">
+              <p className="text-base-content/60 text-[10px]">
                 Tolerate stuck pods during reconciliation
               </p>
             </div>
@@ -97,9 +594,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                 }
                 placeholder="e.g. 1 or 25%"
               />
-              <p className="text-muted-foreground text-[10px]">
-                Per-rack rolling update batch size
-              </p>
+              <p className="text-base-content/60 text-[10px]">Per-rack rolling update batch size</p>
             </div>
             <div className="grid gap-1">
               <Label className="text-xs">Scale Down Batch Size</Label>
@@ -120,7 +615,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-destructive h-7 px-2"
+                  className="text-error h-7 px-2"
                   onClick={() => {
                     const newRacks = racks.filter((_, i) => i !== idx);
                     updateRackConfig({ racks: newRacks });
@@ -135,22 +630,18 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
                   {uniqueZones.length > 0 ? (
                     <Select
                       value={rack.zone || ""}
-                      onValueChange={(v) => {
+                      onChange={(e) => {
                         const newRacks = [...racks];
-                        newRacks[idx] = { ...rack, zone: v };
+                        newRacks[idx] = { ...rack, zone: e.target.value };
                         updateRackConfig({ racks: newRacks });
                       }}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {uniqueZones.map((z) => (
-                          <SelectItem key={z} value={z}>
-                            {z}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
+                      <option value="">Select zone</option>
+                      {uniqueZones.map((z) => (
+                        <option key={z} value={z}>
+                          {z}
+                        </option>
+                      ))}
                     </Select>
                   ) : (
                     <Input
@@ -183,65 +674,12 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
 
               {/* Rack-level overrides */}
               <RackOverridesSection title="Rack Overrides (config, storage, scheduling)">
-                <div className="grid gap-2">
-                  <Label className="text-xs">Aerospike Config Override (JSON)</Label>
-                  <Textarea
-                    value={
-                      rack.aerospikeConfig ? JSON.stringify(rack.aerospikeConfig, null, 2) : ""
-                    }
-                    onChange={(e) => {
-                      const newRacks = [...racks];
-                      let parsed: Record<string, unknown> | undefined;
-                      try {
-                        parsed = e.target.value ? JSON.parse(e.target.value) : undefined;
-                      } catch {
-                        // Keep raw text; will be invalid but user is still typing
-                        return;
-                      }
-                      newRacks[idx] = { ...rack, aerospikeConfig: parsed };
-                      updateRackConfig({ racks: newRacks });
-                    }}
-                    rows={3}
-                    className="font-mono text-xs"
-                    placeholder='{"namespaces": [...]}'
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1">
-                    <Label className="text-xs">Node Selector (key=value, ...)</Label>
-                    <Input
-                      value={
-                        rack.podSpec?.nodeSelector
-                          ? Object.entries(rack.podSpec.nodeSelector)
-                              .map(([k, v]) => `${k}=${v}`)
-                              .join(", ")
-                          : ""
-                      }
-                      onChange={(e) => {
-                        const newRacks = [...racks];
-                        const entries = e.target.value
-                          .split(",")
-                          .map((s) => s.trim())
-                          .filter(Boolean);
-                        const nodeSelector: Record<string, string> = {};
-                        for (const entry of entries) {
-                          const [k, v] = entry.split("=").map((s) => s.trim());
-                          if (k && v) nodeSelector[k] = v;
-                        }
-                        newRacks[idx] = {
-                          ...rack,
-                          podSpec: {
-                            ...rack.podSpec,
-                            nodeSelector:
-                              Object.keys(nodeSelector).length > 0 ? nodeSelector : undefined,
-                          },
-                        };
-                        updateRackConfig({ racks: newRacks });
-                      }}
-                      placeholder="e.g. disktype=ssd, tier=high"
-                    />
-                  </div>
-                </div>
+                <RackOverridesContent
+                  rack={rack}
+                  racks={racks}
+                  idx={idx}
+                  updateRackConfig={updateRackConfig}
+                />
               </RackOverridesSection>
             </div>
           ))}
@@ -257,7 +695,7 @@ export function WizardRackConfigStep({ form, updateForm, nodes }: WizardRackConf
           >
             + Add Rack
           </Button>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-base-content/60 text-xs">
             Tip: For {form.size} nodes across {racks.length} racks, approximately{" "}
             {`${Math.floor(form.size / racks.length)}-${Math.ceil(form.size / racks.length)}`} pods
             per rack.

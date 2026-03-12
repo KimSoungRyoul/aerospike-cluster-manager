@@ -23,14 +23,25 @@ export function InteractiveCard({ index = 0, onClick, className, children }: Int
     <Card
       className={cn(
         "group animate-fade-in-up",
-        interactive && "card-interactive hover:border-accent/30 cursor-pointer",
+        interactive &&
+          "hover:border-accent/30 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
         className,
       )}
       style={staggerDelay(index)}
       {...(interactive && {
         role: "button",
         tabIndex: 0,
-        onClick,
+        onClick: (e: React.MouseEvent) => {
+          // Ignore clicks originating from dropdown menus or interactive children
+          const target = e.target as HTMLElement;
+          if (
+            target.closest('[role="menu"]') ||
+            target.closest('[role="menuitem"]') ||
+            target.closest(".dropdown")
+          )
+            return;
+          onClick();
+        },
         onKeyDown: (e: React.KeyboardEvent) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();

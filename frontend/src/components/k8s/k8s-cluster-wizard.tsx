@@ -18,7 +18,7 @@ import {
   parseMemoryBytes,
 } from "@/lib/validations/k8s";
 import { AEROSPIKE_IMAGES } from "@/lib/constants";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 import { Progress } from "@/components/ui/progress";
 import type {
   CreateK8sClusterRequest,
@@ -48,7 +48,7 @@ const SCRATCH_STEPS = [
   "Review",
 ];
 
-const TEMPLATE_STEPS = ["Creation Mode", "Name & Namespace", "Review"];
+const TEMPLATE_STEPS = ["Creation Mode", "Name & Namespace", "Namespace & Storage", "Review"];
 
 export function K8sClusterWizard() {
   const router = useRouter();
@@ -87,7 +87,12 @@ export function K8sClusterWizard() {
       {
         name: "data-vol",
         source: "persistentVolume",
-        persistentVolume: { storageClass: "standard", size: "10Gi", volumeMode: "Filesystem", accessModes: ["ReadWriteOnce"] },
+        persistentVolume: {
+          storageClass: "standard",
+          size: "10Gi",
+          volumeMode: "Filesystem",
+          accessModes: ["ReadWriteOnce"],
+        },
         aerospike: { path: "/opt/aerospike/data" },
         cascadeDelete: true,
       },
@@ -173,7 +178,9 @@ export function K8sClusterWizard() {
         .then(setNodes)
         .catch((err) => {
           console.error("Failed to fetch K8s nodes:", err);
-          toast.error("Failed to load node information for zone selection");
+          useToastStore
+            .getState()
+            .addToast("error", "Failed to load node information for zone selection");
         });
     }
   }, [step, isTemplateMode]);
@@ -191,7 +198,9 @@ export function K8sClusterWizard() {
       const updates = buildFormUpdatesFromTemplate(detail.spec, name);
       updateForm(updates);
     } catch (err) {
-      toast.error(`Failed to load template: ${getErrorMessage(err)}`);
+      useToastStore
+        .getState()
+        .addToast("error", `Failed to load template: ${getErrorMessage(err)}`);
       setSelectedTemplateName(null);
       setTemplateDetail(null);
     } finally {
@@ -210,6 +219,10 @@ export function K8sClusterWizard() {
       // Template mode step 1: Name & Namespace only
       if (step === 1) {
         return validateK8sName(form.name) === null && form.namespace.length > 0;
+      }
+      // Template mode step 2: Namespace & Storage
+      if (step === 2) {
+        return validateNamespaces(form.namespaces, form.size) === null;
       }
       return true;
     }
@@ -268,15 +281,32 @@ export function K8sClusterWizard() {
       }
       if (payload.rackConfig && payload.rackConfig.racks.length > 0) {
         payload.rackConfig = {
+          ...payload.rackConfig,
           racks: payload.rackConfig.racks.map((r) => ({
             id: r.id,
             ...(r.zone ? { zone: r.zone } : {}),
             ...(r.region ? { region: r.region } : {}),
             ...(r.rackLabel ? { rackLabel: r.rackLabel } : {}),
+            ...(r.aerospikeConfig ? { aerospikeConfig: r.aerospikeConfig } : {}),
+            ...(r.storage?.volumes?.length ? { storage: r.storage } : {}),
+            ...(r.podSpec?.nodeSelector || r.podSpec?.tolerations?.length || r.podSpec?.affinity
+              ? { podSpec: r.podSpec }
+              : {}),
           })),
         } as typeof payload.rackConfig;
       } else {
         payload.rackConfig = undefined;
+      }
+      // Clean up empty service metadata
+      if (
+        payload.headlessService &&
+        !payload.headlessService.annotations &&
+        !payload.headlessService.labels
+      ) {
+        payload.headlessService = undefined;
+      }
+      if (payload.podService && !payload.podService.annotations && !payload.podService.labels) {
+        payload.podService = undefined;
       }
       // Clean up empty podScheduling
       if (payload.podScheduling) {
@@ -310,12 +340,12 @@ export function K8sClusterWizard() {
         payload.initContainers = undefined;
       }
       await createCluster(payload);
-      toast.success(`Cluster "${form.name}" creation initiated`);
+      useToastStore.getState().addToast("success", `Cluster "${form.name}" creation initiated`);
       router.push("/k8s/clusters");
     } catch (err) {
       const msg = getErrorMessage(err);
       setCreationError(msg);
-      toast.error("Failed to create cluster");
+      useToastStore.getState().addToast("error", "Failed to create cluster");
     } finally {
       setCreating(false);
     }
@@ -335,10 +365,10 @@ export function K8sClusterWizard() {
       {/* Step indicator */}
       <nav aria-label="Wizard steps" className="space-y-2">
         <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-sm font-medium">
+          <p className="text-base-content/60 text-sm font-medium">
             Step {step + 1} of {STEPS.length}
-            <span className="text-muted-foreground/60 mx-1.5">—</span>
-            <span className="text-foreground">{STEPS[step]}</span>
+            <span className="text-base-content/60/60 mx-1.5">—</span>
+            <span className="text-base-content">{STEPS[step]}</span>
           </p>
         </div>
         <Progress value={((step + 1) / STEPS.length) * 100} className="h-1" />
@@ -360,14 +390,14 @@ export function K8sClusterWizard() {
                     ? "bg-accent text-accent-foreground"
                     : i < step
                       ? "bg-accent/20 text-accent"
-                      : "bg-muted text-muted-foreground"
+                      : "bg-base-200 text-base-content/60"
                 }`}
               >
                 {i + 1}
               </span>
               <span
                 className={`hidden text-sm sm:inline ${
-                  i === step ? "text-foreground font-medium" : "text-muted-foreground"
+                  i === step ? "text-base-content font-medium" : "text-base-content/60"
                 }`}
               >
                 {label}
@@ -381,7 +411,7 @@ export function K8sClusterWizard() {
       {fetchingOptions && (
         <div className="flex items-center justify-center gap-2 py-4">
           <div className="border-accent h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" />
-          <span className="text-muted-foreground text-sm">Loading K8s options...</span>
+          <span className="text-base-content/60 text-sm">Loading K8s options...</span>
         </div>
       )}
 
@@ -424,7 +454,7 @@ export function K8sClusterWizard() {
             />
           )}
 
-          {step === 2 && !isTemplateMode && (
+          {step === 2 && (
             <WizardNamespaceStorageStep
               form={form}
               updateForm={updateForm}

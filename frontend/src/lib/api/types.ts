@@ -469,6 +469,7 @@ export interface OperationStatusResponse {
   phase: string;
   completedPods: string[];
   failedPods: string[];
+  podList: string[];
 }
 
 // === K8s Cluster Management ===
@@ -592,6 +593,7 @@ export interface K8sClusterDetail {
   pendingRestartPods: string[];
   lastReconcileTime?: string;
   operatorVersion?: string;
+  templateSnapshot?: TemplateSnapshot;
 }
 
 export interface ReconciliationStatus {
@@ -643,12 +645,7 @@ export type VolumeSourceType =
   | "configMap"
   | "hostPath";
 
-export type VolumeInitMethod =
-  | "none"
-  | "deleteFiles"
-  | "dd"
-  | "blkdiscard"
-  | "headerCleanup";
+export type VolumeInitMethod = "none" | "deleteFiles" | "dd" | "blkdiscard" | "headerCleanup";
 
 export type VolumeWipeMethod =
   | "none"
@@ -759,6 +756,21 @@ export interface PodMetadataConfig {
   annotations?: Record<string, string>;
 }
 
+export interface TopologySpreadConstraintConfig {
+  maxSkew: number;
+  topologyKey: string;
+  whenUnsatisfiable: "DoNotSchedule" | "ScheduleAnyway";
+  labelSelector?: Record<string, string>;
+}
+
+export interface PodSecurityContextConfig {
+  runAsUser?: number;
+  runAsGroup?: number;
+  runAsNonRoot?: boolean;
+  fsGroup?: number;
+  supplementalGroups?: number[];
+}
+
 export interface PodSchedulingConfig {
   nodeSelector?: Record<string, string>;
   tolerations?: TolerationConfig[];
@@ -771,6 +783,8 @@ export interface PodSchedulingConfig {
   podManagementPolicy?: "OrderedReady" | "Parallel";
   dnsPolicy?: string;
   metadata?: PodMetadataConfig;
+  topologySpreadConstraints?: TopologySpreadConstraintConfig[];
+  podSecurityContext?: PodSecurityContextConfig;
 }
 
 export interface ServiceMonitorConfig {
@@ -782,6 +796,7 @@ export interface ServiceMonitorConfig {
 export interface PrometheusRuleConfig {
   enabled: boolean;
   labels?: Record<string, string>;
+  customRules?: Record<string, unknown>[];
 }
 
 export interface MonitoringConfig {
@@ -982,7 +997,7 @@ export interface UpdateK8sTemplateRequest {
 
 export interface TemplateSnapshot {
   synced?: boolean;
-  templateName?: string;
+  name?: string;
   resourceVersion?: string;
   snapshotTimestamp?: string;
   spec?: unknown;
@@ -995,6 +1010,10 @@ export interface TemplateOverrides {
   monitoring?: MonitoringConfig;
   networkPolicy?: NetworkAccessConfig;
   enableDynamicConfig?: boolean;
+  scheduling?: TemplateSchedulingConfig;
+  storage?: TemplateStorageConfig;
+  rackConfig?: TemplateRackConfig;
+  aerospikeConfig?: Record<string, unknown>;
 }
 
 export interface PodLogsResponse {

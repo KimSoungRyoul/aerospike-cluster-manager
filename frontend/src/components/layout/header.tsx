@@ -27,7 +27,7 @@ export function Header() {
   };
 
   return (
-    <header className="bg-card/80 border-border/60 relative z-50 flex h-12 items-center justify-between border-b px-4 backdrop-blur-md">
+    <header className="bg-base-100/80 border-base-300/60 relative z-50 flex h-12 items-center justify-between border-b px-4 backdrop-blur-md">
       {/* Bottom gradient accent line */}
       <div className="via-accent/50 absolute right-0 bottom-0 left-0 h-[2px] bg-gradient-to-r from-transparent to-transparent" />
 
@@ -38,7 +38,7 @@ export function Header() {
               variant="ghost"
               size="icon"
               onClick={handleToggle}
-              className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
+              className="text-muted-foreground hover:text-base-content h-10 w-10 md:h-8 md:w-8"
               aria-label="Toggle sidebar"
             >
               {isDesktop ? <PanelLeft className="h-4 w-4" /> : <Menu className="h-5 w-5" />}
@@ -69,7 +69,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
+              className="text-muted-foreground hover:text-base-content h-10 w-10 md:h-8 md:w-8"
               aria-label="GitHub repository"
               asChild
             >
@@ -89,7 +89,7 @@ export function Header() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:text-foreground h-10 w-10 md:h-8 md:w-8"
+              className="text-muted-foreground hover:text-base-content h-10 w-10 md:h-8 md:w-8"
               aria-label="Toggle theme"
             >
               {theme === "dark" ? (

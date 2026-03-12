@@ -16,10 +16,10 @@ import { LoadingButton } from "@/components/common/loading-button";
 import { getErrorMessage } from "@/lib/utils";
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import type { K8sTemplateDetail, UpdateK8sTemplateRequest } from "@/lib/api/types";
 
@@ -78,15 +78,12 @@ export function K8sTemplateEditDialog({
   const initialCpuLimit = resources?.limits?.cpu || "";
   const initialMemLimit = resources?.limits?.memory || "";
   const initialHeartbeatMode = (networkConfig?.heartbeatMode as "mesh" | "multicast") || "mesh";
-  const initialHeartbeatInterval = networkConfig?.heartbeatInterval != null
-    ? Number(networkConfig.heartbeatInterval)
-    : undefined;
-  const initialHeartbeatTimeout = networkConfig?.heartbeatTimeout != null
-    ? Number(networkConfig.heartbeatTimeout)
-    : undefined;
-  const initialMaxRacksPerNode = rackConfigSpec?.maxRacksPerNode != null
-    ? Number(rackConfigSpec.maxRacksPerNode)
-    : undefined;
+  const initialHeartbeatInterval =
+    networkConfig?.heartbeatInterval != null ? Number(networkConfig.heartbeatInterval) : undefined;
+  const initialHeartbeatTimeout =
+    networkConfig?.heartbeatTimeout != null ? Number(networkConfig.heartbeatTimeout) : undefined;
+  const initialMaxRacksPerNode =
+    rackConfigSpec?.maxRacksPerNode != null ? Number(rackConfigSpec.maxRacksPerNode) : undefined;
 
   // Reset form on open
   useEffect(() => {
@@ -222,8 +219,7 @@ export function K8sTemplateEditDialog({
 
       // Rack Config
       if (maxRacksPerNode !== initialMaxRacksPerNode) {
-        data.rackConfig =
-          maxRacksPerNode != null ? { maxRacksPerNode } : undefined;
+        data.rackConfig = maxRacksPerNode != null ? { maxRacksPerNode } : undefined;
       }
 
       await onSave(data);
@@ -246,7 +242,7 @@ export function K8sTemplateEditDialog({
         </DialogHeader>
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto py-4">
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && <p className="text-error text-sm">{error}</p>}
 
           {/* Description */}
           <div className="space-y-1">
@@ -287,15 +283,13 @@ export function K8sTemplateEditDialog({
           {/* Scheduling */}
           <div className="space-y-1">
             <Label>Anti-Affinity Level</Label>
-            <Select value={antiAffinity || "none"} onValueChange={setAntiAffinity}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="preferred">Preferred</SelectItem>
-                <SelectItem value="required">Required</SelectItem>
-              </SelectContent>
+            <Select
+              value={antiAffinity || "none"}
+              onChange={(e) => setAntiAffinity(e.target.value)}
+            >
+              <option value="none">None</option>
+              <option value="preferred">Preferred</option>
+              <option value="required">Required</option>
             </Select>
           </div>
 
@@ -303,15 +297,10 @@ export function K8sTemplateEditDialog({
             <Label>Pod Management Policy</Label>
             <Select
               value={podManagementPolicy || "OrderedReady"}
-              onValueChange={setPodManagementPolicy}
+              onChange={(e) => setPodManagementPolicy(e.target.value)}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="OrderedReady">OrderedReady</SelectItem>
-                <SelectItem value="Parallel">Parallel</SelectItem>
-              </SelectContent>
+              <option value="OrderedReady">OrderedReady</option>
+              <option value="Parallel">Parallel</option>
             </Select>
           </div>
 

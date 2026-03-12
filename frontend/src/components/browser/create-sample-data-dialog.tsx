@@ -12,18 +12,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LoadingButton } from "@/components/common/loading-button";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 interface CreateSampleDataDialogProps {
   open: boolean;
@@ -56,16 +50,16 @@ export function CreateSampleDataDialog({
 
   const handleSubmit = async () => {
     if (!namespace) {
-      toast.error("Namespace is required");
+      useToastStore.getState().addToast("error", "Namespace is required");
       return;
     }
     if (!setName.trim()) {
-      toast.error("Set name is required");
+      useToastStore.getState().addToast("error", "Set name is required");
       return;
     }
     const count = parseInt(recordCount, 10);
     if (isNaN(count) || count < 1 || count > 10000) {
-      toast.error("Record count must be between 1 and 10,000");
+      useToastStore.getState().addToast("error", "Record count must be between 1 and 10,000");
       return;
     }
 
@@ -90,12 +84,12 @@ export function CreateSampleDataDialog({
         parts.push(`${result.udfsRegistered.length} UDFs`);
       }
       const elapsed = (result.elapsedMs / 1000).toFixed(1);
-      toast.success(`Created ${parts.join(", ")} in ${elapsed}s`);
+      useToastStore.getState().addToast("success", `Created ${parts.join(", ")} in ${elapsed}s`);
 
       onOpenChange(false);
       onSuccess();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -114,17 +108,13 @@ export function CreateSampleDataDialog({
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label>Namespace</Label>
-            <Select value={namespace} onValueChange={setNamespace}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select namespace" />
-              </SelectTrigger>
-              <SelectContent>
-                {namespaces.map((ns) => (
-                  <SelectItem key={ns} value={ns}>
-                    {ns}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <Select value={namespace} onChange={(e) => setNamespace(e.target.value)}>
+              <option value="">Select namespace</option>
+              {namespaces.map((ns) => (
+                <option key={ns} value={ns}>
+                  {ns}
+                </option>
+              ))}
             </Select>
           </div>
           <div className="grid gap-2">

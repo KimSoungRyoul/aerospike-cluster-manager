@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { ColumnDef, ColumnPinningState, Row } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DataTable } from "@/components/common/data-table";
 import { TablePagination } from "@/components/common/table-pagination";
@@ -56,7 +56,7 @@ import {
   buildRecordListSearchParams,
   readRecordListRouteState,
 } from "@/lib/record-route-state";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 const COLUMN_PINNING: ColumnPinningState = {
   left: ["select", "rowNumber", "pk", "gen", "ttl"],
@@ -346,7 +346,7 @@ export default function BrowserPage({
 
   const handleSaveRecord = async () => {
     if (!editorPK.trim()) {
-      toast.error("Primary key is required");
+      useToastStore.getState().addToast("error", "Primary key is required");
       return;
     }
     setSaving(true);
@@ -365,10 +365,10 @@ export default function BrowserPage({
       await putRecord(connId, data, {
         refresh: refreshCurrentView,
       });
-      toast.success("Record duplicated");
+      useToastStore.getState().addToast("success", "Record duplicated");
       setEditorOpen(false);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -385,10 +385,10 @@ export default function BrowserPage({
         deleteTarget.key.pk,
         { refresh: refreshCurrentView },
       );
-      toast.success("Record deleted");
+      useToastStore.getState().addToast("success", "Record deleted");
       setDeleteTarget(null);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -487,7 +487,7 @@ asyncio.run(main())`;
     a.download = `records-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Exported as JSON");
+    useToastStore.getState().addToast("success", "Exported as JSON");
   }, [records]);
 
   const handleExportCSV = useCallback(() => {
@@ -517,7 +517,7 @@ asyncio.run(main())`;
     a.download = `records-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Exported as CSV");
+    useToastStore.getState().addToast("success", "Exported as CSV");
   }, [records]);
 
   const padLength = String(pagination.end).length;
@@ -621,7 +621,7 @@ asyncio.run(main())`;
               e.stopPropagation();
               openRecordDetail(row.original);
             }}
-            className="text-foreground hover:text-accent w-full truncate text-left font-mono text-[13px] font-medium hover:underline"
+            className="text-base-content hover:text-accent w-full truncate text-left font-mono text-[13px] font-medium hover:underline"
           >
             {truncateMiddle(String(row.original.key.pk), 28)}
           </button>
@@ -708,7 +708,7 @@ asyncio.run(main())`;
                     e.stopPropagation();
                     openRecordDetail(row.original);
                   }}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                  className="text-muted-foreground hover:text-base-content hover:bg-base-200/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                   aria-label={`View ${row.original.key.pk}`}
                 >
                   <Eye className="h-3.5 w-3.5" />
@@ -726,7 +726,7 @@ asyncio.run(main())`;
                     e.stopPropagation();
                     openRecordDetail(row.original, "edit");
                   }}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                  className="text-muted-foreground hover:text-base-content hover:bg-base-200/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                   aria-label={`Edit ${row.original.key.pk}`}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -744,7 +744,7 @@ asyncio.run(main())`;
                     e.stopPropagation();
                     openDuplicateEditor(row.original);
                   }}
-                  className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                  className="text-muted-foreground hover:text-base-content hover:bg-base-200/50 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                   aria-label={`Duplicate ${row.original.key.pk}`}
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -762,7 +762,7 @@ asyncio.run(main())`;
                     e.stopPropagation();
                     setDeleteTarget(row.original);
                   }}
-                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
+                  className="text-muted-foreground hover:text-error hover:bg-error/10 inline-flex h-7 w-7 items-center justify-center rounded-md transition-colors"
                   aria-label={`Delete ${row.original.key.pk}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -803,7 +803,7 @@ asyncio.run(main())`;
       return (
         <div
           key={record.key.pk + idx}
-          className="border-border/40 bg-card/60 animate-fade-in rounded-2xl border p-3 shadow-sm"
+          className="border-base-300/40 bg-base-100/60 animate-fade-in rounded-2xl border p-3 shadow-sm"
           style={{ animationDelay: `${idx * 25}ms` }}
           onClick={() => openRecordDetail(record)}
           onKeyDown={(e) => {
@@ -839,11 +839,12 @@ asyncio.run(main())`;
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
                   <span className="text-muted-foreground">
-                    Gen: <span className="text-foreground font-mono">{record.meta.generation}</span>
+                    Gen:{" "}
+                    <span className="text-base-content font-mono">{record.meta.generation}</span>
                   </span>
                   <span className="text-muted-foreground" title={`TTL: ${record.meta.ttl}s`}>
                     Expiry:{" "}
-                    <span className="text-foreground font-mono">
+                    <span className="text-base-content font-mono">
                       {formatTTLAsExpiry(record.meta.ttl)}
                     </span>
                   </span>
@@ -858,21 +859,21 @@ asyncio.run(main())`;
             >
               <button
                 onClick={() => openRecordDetail(record)}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                className="text-muted-foreground hover:text-base-content hover:bg-base-200/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
                 aria-label={`View ${record.key.pk}`}
               >
                 <Eye className="h-4 w-4" />
               </button>
               <button
                 onClick={() => openRecordDetail(record, "edit")}
-                className="text-muted-foreground hover:text-foreground hover:bg-muted/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                className="text-muted-foreground hover:text-base-content hover:bg-base-200/50 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
                 aria-label={`Edit ${record.key.pk}`}
               >
                 <Pencil className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setDeleteTarget(record)}
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
+                className="text-muted-foreground hover:text-error hover:bg-error/10 inline-flex h-9 w-9 items-center justify-center rounded-md transition-colors"
                 aria-label={`Delete ${record.key.pk}`}
               >
                 <Trash2 className="h-4 w-4" />
@@ -881,7 +882,7 @@ asyncio.run(main())`;
           </div>
 
           {binColumns.length > 0 && (
-            <div className="border-border/30 mt-2 space-y-1 border-t pt-2">
+            <div className="border-base-300/30 mt-2 space-y-1 border-t pt-2">
               {binColumns.slice(0, 3).map((col) => (
                 <div key={col} className="flex items-start gap-2 text-xs">
                   <span className="text-muted-foreground/60 w-20 shrink-0 truncate font-mono">
@@ -910,20 +911,20 @@ asyncio.run(main())`;
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* ── Command Bar ──────────────────────────────── */}
-      <div className="border-border/50 bg-card/80 border-b px-3 py-2.5 backdrop-blur-md sm:px-6">
+      <div className="border-base-300/50 bg-base-100/80 border-b px-3 py-2.5 backdrop-blur-md sm:px-6">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2 sm:gap-4">
             <nav className="flex min-w-0 items-center gap-0.5 font-mono text-[13px]">
               <button
                 onClick={() => router.push(`/browser/${connId}`)}
-                className="text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                className="text-muted-foreground hover:text-base-content shrink-0 transition-colors"
               >
                 Namespaces
               </button>
               <span className="text-muted-foreground/30 mx-1 shrink-0 sm:mx-1.5">›</span>
               <button
                 onClick={() => router.push(`/browser/${connId}`)}
-                className="text-muted-foreground hover:text-foreground max-w-[60px] truncate transition-colors sm:max-w-none"
+                className="text-muted-foreground hover:text-base-content max-w-[60px] truncate transition-colors sm:max-w-none"
               >
                 {decodedNs}
               </button>
@@ -988,7 +989,7 @@ asyncio.run(main())`;
 
       {/* ── Export bar (when filters active) ─────────── */}
       {filterStore.conditions.length > 0 && records.length > 0 && (
-        <div className="bg-card/60 animate-fade-in flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-6">
+        <div className="bg-base-100/60 animate-fade-in flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2 sm:px-6">
           <span className="text-muted-foreground text-xs">
             Export {formatNumber(records.length)} visible record{records.length === 1 ? "" : "s"}
           </span>
@@ -1021,7 +1022,7 @@ asyncio.run(main())`;
 
       {/* ── Data Grid ────────────────────────────────── */}
       <div className="relative min-h-0 min-w-0 flex-1">
-        <TooltipProvider delayDuration={300}>
+        <div>
           <DataTable
             data={displayRecords}
             columns={tableColumns}
@@ -1072,7 +1073,7 @@ asyncio.run(main())`;
             mobileLayout="cards"
             mobileCardRenderer={renderMobileRecordCard}
           />
-        </TooltipProvider>
+        </div>
       </div>
 
       {/* ── Selection Toolbar ─────────────────────────── */}
@@ -1085,7 +1086,7 @@ asyncio.run(main())`;
               </span>
               <button
                 onClick={() => setSelectedPKs(new Set())}
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 font-mono text-[11px] transition-colors"
+                className="text-muted-foreground hover:text-base-content inline-flex items-center gap-1 font-mono text-[11px] transition-colors"
               >
                 <X className="h-3 w-3" />
                 Clear

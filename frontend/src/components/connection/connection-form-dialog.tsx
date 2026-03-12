@@ -137,7 +137,7 @@ export function ConnectionFormDialog({
                   className={cn(
                     "h-8 w-8 rounded-full transition-all duration-150",
                     form.color === color
-                      ? "ring-offset-background scale-110 ring-2 ring-offset-2"
+                      ? "ring-offset-base-100 scale-110 ring-2 ring-offset-2"
                       : "opacity-70 hover:scale-110 hover:opacity-100",
                   )}
                   style={{
@@ -159,7 +159,7 @@ export function ConnectionFormDialog({
                 "animate-scale-in flex items-center gap-2 rounded-lg border px-3 py-2.5 text-sm",
                 testResult.success
                   ? "border-success/20 bg-success/5 text-success"
-                  : "border-destructive/20 bg-destructive/5 text-destructive",
+                  : "border-error/20 bg-error/5 text-error",
               )}
             >
               {testResult.success ? (

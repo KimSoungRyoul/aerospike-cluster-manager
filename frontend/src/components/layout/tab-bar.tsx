@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from "next/navigation";
 import { Table2, Server, Database, Shield, Code2, Terminal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 const tabs = [
   { label: "Overview", icon: Server, path: "cluster" },
@@ -27,8 +26,8 @@ export function TabBar({ connId }: TabBarProps) {
   };
 
   return (
-    <div className="bg-card/60 border-border/60 relative border-b backdrop-blur-md">
-      <ScrollArea className="w-full">
+    <div className="bg-base-100/60 border-base-300/60 relative border-b backdrop-blur-md">
+      <div className="w-full overflow-x-auto">
         <div className="flex h-10 items-center gap-0 px-1">
           {tabs.map((tab) => {
             const isActive = pathname?.startsWith(`/${tab.path}/`);
@@ -41,7 +40,7 @@ export function TabBar({ connId }: TabBarProps) {
                   "relative mx-0.5 flex items-center gap-1.5 rounded-md px-3.5 py-2 text-xs font-medium whitespace-nowrap transition-colors",
                   isActive
                     ? "text-accent"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    : "text-muted-foreground hover:text-base-content hover:bg-base-200/50",
                 )}
               >
                 <tab.icon
@@ -49,13 +48,13 @@ export function TabBar({ connId }: TabBarProps) {
                 />
                 {tab.label}
                 {isActive && (
-                  <span className="bg-accent absolute right-2 bottom-0 left-2 h-0.5 rounded-full shadow-[0_0_6px_1px_hsl(var(--accent)/0.3)]" />
+                  <span className="bg-accent absolute right-2 bottom-0 left-2 h-0.5 rounded-full shadow-[0_0_6px_1px_color-mix(in_oklch,var(--color-accent)_30%,transparent)]" />
                 )}
               </button>
             );
           })}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

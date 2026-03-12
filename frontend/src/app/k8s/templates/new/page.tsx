@@ -12,14 +12,14 @@ import { LoadingButton } from "@/components/common/loading-button";
 import { PageHeader } from "@/components/common/page-header";
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { api } from "@/lib/api/client";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 import { getErrorMessage } from "@/lib/utils";
 import type { CreateK8sTemplateRequest } from "@/lib/api/types";
 
@@ -66,7 +66,7 @@ export default function CreateTemplatePage() {
 
   const handleSubmit = async () => {
     if (!name.trim()) {
-      toast.error("Template name is required");
+      useToastStore.getState().addToast("error", "Template name is required");
       return;
     }
     setLoading(true);
@@ -117,10 +117,10 @@ export default function CreateTemplatePage() {
       }
 
       await createTemplate(data);
-      toast.success(`Template "${name}" created`);
+      useToastStore.getState().addToast("success", `Template "${name}" created`);
       router.push("/k8s/templates");
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -141,7 +141,7 @@ export default function CreateTemplatePage() {
 
       <div className="mx-auto max-w-2xl space-y-6">
         {/* Basic Info */}
-        <div className="bg-card space-y-4 rounded-xl border p-6">
+        <div className="bg-base-100 space-y-4 rounded-xl border p-6">
           <h3 className="text-sm font-semibold">Basic Information</h3>
           <div className="grid gap-4">
             <div className="grid gap-2">
@@ -156,7 +156,7 @@ export default function CreateTemplatePage() {
                 disabled={loading}
                 className="resize-none"
               />
-              <p className="text-muted-foreground text-xs">{description.length}/500</p>
+              <p className="text-base-content/60 text-xs">{description.length}/500</p>
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -169,9 +169,7 @@ export default function CreateTemplatePage() {
                 placeholder="my-template"
                 disabled={loading}
               />
-              <p className="text-muted-foreground text-xs">
-                Cluster-scoped resource (no namespace)
-              </p>
+              <p className="text-base-content/60 text-xs">Cluster-scoped resource (no namespace)</p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="tmpl-image">Default Image</Label>
@@ -203,45 +201,39 @@ export default function CreateTemplatePage() {
         </div>
 
         {/* Scheduling */}
-        <div className="bg-card space-y-4 rounded-xl border p-6">
+        <div className="bg-base-100 space-y-4 rounded-xl border p-6">
           <h3 className="text-sm font-semibold">Scheduling</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label>Pod Anti-Affinity</Label>
               <Select
                 value={antiAffinity}
-                onValueChange={(v) => setAntiAffinity(v as typeof antiAffinity)}
+                onChange={(e) => setAntiAffinity(e.target.value as typeof antiAffinity)}
+                disabled={loading}
               >
-                <SelectTrigger disabled={loading}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  <SelectItem value="preferred">Preferred</SelectItem>
-                  <SelectItem value="required">Required</SelectItem>
-                </SelectContent>
+                <option value="none">None</option>
+                <option value="preferred">Preferred</option>
+                <option value="required">Required</option>
               </Select>
             </div>
             <div className="grid gap-2">
               <Label>Pod Management Policy</Label>
               <Select
                 value={podManagementPolicy}
-                onValueChange={(v) => setPodManagementPolicy(v as typeof podManagementPolicy)}
+                onChange={(e) =>
+                  setPodManagementPolicy(e.target.value as typeof podManagementPolicy)
+                }
+                disabled={loading}
               >
-                <SelectTrigger disabled={loading}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="OrderedReady">OrderedReady</SelectItem>
-                  <SelectItem value="Parallel">Parallel</SelectItem>
-                </SelectContent>
+                <option value="OrderedReady">OrderedReady</option>
+                <option value="Parallel">Parallel</option>
               </Select>
             </div>
           </div>
         </div>
 
         {/* Resources */}
-        <div className="bg-card space-y-4 rounded-xl border p-6">
+        <div className="bg-base-100 space-y-4 rounded-xl border p-6">
           <div className="flex items-center gap-2">
             <Checkbox
               id="tmpl-resources"
@@ -292,7 +284,7 @@ export default function CreateTemplatePage() {
         </div>
 
         {/* Storage */}
-        <div className="bg-card space-y-4 rounded-xl border p-6">
+        <div className="bg-base-100 space-y-4 rounded-xl border p-6">
           <div className="flex items-center gap-2">
             <Checkbox
               id="tmpl-storage"
@@ -308,17 +300,16 @@ export default function CreateTemplatePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label className="text-xs">Storage Class</Label>
-                <Select value={storageClass} onValueChange={setStorageClass}>
-                  <SelectTrigger disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {storageClasses.map((sc) => (
-                      <SelectItem key={sc} value={sc}>
-                        {sc}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select
+                  value={storageClass}
+                  onChange={(e) => setStorageClass(e.target.value)}
+                  disabled={loading}
+                >
+                  {storageClasses.map((sc) => (
+                    <option key={sc} value={sc}>
+                      {sc}
+                    </option>
+                  ))}
                 </Select>
               </div>
               <div className="grid gap-2">
@@ -335,7 +326,7 @@ export default function CreateTemplatePage() {
         </div>
 
         {/* Monitoring & Network */}
-        <div className="bg-card space-y-4 rounded-xl border p-6">
+        <div className="bg-base-100 space-y-4 rounded-xl border p-6">
           <h3 className="text-sm font-semibold">Monitoring & Network</h3>
           <div className="flex items-center gap-2">
             <Checkbox
@@ -363,16 +354,15 @@ export default function CreateTemplatePage() {
           )}
           <div className="grid gap-2 sm:w-1/2">
             <Label className="text-xs">Network Access Type</Label>
-            <Select value={accessType} onValueChange={setAccessType}>
-              <SelectTrigger disabled={loading}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pod">Pod IP</SelectItem>
-                <SelectItem value="hostInternal">Host Internal</SelectItem>
-                <SelectItem value="hostExternal">Host External</SelectItem>
-                <SelectItem value="configuredIP">Configured IP</SelectItem>
-              </SelectContent>
+            <Select
+              value={accessType}
+              onChange={(e) => setAccessType(e.target.value)}
+              disabled={loading}
+            >
+              <option value="pod">Pod IP</option>
+              <option value="hostInternal">Host Internal</option>
+              <option value="hostExternal">Host External</option>
+              <option value="configuredIP">Configured IP</option>
             </Select>
           </div>
         </div>
@@ -465,8 +455,8 @@ export default function CreateTemplatePage() {
               disabled={loading}
             />
             <p className="text-muted-foreground text-[10px]">
-              Maximum number of racks that can be placed on a single Kubernetes node. Leave empty for
-              no limit.
+              Maximum number of racks that can be placed on a single Kubernetes node. Leave empty
+              for no limit.
             </p>
           </div>
         </div>

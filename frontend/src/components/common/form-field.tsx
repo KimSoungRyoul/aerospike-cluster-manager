@@ -28,11 +28,11 @@ export function FormField({
     <div className={cn("grid gap-2", className)}>
       <Label htmlFor={id}>
         {label}
-        {required && <span className="text-destructive ml-0.5">*</span>}
+        {required && <span className="text-error ml-0.5">*</span>}
       </Label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="text-destructive text-xs">
+        <p id={`${id}-error`} className="text-error text-xs">
           {error}
         </p>
       ) : hint ? (

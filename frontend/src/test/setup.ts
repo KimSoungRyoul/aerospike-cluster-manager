@@ -113,12 +113,9 @@ Object.defineProperty(window, "resizeTo", {
 
 window.resizeTo(1280, 800);
 
-// Mock sonner toast
-vi.mock("sonner", () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-    warning: vi.fn(),
-  },
+// Mock toast store
+vi.mock("@/stores/toast-store", () => ({
+  useToastStore: Object.assign(() => ({ toasts: [], addToast: vi.fn(), removeToast: vi.fn() }), {
+    getState: () => ({ toasts: [], addToast: vi.fn(), removeToast: vi.fn() }),
+  }),
 }));

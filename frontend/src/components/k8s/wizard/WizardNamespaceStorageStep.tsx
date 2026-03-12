@@ -4,10 +4,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { validateNamespaces, MAX_CE_NAMESPACES } from "@/lib/validations/k8s";
@@ -24,9 +24,7 @@ import type {
 import type { WizardNamespaceStorageStepProps } from "./types";
 
 /** Type guard to check if storage is StorageSpec (multi-volume). */
-function isStorageSpec(
-  s: StorageVolumeConfig | StorageSpec | undefined,
-): s is StorageSpec {
+function isStorageSpec(s: StorageVolumeConfig | StorageSpec | undefined): s is StorageSpec {
   return !!s && "volumes" in s;
 }
 
@@ -40,7 +38,12 @@ function makeDefaultPvcVolume(
   return {
     name,
     source: "persistentVolume",
-    persistentVolume: { storageClass, size, volumeMode: "Filesystem", accessModes: ["ReadWriteOnce"] },
+    persistentVolume: {
+      storageClass,
+      size,
+      volumeMode: "Filesystem",
+      accessModes: ["ReadWriteOnce"],
+    },
     aerospike: { path: mountPath },
     cascadeDelete: true,
   };
@@ -87,11 +90,7 @@ function VolumeEditor({
           className="flex items-center gap-1 text-sm font-medium"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
+          {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           Volume: {vol.name || `(unnamed ${index + 1})`}
           <span className="text-muted-foreground ml-1 text-xs font-normal">
             [{SOURCE_TYPE_LABELS[vol.source]}]
@@ -389,9 +388,7 @@ function VolumeEditor({
               <Checkbox
                 id={`cascade-delete-${index}`}
                 checked={vol.cascadeDelete ?? false}
-                onCheckedChange={(checked) =>
-                  onChange({ ...vol, cascadeDelete: checked === true })
-                }
+                onCheckedChange={(checked) => onChange({ ...vol, cascadeDelete: checked === true })}
               />
               <Label htmlFor={`cascade-delete-${index}`} className="text-sm font-normal">
                 Cascade Delete
@@ -407,7 +404,11 @@ function VolumeEditor({
               onCheckedChange={(checked) =>
                 onChange({
                   ...vol,
-                  aerospike: { ...vol.aerospike, path: vol.aerospike?.path || "", readOnly: checked === true },
+                  aerospike: {
+                    ...vol.aerospike,
+                    path: vol.aerospike?.path || "",
+                    readOnly: checked === true,
+                  },
                 })
               }
             />
@@ -454,9 +455,7 @@ export function WizardNamespaceStorageStep({
   const isStoragePersistent = form.namespaces.some((ns) => ns.storageEngine.type === "device");
 
   // Multi-volume helpers
-  const storageSpec: StorageSpec = isStorageSpec(form.storage)
-    ? form.storage
-    : defaultStorageSpec;
+  const storageSpec: StorageSpec = isStorageSpec(form.storage) ? form.storage : defaultStorageSpec;
 
   const updateStorageSpec = (updated: StorageSpec) => {
     updateForm({ storage: updated });
@@ -553,7 +552,7 @@ export function WizardNamespaceStorageStep({
 
   return (
     <>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-base-content/60 text-xs">
         Aerospike CE supports up to {MAX_CE_NAMESPACES} namespaces per cluster.
       </p>
 
@@ -578,12 +577,12 @@ export function WizardNamespaceStorageStep({
                 onChange={(e) => updateNamespace(ni, { name: e.target.value })}
               />
               {ns.name !== undefined && ns.name.trim().length === 0 && (
-                <p className="text-destructive text-xs">Namespace name is required</p>
+                <p className="text-error text-xs">Namespace name is required</p>
               )}
               {form.namespaces.length > 1 &&
                 ns.name.trim().length > 0 &&
                 form.namespaces.filter((o) => o.name.trim() === ns.name.trim()).length > 1 && (
-                  <p className="text-destructive text-xs">Namespace names must be unique</p>
+                  <p className="text-error text-xs">Namespace names must be unique</p>
                 )}
             </div>
 
@@ -652,21 +651,17 @@ export function WizardNamespaceStorageStep({
                 <Label htmlFor={`memory-size-${ni}`}>Memory Size</Label>
                 <Select
                   value={String(ns.storageEngine.dataSize || 1073741824)}
-                  onValueChange={(v) =>
+                  onChange={(e) =>
                     updateNamespace(ni, {
-                      storageEngine: { type: "memory", dataSize: parseInt(v) },
+                      storageEngine: { type: "memory", dataSize: parseInt(e.target.value) },
                     })
                   }
+                  id={`memory-size-${ni}`}
                 >
-                  <SelectTrigger id={`memory-size-${ni}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1073741824">1 GiB</SelectItem>
-                    <SelectItem value="2147483648">2 GiB</SelectItem>
-                    <SelectItem value="4294967296">4 GiB</SelectItem>
-                    <SelectItem value="8589934592">8 GiB</SelectItem>
-                  </SelectContent>
+                  <option value="1073741824">1 GiB</option>
+                  <option value="2147483648">2 GiB</option>
+                  <option value="4294967296">4 GiB</option>
+                  <option value="8589934592">8 GiB</option>
                 </Select>
               </div>
             )}
@@ -689,7 +684,7 @@ export function WizardNamespaceStorageStep({
                 }
               />
               {ns.replicationFactor > form.size && (
-                <p className="text-destructive text-xs">
+                <p className="text-error text-xs">
                   Replication factor ({ns.replicationFactor}) cannot exceed cluster size (
                   {form.size}).
                 </p>
@@ -706,7 +701,7 @@ export function WizardNamespaceStorageStep({
       )}
 
       {validateNamespaces(form.namespaces, form.size) && (
-        <p className="text-destructive text-xs">{validateNamespaces(form.namespaces, form.size)}</p>
+        <p className="text-error text-xs">{validateNamespaces(form.namespaces, form.size)}</p>
       )}
 
       {/* Storage mode toggle */}
@@ -742,9 +737,12 @@ export function WizardNamespaceStorageStep({
               <div className="grid gap-2">
                 <Label htmlFor="storage-class">Storage Class</Label>
                 <Select
-                  value={(form.storage as StorageVolumeConfig | undefined)?.storageClass || "standard"}
+                  value={
+                    (form.storage as StorageVolumeConfig | undefined)?.storageClass || "standard"
+                  }
                   onValueChange={(v) => {
-                    const base = (form.storage as StorageVolumeConfig | undefined) ?? defaultStorage;
+                    const base =
+                      (form.storage as StorageVolumeConfig | undefined) ?? defaultStorage;
                     updateForm({ storage: { ...base, storageClass: v } });
                   }}
                 >
@@ -770,7 +768,8 @@ export function WizardNamespaceStorageStep({
                 <Select
                   value={(form.storage as StorageVolumeConfig | undefined)?.size || "10Gi"}
                   onValueChange={(v) => {
-                    const base = (form.storage as StorageVolumeConfig | undefined) ?? defaultStorage;
+                    const base =
+                      (form.storage as StorageVolumeConfig | undefined) ?? defaultStorage;
                     updateForm({ storage: { ...base, size: v } });
                   }}
                 >
@@ -855,8 +854,8 @@ export function WizardNamespaceStorageStep({
                 </div>
               </div>
               <p className="text-muted-foreground text-xs">
-                Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned on pod
-                restart.
+                Init: how volumes are prepared on first use. Wipe: how dirty volumes are cleaned on
+                pod restart.
               </p>
 
               <div className="flex items-center space-x-2">
@@ -864,7 +863,8 @@ export function WizardNamespaceStorageStep({
                   id="cascade-delete"
                   checked={(form.storage as StorageVolumeConfig | undefined)?.cascadeDelete ?? true}
                   onCheckedChange={(checked) => {
-                    const base = (form.storage as StorageVolumeConfig | undefined) ?? defaultStorage;
+                    const base =
+                      (form.storage as StorageVolumeConfig | undefined) ?? defaultStorage;
                     updateForm({ storage: { ...base, cascadeDelete: checked === true } });
                   }}
                 />
@@ -879,9 +879,7 @@ export function WizardNamespaceStorageStep({
           {useMultiVolume && (
             <div className="space-y-3 rounded-lg border border-dashed p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
-                  Volumes ({storageSpec.volumes.length})
-                </span>
+                <span className="text-sm font-medium">Volumes ({storageSpec.volumes.length})</span>
                 <div className="flex flex-wrap gap-1">
                   <Button
                     type="button"
@@ -927,7 +925,7 @@ export function WizardNamespaceStorageStep({
               </div>
 
               {storageSpec.volumes.length === 0 && (
-                <p className="text-muted-foreground text-center text-xs py-4">
+                <p className="text-muted-foreground py-4 text-center text-xs">
                   No volumes configured. Add a volume above.
                 </p>
               )}
@@ -945,8 +943,8 @@ export function WizardNamespaceStorageStep({
 
               {/* Global storage settings */}
               {storageSpec.volumes.length > 0 && (
-                <div className="space-y-3 mt-3 pt-3 border-t">
-                  <span className="text-xs font-medium text-muted-foreground">
+                <div className="mt-3 space-y-3 border-t pt-3">
+                  <span className="text-muted-foreground text-xs font-medium">
                     Global Storage Policies
                   </span>
                   <div className="grid grid-cols-2 gap-3">

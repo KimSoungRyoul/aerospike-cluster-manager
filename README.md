@@ -101,7 +101,7 @@ npm run dev                        # http://localhost:3000
   - Cluster edit dialog (image, size, dynamic config, aerospike config, nodeSelector, tolerations, hostNetwork, imagePullSecrets, serviceAccountName, terminationGracePeriod, validationPolicy, sidecars, initContainers, securityContext, topologySpreadConstraints)
   - Cluster-scoped template CRUD: create, browse, view details, and delete AerospikeClusterTemplates
   - Template "Referenced By" display showing which clusters use each template
-  - Template snapshot viewer with sync status
+  - Template sync status monitoring (Synced/Out of Sync badge, last sync timestamp, resync trigger)
   - Dynamic config status per pod (Applied/Failed/Pending)
   - Enhanced pod status display: access endpoints, readiness gate satisfaction, and instability detection (unstableSince timestamp)
   - Last restart reason and timestamp per pod
@@ -110,7 +110,7 @@ npm run dev                        # http://localhost:3000
   - Configuration drift detection (spec vs appliedSpec comparison, per-pod config hash groups)
   - Circuit breaker / reconciliation health dashboard (threshold progress, backoff timer, manual reset)
   - K8s secrets picker for ACL credential management
-  - Storage volume policies (init method, wipe method, cascade delete, cleanup threads, filesystem/block volume policies)
+  - Storage volume policies (init method, wipe method, cascade delete, cleanup threads, filesystem/block volume policies, local storage classes, delete-on-restart for local PVs)
   - Network access type configuration (Pod IP, Host Internal/External, Configured IP) with custom network names for configuredIP
   - Kubernetes NetworkPolicy auto-generation (standard K8s or Cilium)
   - Seeds Finder LoadBalancer service for external seed discovery
@@ -335,8 +335,8 @@ Create, scale, update, and delete Aerospike clusters through a guided 9-step wiz
 4. **Resources** — CPU/memory requests and limits with validation, auto-connect toggle
 5. **Security (ACL)** — Enable access control, define roles (with privileges and CIDR allowlists), configure users with K8s Secret-backed credentials
 6. **Rolling Update** — Configure rolling update strategy: batch size, max unavailable (absolute or percentage), PodDisruptionBudget control
-7. **Rack Config** — Multi-rack deployment with zone affinity, per-rack overrides (aerospikeConfig, storage, podSpec), batch scaling controls (maxIgnorablePods, rollingUpdateBatchSize, scaleDownBatchSize)
-8. **Advanced** — Pod management policy, DNS policy, readiness gate, pod metadata (labels/annotations), bandwidth throttling (CNI ingress/egress limits), node block list (select K8s nodes to exclude from scheduling), validation policy, service metadata, rack ID override, nodeSelector, tolerations, hostNetwork, multiPodPerHost, imagePullSecrets, serviceAccountName, terminationGracePeriod
+7. **Rack Config** — Multi-rack deployment with zone affinity, per-rack storage overrides (different StorageClass, volume size per rack), per-rack tolerations/affinity/nodeSelector overrides, per-rack aerospikeConfig overrides, batch scaling controls (maxIgnorablePods, rollingUpdateBatchSize, scaleDownBatchSize)
+8. **Advanced** — Pod management policy, DNS policy, readiness gate, pod metadata (labels/annotations), headless service metadata (annotations/labels), per-pod service metadata (annotations/labels), bandwidth throttling (CNI ingress/egress limits), node block list (select K8s nodes to exclude from scheduling), validation policy, rack ID override, nodeSelector, tolerations, hostNetwork, multiPodPerHost, imagePullSecrets, serviceAccountName, terminationGracePeriod
 9. **Review** — Summary of all settings before creation
 
 ### Cluster Phases
@@ -367,12 +367,13 @@ The cluster detail page displays real-time operator conditions (Available, Ready
 Full lifecycle management of `AerospikeClusterTemplate` resources:
 
 - **Browse** — List all templates cluster-wide with image, size, and age
-- **Create** — Define new templates with defaults for image, size, resources, scheduling (anti-affinity, pod management policy, tolerations, node affinity, topology spread constraints), storage (class, volume mode, size, local PV requirement), monitoring, network access, service config (feature key file), network config (heartbeat mode/port/interval/timeout), and rack config (maxRacksPerNode)
+- **Create** — Define new templates with defaults for image, size, resources, scheduling (anti-affinity, pod management policy, tolerations, node affinity, topology spread constraints), storage (class, volume mode, size, local PV requirement, local storage classes, delete-on-restart policy), monitoring, network access, service config (feature key file), network config (heartbeat mode/port/interval/timeout), rack config (maxRacksPerNode), and aerospikeConfig overrides
 - **View Details** — Inspect template spec, resource defaults, and see which clusters reference the template via the "Referenced By" display
 - **Delete** — Remove unused templates (protected against deletion while referenced by clusters)
 - **Reference** — Select templates during cluster creation via the wizard
 - **Scheduling** — Template scheduling supports tolerations, node affinity rules, and topology spread constraints in addition to pod anti-affinity and pod management policy
-- **Advanced Config** — Templates support service config (feature key file), network config (heartbeat mode/port/interval/timeout), rack config (maxRacksPerNode), and local PV storage requirements
+- **Extended Template Overrides** — Templates support override fields for scheduling, storage, rackConfig, and aerospikeConfig in addition to the existing image, size, resources, monitoring, and networkPolicy fields. This allows templates to serve as comprehensive baseline configurations for cluster creation
+- **Advanced Config** — Templates support service config (feature key file), network config (heartbeat mode/port/interval/timeout), rack config (maxRacksPerNode), local PV storage requirements, local storage classes, and delete-on-restart policy for local PV workflows
 
 ### Operations
 
@@ -385,6 +386,17 @@ From the cluster detail page, you can:
 - **Pod Restart** — Trigger a full pod restart operation (all pods or selected pods via checkboxes)
 - **Pause / Resume** — Pause reconciliation for maintenance windows, then resume when ready
 - **Delete** — Delete a cluster with a confirmation dialog (auto-cleans associated connection profiles)
+
+### Operation Status Progress
+
+When a WarmRestart or PodRestart operation is active, the cluster detail page displays real-time progress tracking:
+
+- **Progress Bar** — A visual progress bar showing the percentage of pods that have completed the operation.
+- **Completed Pods** — Count of pods that have successfully restarted.
+- **Failed Pods** — Count of pods that encountered errors during the operation, enabling quick identification of issues.
+- **Operation Type** — Indicates whether the active operation is a WarmRestart or PodRestart.
+
+The progress display appears automatically when an operation is in progress and disappears once the operation completes. During active operations, the detail page polls at a higher frequency (every 5 seconds) to keep the status current.
 
 ### Pod Status Details
 
@@ -400,9 +412,17 @@ The cluster detail page displays per-pod status including:
 
 Enable dynamic configuration updates during cluster creation. When enabled, the operator applies configuration changes without requiring pod restarts. The cluster detail page shows the dynamic config toggle status and per-pod config status (Applied/Failed/Pending).
 
-### Template Snapshot
+### Template Snapshot & Sync Status
 
-When a cluster references an AerospikeClusterTemplate, the detail page shows a Template Snapshot card with sync status (Synced/Out of Sync), template name, resource version, snapshot timestamp, and a collapsible template spec viewer.
+When a cluster references an AerospikeClusterTemplate, the detail page shows a Template Snapshot card with:
+
+- **Sync Status Badge** — A visual badge indicating whether the cluster is **Synced** or **Out of Sync** with its referenced template. The badge updates in real time as the operator reconciles.
+- **Last Sync Timestamp** — The timestamp of the last successful template synchronization, so operators can quickly see when the cluster last aligned with the template spec.
+- **Template Name & Resource Version** — Identifies which template and version the cluster was last synced to.
+- **Snapshot Timestamp** — When the template snapshot was captured.
+- **Collapsible Spec Viewer** — Expand to inspect the full template spec that was applied.
+
+If a template is modified after a cluster was created from it, the badge changes to "Out of Sync" and a resync can be triggered via the `POST /api/k8s/clusters/{namespace}/{name}/resync-template` endpoint.
 
 ### Events Timeline
 
@@ -423,6 +443,32 @@ The cluster list and detail pages automatically poll for updates when any cluste
 ### Auto-connect
 
 When creating a cluster, the "Auto-connect" option (enabled by default) automatically creates a connection profile pointing to the cluster's headless service (`<name>.<namespace>.svc.cluster.local`), so you can immediately browse data through the Aerospike connection features.
+
+### PrometheusRule Custom Rules
+
+The monitoring configuration wizard supports PrometheusRule with optional `customRules`. When custom rules are provided, the operator's built-in alerts (NodeDown, StopWrites, HighDiskUsage, HighMemoryUsage) are replaced entirely with user-defined alerting and recording rules. Each custom rule entry is a complete Prometheus rule group object containing `name` and `rules` fields. This allows teams to define cluster-specific alerts tailored to their SLOs and operational requirements.
+
+### Per-Rack Storage Overrides
+
+The Rack Config wizard step supports per-rack storage overrides. Each rack can specify a different StorageClass and volume size, enabling heterogeneous storage configurations across availability zones. For example, rack 1 in `us-east-1a` can use `io2` SSD volumes with 100Gi, while rack 2 in `us-east-1b` uses the cluster-level default `gp3` with 50Gi.
+
+### Per-Rack Tolerations and Affinity
+
+Each rack can override the cluster-level scheduling settings:
+
+- **tolerations** -- Allow pods in a specific rack to tolerate node taints unique to that availability zone
+- **affinity** -- Set rack-specific node affinity rules (e.g., target specific instance types per zone)
+- **nodeSelector** -- Constrain a rack to nodes with specific labels
+
+These overrides are configured in the Rack Config wizard step and the cluster edit dialog.
+
+### Service Metadata
+
+The Advanced wizard step and cluster edit dialog support custom metadata for Kubernetes services:
+
+- **Headless Service Metadata** -- Add custom annotations and labels to the headless service (`<cluster-name>-headless`) used for DNS-based pod discovery. Useful for External DNS integration, Prometheus scrape annotations, and service mesh configuration.
+- **Per-Pod Service Metadata** -- When pod services are enabled, each pod gets an individual ClusterIP Service. Custom annotations and labels can be added for External DNS, load balancer configuration, or service mesh integration.
+- **Pod Metadata** -- Add custom labels and annotations directly to Aerospike pods for service mesh sidecar injection (e.g., Istio), monitoring label selectors, cost allocation tags, or external tool integration.
 
 ### K8s API Endpoints
 
@@ -511,11 +557,19 @@ Templates (`AerospikeClusterTemplate`) now support additional configuration sect
 |-------|------|-------------|
 | `maxRacksPerNode` | `int` (>=1) | Maximum number of racks allowed per node |
 
-**Storage Config** (additional field)
+**Aerospike Config** (`aerospikeConfig`)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `aerospikeConfig` | `object` | Aerospike server configuration overrides applied to clusters created from this template |
+
+**Storage Config** (additional fields)
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `localPVRequired` | `bool` | Whether a local PersistentVolume is required for storage |
+| `localStorageClasses` | `string[]` | List of StorageClass names that are backed by local PVs. Used to identify which storage classes require local PV scheduling constraints |
+| `deleteLocalStorageOnRestart` | `bool` | Whether to delete local PersistentVolumes when pods are restarted. Enables clean-slate restarts for local PV workflows where data does not need to survive pod restart |
 
 ### Storage Advanced Settings
 
@@ -526,6 +580,8 @@ Cluster creation and update requests now support additional storage-level fields
 | `cleanupThreads` | `int` (>=1) | Number of threads for storage cleanup operations |
 | `filesystemVolumePolicy` | `object` | Policy for filesystem volume initialization (e.g., default initMethod, wipeMethod) |
 | `blockVolumePolicy` | `object` | Policy for block volume initialization (e.g., default initMethod, wipeMethod) |
+| `localStorageClasses` | `string[]` | StorageClass names backed by local PVs, used for scheduling constraint awareness |
+| `deleteLocalStorageOnRestart` | `bool` | Delete local PersistentVolumes on pod restart for clean-slate local PV workflows |
 
 ## Project Structure
 

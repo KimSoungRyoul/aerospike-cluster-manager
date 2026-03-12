@@ -18,15 +18,15 @@ export function JsonViewer({ data, collapsed = false, level = 0, className }: Js
   if (data === undefined) return <span className="text-muted-foreground">undefined</span>;
 
   if (typeof data === "string") {
-    return <span className="text-green-600 dark:text-green-400">&quot;{data}&quot;</span>;
+    return <span className="text-success">&quot;{data}&quot;</span>;
   }
 
   if (typeof data === "number") {
-    return <span className="text-blue-600 dark:text-blue-400">{data}</span>;
+    return <span className="text-info">{data}</span>;
   }
 
   if (typeof data === "boolean") {
-    return <span className="text-purple-600 dark:text-purple-400">{data.toString()}</span>;
+    return <span className="text-secondary">{data.toString()}</span>;
   }
 
   if (Array.isArray(data)) {
@@ -87,7 +87,7 @@ export function JsonViewer({ data, collapsed = false, level = 0, className }: Js
             <div className="ml-4">
               {entries.map(([key, value], i) => (
                 <div key={key}>
-                  <span className="text-red-600 dark:text-red-400">&quot;{key}&quot;</span>
+                  <span className="text-error">&quot;{key}&quot;</span>
                   {": "}
                   <JsonViewer data={value} collapsed={collapsed} level={level + 1} />
                   {i < entries.length - 1 && ","}

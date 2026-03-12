@@ -20,7 +20,7 @@ import type { AerospikeRecord, BinValue, RecordWriteRequest } from "@/lib/api/ty
 import { api } from "@/lib/api/client";
 import { buildDefaultReturnTo, resolveReturnTo } from "@/lib/record-route-state";
 import { getErrorMessage } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 interface RecordDetailPageProps {
   connId: string;
@@ -196,7 +196,7 @@ export function RecordDetailPage({
 
   const handleSave = useCallback(async () => {
     if (!editorPK.trim()) {
-      toast.error("Primary key is required");
+      useToastStore.getState().addToast("error", "Primary key is required");
       return;
     }
 
@@ -216,10 +216,12 @@ export function RecordDetailPage({
       };
 
       await api.putRecord(connId, payload);
-      toast.success(createMode ? "Record created" : "Record updated");
+      useToastStore
+        .getState()
+        .addToast("success", createMode ? "Record created" : "Record updated");
       navigateBack();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -231,10 +233,10 @@ export function RecordDetailPage({
     setDeleting(true);
     try {
       await api.deleteRecord(connId, record.key.namespace, record.key.set, record.key.pk);
-      toast.success("Record deleted");
+      useToastStore.getState().addToast("success", "Record deleted");
       navigateBack();
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
       setDeleteConfirmOpen(false);
@@ -329,11 +331,11 @@ export function RecordDetailPage({
       <InlineAlert message={error} />
 
       {mode === "view" && record ? (
-        <div className="bg-card rounded-xl border">
+        <div className="bg-base-100 rounded-xl border">
           <RecordDetailSections record={record} />
         </div>
       ) : (
-        <div className="bg-card rounded-xl border">
+        <div className="bg-base-100 rounded-xl border">
           <RecordEditorFields
             mode={createMode ? "create" : "edit"}
             pk={editorPK}

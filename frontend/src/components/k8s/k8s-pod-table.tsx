@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { STATUS_COLORS } from "@/lib/status-colors";
 import { FileText, Database, CheckCircle2, XCircle, AlertTriangle, Network } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { K8sPodLogsDialog } from "@/components/k8s/k8s-pod-logs-dialog";
 import { DataTable } from "@/components/common/data-table";
 import { EmptyState } from "@/components/common/empty-state";
@@ -117,7 +117,7 @@ export function K8sPodTable({
               {nodeId.slice(0, 8)}
             </span>
           ) : (
-            <span className="text-muted-foreground">-</span>
+            <span className="text-base-content/60">-</span>
           );
         },
       },
@@ -132,7 +132,7 @@ export function K8sPodTable({
               {rackId}
             </Badge>
           ) : (
-            <span className="text-muted-foreground">-</span>
+            <span className="text-base-content/60">-</span>
           );
         },
         meta: { mobileSlot: "meta" },
@@ -170,7 +170,7 @@ export function K8sPodTable({
         meta: { hideOn: ["mobile"], mobileSlot: "meta", mobileLabel: "Config Status" },
         cell: ({ getValue }) => {
           const status = getValue<"Applied" | "Failed" | "Pending" | undefined>();
-          if (!status) return <span className="text-muted-foreground text-xs">-</span>;
+          if (!status) return <span className="text-base-content/60 text-xs">-</span>;
           return (
             <Badge
               variant="outline"
@@ -193,25 +193,21 @@ export function K8sPodTable({
         meta: { hideOn: ["mobile", "tablet"], mobileSlot: "meta", mobileLabel: "Readiness Gate" },
         cell: ({ getValue }) => {
           const satisfied = getValue<boolean | null | undefined>();
-          if (satisfied == null) return <span className="text-muted-foreground text-xs">-</span>;
+          if (satisfied == null) return <span className="text-base-content/60 text-xs">-</span>;
           return satisfied ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                </TooltipTrigger>
-                <TooltipContent>Readiness gate satisfied</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </TooltipTrigger>
+              <TooltipContent>Readiness gate satisfied</TooltipContent>
+            </Tooltip>
           ) : (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <XCircle className="h-4 w-4 text-red-500" />
-                </TooltipTrigger>
-                <TooltipContent>Readiness gate not satisfied</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <XCircle className="h-4 w-4 text-red-500" />
+              </TooltipTrigger>
+              <TooltipContent>Readiness gate not satisfied</TooltipContent>
+            </Tooltip>
           );
         },
       },
@@ -223,31 +219,29 @@ export function K8sPodTable({
         cell: ({ getValue }) => {
           const endpoints = getValue<string[] | null | undefined>();
           if (!endpoints || endpoints.length === 0) {
-            return <span className="text-muted-foreground text-xs">-</span>;
+            return <span className="text-base-content/60 text-xs">-</span>;
           }
           return (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex cursor-default items-center gap-1 font-mono text-xs">
-                    <Network className="h-3 w-3 shrink-0" />
-                    {endpoints[0]}
-                    {endpoints.length > 1 && (
-                      <Badge variant="secondary" className="px-1 py-0 text-[10px]">
-                        +{endpoints.length - 1}
-                      </Badge>
-                    )}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-xs">
-                  <ul className="space-y-0.5 font-mono text-xs">
-                    {endpoints.map((ep) => (
-                      <li key={ep}>{ep}</li>
-                    ))}
-                  </ul>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex cursor-default items-center gap-1 font-mono text-xs">
+                  <Network className="h-3 w-3 shrink-0" />
+                  {endpoints[0]}
+                  {endpoints.length > 1 && (
+                    <Badge variant="secondary" className="px-1 py-0 text-[10px]">
+                      +{endpoints.length - 1}
+                    </Badge>
+                  )}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <ul className="space-y-0.5 font-mono text-xs">
+                  {endpoints.map((ep) => (
+                    <li key={ep}>{ep}</li>
+                  ))}
+                </ul>
+              </TooltipContent>
+            </Tooltip>
           );
         },
       },
@@ -259,20 +253,18 @@ export function K8sPodTable({
         cell: ({ getValue }) => {
           const unstableSince = getValue<string | null | undefined>();
           if (!unstableSince) {
-            return <span className="text-muted-foreground text-xs">-</span>;
+            return <span className="text-base-content/60 text-xs">-</span>;
           }
           return (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex cursor-default items-center gap-1 text-amber-500">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span className="text-[11px]">Unstable</span>
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>Unstable since {unstableSince}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex cursor-default items-center gap-1 text-amber-500">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">Unstable</span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Unstable since {unstableSince}</TooltipContent>
+            </Tooltip>
           );
         },
       },
@@ -285,11 +277,11 @@ export function K8sPodTable({
             <div className="space-y-0.5">
               <p className="text-xs font-medium">{row.original.lastRestartReason}</p>
               {row.original.lastRestartTime && (
-                <p className="text-muted-foreground text-[10px]">{row.original.lastRestartTime}</p>
+                <p className="text-base-content/60 text-[10px]">{row.original.lastRestartTime}</p>
               )}
             </div>
           ) : (
-            <span className="text-muted-foreground text-xs">-</span>
+            <span className="text-base-content/60 text-xs">-</span>
           ),
       },
     );

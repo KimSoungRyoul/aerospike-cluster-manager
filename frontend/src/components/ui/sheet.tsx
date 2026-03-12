@@ -92,7 +92,7 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
       <div
         ref={ref}
         className={cn(
-          "sheet-content bg-card text-card-foreground relative w-full max-w-none border-t shadow-2xl",
+          "sheet-content bg-base-200 text-base-content relative w-full max-w-none border-t shadow-2xl",
           side === "bottom" &&
             "animate-sheet-up rounded-t-3xl px-0 pt-5 pb-0 sm:mx-auto sm:mb-6 sm:max-w-[640px] sm:rounded-3xl sm:border",
           className,
@@ -100,7 +100,7 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         {...props}
       >
         <div
-          className="bg-muted mx-auto mb-3 h-1.5 w-12 rounded-full sm:hidden"
+          className="bg-base-300 mx-auto mb-3 h-1.5 w-12 rounded-full sm:hidden"
           aria-hidden="true"
         />
         {children}
@@ -143,6 +143,6 @@ export const SheetDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <p ref={ref} className={cn("text-muted-foreground text-sm", className)} {...props} />
+  <p ref={ref} className={cn("text-base-content/60 text-sm", className)} {...props} />
 ));
 SheetDescription.displayName = "SheetDescription";

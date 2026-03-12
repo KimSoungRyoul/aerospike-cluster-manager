@@ -18,10 +18,10 @@ import { LoadingButton } from "@/components/common/loading-button";
 import { getErrorMessage } from "@/lib/utils";
 import {
   Select,
-  SelectContent,
-  SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ChevronDown, ChevronRight, Plus, X } from "lucide-react";
@@ -86,6 +86,16 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     undefined,
   );
   const [imagePullSecrets, setImagePullSecrets] = useState<string[]>([]);
+  // Topology Spread Constraints
+  const [topologySpreadConstraints, setTopologySpreadConstraints] = useState<
+    TopologySpreadConstraintConfig[]
+  >([]);
+  // Pod Security Context
+  const [podSecurityRunAsUser, setPodSecurityRunAsUser] = useState<number | undefined>(undefined);
+  const [podSecurityRunAsGroup, setPodSecurityRunAsGroup] = useState<number | undefined>(undefined);
+  const [podSecurityRunAsNonRoot, setPodSecurityRunAsNonRoot] = useState(false);
+  const [podSecurityFsGroup, setPodSecurityFsGroup] = useState<number | undefined>(undefined);
+  const [podSecuritySupGroups, setPodSecuritySupGroups] = useState<number[]>([]);
   // Validation Policy
   const [skipWorkDirValidate, setSkipWorkDirValidate] = useState(false);
   // Sidecars & Init Containers
@@ -173,6 +183,20 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     specPodScheduling?.imagePullSecrets ??
     (specPodSpec?.imagePullSecrets as string[] | undefined) ??
     [];
+  // Topology Spread Constraints initial values
+  const initialTopologySpreadConstraints: TopologySpreadConstraintConfig[] =
+    specPodScheduling?.topologySpreadConstraints ??
+    (specPodSpec?.topologySpreadConstraints as TopologySpreadConstraintConfig[] | undefined) ??
+    [];
+  // Pod Security Context initial values
+  const specSecCtx =
+    specPodScheduling?.podSecurityContext ??
+    (specPodSpec?.securityContext as PodSecurityContextConfig | undefined);
+  const initialPodSecurityRunAsUser = specSecCtx?.runAsUser;
+  const initialPodSecurityRunAsGroup = specSecCtx?.runAsGroup;
+  const initialPodSecurityRunAsNonRoot = Boolean(specSecCtx?.runAsNonRoot);
+  const initialPodSecurityFsGroup = specSecCtx?.fsGroup;
+  const initialPodSecuritySupGroups: number[] = specSecCtx?.supplementalGroups ?? [];
   // Validation Policy initial values
   const initialSkipWorkDirValidate = Boolean(cluster.spec?.validationPolicy?.skipWorkDirValidate);
   // Sidecars & Init Containers initial values
@@ -294,6 +318,12 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
       setServiceAccountName(initialServiceAccountName);
       setTerminationGracePeriod(initialTerminationGracePeriod);
       setImagePullSecrets([...initialImagePullSecrets]);
+      setTopologySpreadConstraints(initialTopologySpreadConstraints.map((t) => ({ ...t })));
+      setPodSecurityRunAsUser(initialPodSecurityRunAsUser);
+      setPodSecurityRunAsGroup(initialPodSecurityRunAsGroup);
+      setPodSecurityRunAsNonRoot(initialPodSecurityRunAsNonRoot);
+      setPodSecurityFsGroup(initialPodSecurityFsGroup);
+      setPodSecuritySupGroups([...initialPodSecuritySupGroups]);
       setSkipWorkDirValidate(initialSkipWorkDirValidate);
       setSidecars(initialSidecars.map((s) => ({ ...s })));
       setInitContainers(initialInitContainers.map((c) => ({ ...c })));
@@ -340,6 +370,12 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     initialServiceAccountName,
     initialTerminationGracePeriod,
     initialImagePullSecrets,
+    initialTopologySpreadConstraints,
+    initialPodSecurityRunAsUser,
+    initialPodSecurityRunAsGroup,
+    initialPodSecurityRunAsNonRoot,
+    initialPodSecurityFsGroup,
+    initialPodSecuritySupGroups,
     initialSkipWorkDirValidate,
     initialSidecars,
     initialInitContainers,
@@ -396,6 +432,13 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     serviceAccountName !== initialServiceAccountName ||
     terminationGracePeriod !== initialTerminationGracePeriod ||
     JSON.stringify(imagePullSecrets) !== JSON.stringify(initialImagePullSecrets) ||
+    JSON.stringify(topologySpreadConstraints) !==
+      JSON.stringify(initialTopologySpreadConstraints) ||
+    podSecurityRunAsUser !== initialPodSecurityRunAsUser ||
+    podSecurityRunAsGroup !== initialPodSecurityRunAsGroup ||
+    podSecurityRunAsNonRoot !== initialPodSecurityRunAsNonRoot ||
+    podSecurityFsGroup !== initialPodSecurityFsGroup ||
+    JSON.stringify(podSecuritySupGroups) !== JSON.stringify(initialPodSecuritySupGroups) ||
     skipWorkDirValidate !== initialSkipWorkDirValidate ||
     JSON.stringify(sidecars) !== JSON.stringify(initialSidecars) ||
     JSON.stringify(initContainers) !== JSON.stringify(initialInitContainers) ||
@@ -498,7 +541,14 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
         hostNetwork !== initialHostNetwork ||
         serviceAccountName !== initialServiceAccountName ||
         terminationGracePeriod !== initialTerminationGracePeriod ||
-        JSON.stringify(imagePullSecrets) !== JSON.stringify(initialImagePullSecrets);
+        JSON.stringify(imagePullSecrets) !== JSON.stringify(initialImagePullSecrets) ||
+        JSON.stringify(topologySpreadConstraints) !==
+          JSON.stringify(initialTopologySpreadConstraints) ||
+        podSecurityRunAsUser !== initialPodSecurityRunAsUser ||
+        podSecurityRunAsGroup !== initialPodSecurityRunAsGroup ||
+        podSecurityRunAsNonRoot !== initialPodSecurityRunAsNonRoot ||
+        podSecurityFsGroup !== initialPodSecurityFsGroup ||
+        JSON.stringify(podSecuritySupGroups) !== JSON.stringify(initialPodSecuritySupGroups);
       if (podSchedulingChanged) {
         data.podScheduling = {
           ...data.podScheduling,
@@ -515,6 +565,23 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
           serviceAccountName: serviceAccountName || undefined,
           terminationGracePeriodSeconds: terminationGracePeriod,
           imagePullSecrets: imagePullSecrets.length > 0 ? imagePullSecrets : undefined,
+          topologySpreadConstraints:
+            topologySpreadConstraints.length > 0 ? topologySpreadConstraints : undefined,
+          podSecurityContext:
+            podSecurityRunAsUser != null ||
+            podSecurityRunAsGroup != null ||
+            podSecurityRunAsNonRoot ||
+            podSecurityFsGroup != null ||
+            podSecuritySupGroups.length > 0
+              ? {
+                  runAsUser: podSecurityRunAsUser,
+                  runAsGroup: podSecurityRunAsGroup,
+                  runAsNonRoot: podSecurityRunAsNonRoot || undefined,
+                  fsGroup: podSecurityFsGroup,
+                  supplementalGroups:
+                    podSecuritySupGroups.length > 0 ? podSecuritySupGroups : undefined,
+                }
+              : undefined,
         };
       }
 
@@ -731,20 +798,17 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 </Label>
                 <Select
                   value={accessType}
-                  onValueChange={(v) => {
-                    setAccessType(v as NetworkAccessType);
+                  onChange={(e) => {
+                    setAccessType(e.target.value as NetworkAccessType);
                     setError(null);
                   }}
+                  id="edit-access-type"
+                  disabled={loading}
                 >
-                  <SelectTrigger id="edit-access-type" disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pod">Pod IP</SelectItem>
-                    <SelectItem value="hostInternal">Host Internal</SelectItem>
-                    <SelectItem value="hostExternal">Host External</SelectItem>
-                    <SelectItem value="configuredIP">Configured IP</SelectItem>
-                  </SelectContent>
+                  <option value="pod">Pod IP</option>
+                  <option value="hostInternal">Host Internal</option>
+                  <option value="hostExternal">Host External</option>
+                  <option value="configuredIP">Configured IP</option>
                 </Select>
               </div>
               <div className="grid gap-1">
@@ -753,20 +817,18 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 </Label>
                 <Select
                   value={fabricType || "default"}
-                  onValueChange={(v) => {
+                  onChange={(e) => {
+                    const v = e.target.value;
                     setFabricType(v === "default" ? "" : (v as NetworkAccessType));
                     setError(null);
                   }}
+                  id="edit-fabric-type"
+                  disabled={loading}
                 >
-                  <SelectTrigger id="edit-fabric-type" disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default (same as access)</SelectItem>
-                    <SelectItem value="pod">Pod IP</SelectItem>
-                    <SelectItem value="hostInternal">Host Internal</SelectItem>
-                    <SelectItem value="hostExternal">Host External</SelectItem>
-                  </SelectContent>
+                  <option value="default">Default (same as access)</option>
+                  <option value="pod">Pod IP</option>
+                  <option value="hostInternal">Host Internal</option>
+                  <option value="hostExternal">Host External</option>
                 </Select>
               </div>
               <div className="grid gap-1">
@@ -775,21 +837,19 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 </Label>
                 <Select
                   value={alternateAccessType || "default"}
-                  onValueChange={(v) => {
+                  onChange={(e) => {
+                    const v = e.target.value;
                     setAlternateAccessType(v === "default" ? "" : (v as NetworkAccessType));
                     setError(null);
                   }}
+                  id="edit-alt-access"
+                  disabled={loading}
                 >
-                  <SelectTrigger id="edit-alt-access" disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">None</SelectItem>
-                    <SelectItem value="pod">Pod IP</SelectItem>
-                    <SelectItem value="hostInternal">Host Internal</SelectItem>
-                    <SelectItem value="hostExternal">Host External</SelectItem>
-                    <SelectItem value="configuredIP">Configured IP</SelectItem>
-                  </SelectContent>
+                  <option value="default">None</option>
+                  <option value="pod">Pod IP</option>
+                  <option value="hostInternal">Host Internal</option>
+                  <option value="hostExternal">Host External</option>
+                  <option value="configuredIP">Configured IP</option>
                 </Select>
               </div>
             </div>
@@ -871,21 +931,17 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
             {networkPolicyConfig?.enabled && (
               <Select
                 value={networkPolicyConfig.type}
-                onValueChange={(v) => {
+                onChange={(e) => {
                   setNetworkPolicyConfig({
                     enabled: true,
-                    type: v as "kubernetes" | "cilium",
+                    type: e.target.value as "kubernetes" | "cilium",
                   });
                   setError(null);
                 }}
+                disabled={loading}
               >
-                <SelectTrigger disabled={loading}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="kubernetes">Kubernetes (standard)</SelectItem>
-                  <SelectItem value="cilium">Cilium</SelectItem>
-                </SelectContent>
+                <option value="kubernetes">Kubernetes (standard)</option>
+                <option value="cilium">Cilium</option>
               </Select>
             )}
           </div>
@@ -905,7 +961,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
               placeholder="node1, node2"
               disabled={loading}
             />
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-base-content/60 text-[10px]">
               Comma-separated K8s node names to exclude from scheduling
             </p>
           </div>
@@ -913,7 +969,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
           {/* Bandwidth Limits */}
           <div className="grid gap-3">
             <Label className="text-sm font-semibold">Bandwidth Limits</Label>
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-base-content/60 text-[10px]">
               CNI bandwidth shaping for Aerospike pods (e.g. &quot;1M&quot;, &quot;10M&quot;,
               &quot;100M&quot;)
             </p>
@@ -975,19 +1031,17 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 </Label>
                 <Select
                   value={podManagementPolicy || "default"}
-                  onValueChange={(v) => {
+                  onChange={(e) => {
+                    const v = e.target.value;
                     setPodManagementPolicy(v === "default" ? "" : v);
                     setError(null);
                   }}
+                  id="edit-pod-mgmt-policy"
+                  disabled={loading}
                 >
-                  <SelectTrigger id="edit-pod-mgmt-policy" disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default (OrderedReady)</SelectItem>
-                    <SelectItem value="OrderedReady">OrderedReady</SelectItem>
-                    <SelectItem value="Parallel">Parallel</SelectItem>
-                  </SelectContent>
+                  <option value="default">Default (OrderedReady)</option>
+                  <option value="OrderedReady">OrderedReady</option>
+                  <option value="Parallel">Parallel</option>
                 </Select>
               </div>
               <div className="grid gap-1">
@@ -996,21 +1050,19 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 </Label>
                 <Select
                   value={dnsPolicy || "default"}
-                  onValueChange={(v) => {
+                  onChange={(e) => {
+                    const v = e.target.value;
                     setDnsPolicy(v === "default" ? "" : v);
                     setError(null);
                   }}
+                  id="edit-dns-policy"
+                  disabled={loading}
                 >
-                  <SelectTrigger id="edit-dns-policy" disabled={loading}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default (ClusterFirst)</SelectItem>
-                    <SelectItem value="ClusterFirst">ClusterFirst</SelectItem>
-                    <SelectItem value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</SelectItem>
-                    <SelectItem value="Default">Default</SelectItem>
-                    <SelectItem value="None">None</SelectItem>
-                  </SelectContent>
+                  <option value="default">Default (ClusterFirst)</option>
+                  <option value="ClusterFirst">ClusterFirst</option>
+                  <option value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</option>
+                  <option value="Default">Default</option>
+                  <option value="None">None</option>
                 </Select>
               </div>
             </div>
@@ -1102,6 +1154,288 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
             />
           </EditCollapsible>
 
+          {/* Topology Spread Constraints */}
+          <EditCollapsible
+            title="Topology Spread Constraints"
+            summary={
+              topologySpreadConstraints.length > 0
+                ? `${topologySpreadConstraints.length} constraint(s)`
+                : "None"
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-base-content/60 text-[10px]">
+                Control how pods are spread across topology domains.
+              </p>
+              {topologySpreadConstraints.map((tsc, idx) => (
+                <div key={idx} className="space-y-2 rounded border p-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-medium">Constraint #{idx + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTopologySpreadConstraints(
+                          topologySpreadConstraints.filter((_, i) => i !== idx),
+                        );
+                        setError(null);
+                      }}
+                      className="text-base-content/60 hover:text-error p-0.5"
+                      disabled={loading}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">Max Skew</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={tsc.maxSkew}
+                        onChange={(e) => {
+                          const next = [...topologySpreadConstraints];
+                          next[idx] = { ...next[idx], maxSkew: parseInt(e.target.value) || 1 };
+                          setTopologySpreadConstraints(next);
+                          setError(null);
+                        }}
+                        className="h-7 text-[10px]"
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">Topology Key</Label>
+                      <Select
+                        value={tsc.topologyKey}
+                        onChange={(e) => {
+                          const next = [...topologySpreadConstraints];
+                          next[idx] = { ...next[idx], topologyKey: e.target.value };
+                          setTopologySpreadConstraints(next);
+                          setError(null);
+                        }}
+                        className="h-7 text-[10px]"
+                        disabled={loading}
+                      >
+                        <option value="topology.kubernetes.io/zone">
+                          topology.kubernetes.io/zone
+                        </option>
+                        <option value="kubernetes.io/hostname">kubernetes.io/hostname</option>
+                        <option value="topology.kubernetes.io/region">
+                          topology.kubernetes.io/region
+                        </option>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[10px]">When Unsatisfiable</Label>
+                      <Select
+                        value={tsc.whenUnsatisfiable}
+                        onChange={(e) => {
+                          const next = [...topologySpreadConstraints];
+                          next[idx] = {
+                            ...next[idx],
+                            whenUnsatisfiable: e.target.value as "DoNotSchedule" | "ScheduleAnyway",
+                          };
+                          setTopologySpreadConstraints(next);
+                          setError(null);
+                        }}
+                        className="h-7 text-[10px]"
+                        disabled={loading}
+                      >
+                        <option value="DoNotSchedule">DoNotSchedule</option>
+                        <option value="ScheduleAnyway">ScheduleAnyway</option>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-[10px]">
+                      Label Selector (key=value, comma-separated)
+                    </Label>
+                    <Input
+                      value={
+                        tsc.labelSelector
+                          ? Object.entries(tsc.labelSelector)
+                              .map(([k, v]) => `${k}=${v}`)
+                              .join(", ")
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const entries = e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        const labels: Record<string, string> = {};
+                        for (const entry of entries) {
+                          const eqIdx = entry.indexOf("=");
+                          if (eqIdx > 0) {
+                            labels[entry.slice(0, eqIdx).trim()] = entry.slice(eqIdx + 1).trim();
+                          }
+                        }
+                        const next = [...topologySpreadConstraints];
+                        next[idx] = {
+                          ...next[idx],
+                          labelSelector: Object.keys(labels).length > 0 ? labels : undefined,
+                        };
+                        setTopologySpreadConstraints(next);
+                        setError(null);
+                      }}
+                      placeholder="e.g. app=aerospike"
+                      className="h-7 text-[10px]"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setTopologySpreadConstraints([
+                    ...topologySpreadConstraints,
+                    {
+                      maxSkew: 1,
+                      topologyKey: "topology.kubernetes.io/zone",
+                      whenUnsatisfiable: "DoNotSchedule",
+                    },
+                  ]);
+                  setError(null);
+                }}
+                className="text-accent hover:text-accent/80 flex items-center gap-1 text-[10px] font-medium"
+                disabled={loading}
+              >
+                <Plus className="h-3 w-3" /> Add Constraint
+              </button>
+            </div>
+          </EditCollapsible>
+
+          {/* Pod Security Context */}
+          <EditCollapsible
+            title="Pod Security Context"
+            summary={
+              [
+                podSecurityRunAsUser != null ? `UID: ${podSecurityRunAsUser}` : null,
+                podSecurityRunAsGroup != null ? `GID: ${podSecurityRunAsGroup}` : null,
+                podSecurityRunAsNonRoot ? "Non-Root" : null,
+                podSecurityFsGroup != null ? `fsGroup: ${podSecurityFsGroup}` : null,
+              ]
+                .filter(Boolean)
+                .join(", ") || "Default"
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-base-content/60 text-[10px]">
+                Configure the pod-level security context.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="edit-run-as-user" className="text-[10px]">
+                    Run As User
+                  </Label>
+                  <Input
+                    id="edit-run-as-user"
+                    type="number"
+                    min={0}
+                    value={podSecurityRunAsUser ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPodSecurityRunAsUser(val ? parseInt(val, 10) : undefined);
+                      setError(null);
+                    }}
+                    placeholder="e.g. 1000"
+                    className="h-7 text-[10px]"
+                    disabled={loading}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="edit-run-as-group" className="text-[10px]">
+                    Run As Group
+                  </Label>
+                  <Input
+                    id="edit-run-as-group"
+                    type="number"
+                    min={0}
+                    value={podSecurityRunAsGroup ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPodSecurityRunAsGroup(val ? parseInt(val, 10) : undefined);
+                      setError(null);
+                    }}
+                    placeholder="e.g. 1000"
+                    className="h-7 text-[10px]"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="edit-fs-group" className="text-[10px]">
+                    FS Group
+                  </Label>
+                  <Input
+                    id="edit-fs-group"
+                    type="number"
+                    min={0}
+                    value={podSecurityFsGroup ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setPodSecurityFsGroup(val ? parseInt(val, 10) : undefined);
+                      setError(null);
+                    }}
+                    placeholder="e.g. 1000"
+                    className="h-7 text-[10px]"
+                    disabled={loading}
+                  />
+                </div>
+                <div className="flex items-center gap-2 self-end pb-1">
+                  <Switch
+                    id="edit-run-as-non-root"
+                    checked={podSecurityRunAsNonRoot}
+                    onCheckedChange={(checked) => {
+                      setPodSecurityRunAsNonRoot(checked);
+                      setError(null);
+                    }}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="edit-run-as-non-root" className="cursor-pointer text-[10px]">
+                    Run As Non-Root
+                  </Label>
+                </div>
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-[10px] font-semibold">Supplemental Groups</Label>
+                {podSecuritySupGroups.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {podSecuritySupGroups.map((gid) => (
+                      <span
+                        key={gid}
+                        className="bg-accent/10 text-accent inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+                      >
+                        {gid}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPodSecuritySupGroups(podSecuritySupGroups.filter((g) => g !== gid));
+                            setError(null);
+                          }}
+                          className="hover:bg-accent/20 ml-0.5 inline-flex h-3 w-3 items-center justify-center rounded-full"
+                          disabled={loading}
+                        >
+                          <X className="h-2 w-2" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <EditSupGroupInput
+                  onAdd={(gid) => {
+                    if (!podSecuritySupGroups.includes(gid)) {
+                      setPodSecuritySupGroups([...podSecuritySupGroups, gid]);
+                      setError(null);
+                    }
+                  }}
+                  disabled={loading}
+                />
+              </div>
+            </div>
+          </EditCollapsible>
+
           {/* Validation Policy */}
           <EditCollapsible
             title="Validation Policy"
@@ -1112,7 +1446,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 <Label htmlFor="edit-skip-workdir" className="cursor-pointer text-xs">
                   Skip Work Dir Validate
                 </Label>
-                <p className="text-muted-foreground text-[10px]">
+                <p className="text-base-content/60 text-[10px]">
                   Skip validation of the working directory on pod startup.
                 </p>
               </div>
@@ -1286,10 +1620,10 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
               placeholder='{"service": {...}, "network": {...}, "namespaces": [...]}'
               disabled={loading}
             />
-            {configError && <p className="text-destructive text-sm">{configError}</p>}
+            {configError && <p className="text-error text-sm">{configError}</p>}
           </div>
 
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && <p className="text-error text-sm">{error}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
@@ -1311,6 +1645,54 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
 // ---------------------------------------------------------------------------
 // Monitoring Section for Edit Dialog
 // ---------------------------------------------------------------------------
+
+/** Custom Prometheus rule groups JSON editor for edit dialog. */
+function EditCustomRulesEditor({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: Record<string, unknown>[] | undefined;
+  onChange: (v: Record<string, unknown>[] | undefined) => void;
+  disabled?: boolean;
+}) {
+  const [rawText, setRawText] = useState(() => (value ? JSON.stringify(value, null, 2) : ""));
+  const [parseError, setParseError] = useState<string | null>(null);
+
+  const handleChange = (text: string) => {
+    setRawText(text);
+    if (!text.trim()) {
+      setParseError(null);
+      onChange(undefined);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        setParseError("Must be a JSON array of rule groups");
+        return;
+      }
+      setParseError(null);
+      onChange(parsed);
+    } catch {
+      setParseError("Invalid JSON");
+    }
+  };
+
+  return (
+    <div className="space-y-1">
+      <Textarea
+        value={rawText}
+        onChange={(e) => handleChange(e.target.value)}
+        rows={6}
+        className="font-mono text-xs"
+        disabled={disabled}
+        placeholder={`[\n  {\n    "name": "aerospike-alerts",\n    "rules": [...]\n  }\n]`}
+      />
+      {parseError && <p className="text-xs text-red-500">{parseError}</p>}
+    </div>
+  );
+}
 
 /** Inline key-value pair editor for Record<string, string> fields. */
 function EditKvEditor({
@@ -1350,12 +1732,12 @@ function EditKvEditor({
     <div className="space-y-1.5">
       {entries.map(([k, v]) => (
         <div key={k} className="flex items-center gap-1.5">
-          <code className="bg-muted truncate rounded px-1.5 py-0.5 text-[10px]">{k}</code>
-          <span className="text-muted-foreground text-[10px]">=</span>
-          <code className="bg-muted flex-1 truncate rounded px-1.5 py-0.5 text-[10px]">{v}</code>
+          <code className="bg-base-200 truncate rounded px-1.5 py-0.5 text-[10px]">{k}</code>
+          <span className="text-base-content/60 text-[10px]">=</span>
+          <code className="bg-base-200 flex-1 truncate rounded px-1.5 py-0.5 text-[10px]">{v}</code>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="text-base-content/60 hover:text-base-content shrink-0"
             onClick={() => removeEntry(k)}
             disabled={disabled}
           >
@@ -1417,12 +1799,12 @@ function EditCollapsible({
       >
         <div>
           <span className="text-xs font-medium">{title}</span>
-          <span className="text-muted-foreground ml-1.5 text-[10px]">{summary}</span>
+          <span className="text-base-content/60 ml-1.5 text-[10px]">{summary}</span>
         </div>
         {open ? (
-          <ChevronDown className="text-muted-foreground h-3.5 w-3.5" />
+          <ChevronDown className="text-base-content/60 h-3.5 w-3.5" />
         ) : (
-          <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
+          <ChevronRight className="text-base-content/60 h-3.5 w-3.5" />
         )}
       </button>
       {open && <div className="space-y-3 border-t px-3 pt-3 pb-3">{children}</div>}
@@ -1718,18 +2100,35 @@ function EditMonitoringSection({
                 </Label>
               </div>
               {config.prometheusRule?.enabled && (
-                <div className="grid gap-1">
-                  <Label className="text-[10px]">Labels</Label>
-                  <EditKvEditor
-                    value={config.prometheusRule.labels}
-                    onChange={(labels) =>
-                      patch({
-                        prometheusRule: { ...config.prometheusRule!, labels },
-                      })
-                    }
-                    disabled={disabled}
-                  />
-                </div>
+                <>
+                  <div className="grid gap-1">
+                    <Label className="text-[10px]">Labels</Label>
+                    <EditKvEditor
+                      value={config.prometheusRule.labels}
+                      onChange={(labels) =>
+                        patch({
+                          prometheusRule: { ...config.prometheusRule!, labels },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+                  <div className="grid gap-1">
+                    <Label className="text-[10px]">Custom Rule Groups (JSON)</Label>
+                    <p className="text-muted-foreground text-[10px]">
+                      Define custom Prometheus alerting/recording rule groups as a JSON array.
+                    </p>
+                    <EditCustomRulesEditor
+                      value={config.prometheusRule.customRules}
+                      onChange={(customRules) =>
+                        patch({
+                          prometheusRule: { ...config.prometheusRule!, customRules },
+                        })
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+                </>
               )}
             </div>
           </EditCollapsible>
@@ -1843,7 +2242,7 @@ function EditPodSchedulingSection({
         {/* Node Selector */}
         <div className="grid gap-2">
           <Label className="text-xs font-semibold">Node Selector</Label>
-          <p className="text-muted-foreground text-[10px]">
+          <p className="text-base-content/60 text-[10px]">
             Constrain pods to nodes with matching labels.
           </p>
           {selectorCount > 0 && (
@@ -1911,7 +2310,7 @@ function EditPodSchedulingSection({
         {/* Tolerations */}
         <div className="grid gap-2">
           <Label className="text-xs font-semibold">Tolerations</Label>
-          <p className="text-muted-foreground text-[10px]">
+          <p className="text-base-content/60 text-[10px]">
             Allow pods to be scheduled on nodes with matching taints.
           </p>
           {tolerations.map((tol, idx) => (
@@ -1933,17 +2332,14 @@ function EditPodSchedulingSection({
                 <Label className="text-[10px]">Operator</Label>
                 <Select
                   value={tol.operator ?? "Equal"}
-                  onValueChange={(v) =>
-                    updateToleration(idx, { operator: v as "Equal" | "Exists" })
+                  onChange={(e) =>
+                    updateToleration(idx, { operator: e.target.value as "Equal" | "Exists" })
                   }
+                  className="h-7 w-20 text-[10px]"
+                  disabled={disabled}
                 >
-                  <SelectTrigger className="h-7 w-20 text-[10px]" disabled={disabled}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Equal">Equal</SelectItem>
-                    <SelectItem value="Exists">Exists</SelectItem>
-                  </SelectContent>
+                  <option value="Equal">Equal</option>
+                  <option value="Exists">Exists</option>
                 </Select>
               </div>
               <div className="grid gap-1">
@@ -1960,25 +2356,22 @@ function EditPodSchedulingSection({
                 <Label className="text-[10px]">Effect</Label>
                 <Select
                   value={tol.effect ?? ""}
-                  onValueChange={(v) =>
-                    updateToleration(idx, { effect: v as TolerationConfig["effect"] })
+                  onChange={(e) =>
+                    updateToleration(idx, { effect: e.target.value as TolerationConfig["effect"] })
                   }
+                  className="h-7 w-28 text-[10px]"
+                  disabled={disabled}
                 >
-                  <SelectTrigger className="h-7 w-28 text-[10px]" disabled={disabled}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="NoSchedule">NoSchedule</SelectItem>
-                    <SelectItem value="PreferNoSchedule">PreferNoSchedule</SelectItem>
-                    <SelectItem value="NoExecute">NoExecute</SelectItem>
-                  </SelectContent>
+                  <option value="NoSchedule">NoSchedule</option>
+                  <option value="PreferNoSchedule">PreferNoSchedule</option>
+                  <option value="NoExecute">NoExecute</option>
                 </Select>
               </div>
               <button
                 type="button"
                 onClick={() => removeToleration(idx)}
                 disabled={disabled}
-                className="text-muted-foreground hover:text-destructive mb-1 self-end p-1"
+                className="text-base-content/60 hover:text-error mb-1 self-end p-1"
                 title="Remove toleration"
               >
                 <X className="h-3.5 w-3.5" />
@@ -2003,7 +2396,7 @@ function EditPodSchedulingSection({
               <Label htmlFor="edit-multi-pod" className="cursor-pointer text-xs">
                 Multi Pod Per Host
               </Label>
-              <p className="text-muted-foreground text-[10px]">
+              <p className="text-base-content/60 text-[10px]">
                 Allow multiple Aerospike pods on the same node.
               </p>
             </div>
@@ -2019,7 +2412,7 @@ function EditPodSchedulingSection({
               <Label htmlFor="edit-host-network" className="cursor-pointer text-xs">
                 Host Network
               </Label>
-              <p className="text-muted-foreground text-[10px]">
+              <p className="text-base-content/60 text-[10px]">
                 Use the host&apos;s network namespace instead of pod networking.
               </p>
             </div>
@@ -2070,7 +2463,7 @@ function EditPodSchedulingSection({
         {/* Image Pull Secrets */}
         <div className="grid gap-2">
           <Label className="text-xs font-semibold">Image Pull Secrets</Label>
-          <p className="text-muted-foreground text-[10px]">
+          <p className="text-base-content/60 text-[10px]">
             Kubernetes secrets for pulling images from private registries.
           </p>
           {imagePullSecrets.length > 0 && (
@@ -2834,6 +3227,54 @@ function EditStorageSection({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Small input for adding supplemental group GIDs. */
+function EditSupGroupInput({
+  onAdd,
+  disabled,
+}: {
+  onAdd: (gid: number) => void;
+  disabled?: boolean;
+}) {
+  const [val, setVal] = useState("");
+  const add = () => {
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 0) {
+      onAdd(n);
+      setVal("");
+    }
+  };
+  return (
+    <div className="flex gap-1.5">
+      <Input
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        type="number"
+        min={0}
+        placeholder="e.g. 1000"
+        className="h-7 w-24 text-[10px]"
+        disabled={disabled}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-7 shrink-0 text-[10px]"
+        onClick={add}
+        disabled={disabled || !val.trim() || isNaN(parseInt(val, 10))}
+      >
+        <Plus className="mr-0.5 h-3 w-3" />
+        Add
+      </Button>
     </div>
   );
 }

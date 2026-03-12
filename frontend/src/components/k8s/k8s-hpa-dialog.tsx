@@ -171,7 +171,7 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
         existingHPA && hpaEnabled ? (
           deleteConfirm ? (
             <div className="mr-auto flex items-center gap-2">
-              <span className="text-destructive text-sm">Delete HPA?</span>
+              <span className="text-error text-sm">Delete HPA?</span>
               <Button variant="destructive" size="sm" onClick={handleDelete} disabled={loading}>
                 Confirm
               </Button>
@@ -188,7 +188,7 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
             <Button
               variant="outline"
               size="sm"
-              className="text-destructive hover:text-destructive mr-auto"
+              className="text-error hover:text-error mr-auto"
               onClick={() => setDeleteConfirm(true)}
               disabled={loading}
             >
@@ -210,7 +210,7 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-sm font-medium">Enable Autoscaling</Label>
-              <p className="text-muted-foreground mt-0.5 text-xs">
+              <p className="text-base-content/60 mt-0.5 text-xs">
                 Automatically scale the cluster based on resource utilization.
               </p>
             </div>
@@ -221,7 +221,7 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
           {existingHPA && hpaEnabled && (
             <div className="space-y-2 rounded-lg border p-3">
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+                <span className="text-base-content/60 text-xs font-medium tracking-wider uppercase">
                   Current Status
                 </span>
                 <Badge
@@ -233,11 +233,11 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-muted-foreground text-xs">Current Replicas</span>
+                  <span className="text-base-content/60 text-xs">Current Replicas</span>
                   <p className="font-semibold">{existingHPA.status.currentReplicas}</p>
                 </div>
                 <div>
-                  <span className="text-muted-foreground text-xs">Desired Replicas</span>
+                  <span className="text-base-content/60 text-xs">Desired Replicas</span>
                   <p className="font-semibold">{existingHPA.status.desiredReplicas}</p>
                 </div>
               </div>
@@ -248,13 +248,11 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
                       <span
                         className={cn(
                           "h-1.5 w-1.5 rounded-full",
-                          cond.status === "True" ? "bg-success" : "bg-muted-foreground",
+                          cond.status === "True" ? "bg-success" : "bg-base-content/40",
                         )}
                       />
                       <span className="font-medium">{cond.type}</span>
-                      {cond.reason && (
-                        <span className="text-muted-foreground">({cond.reason})</span>
-                      )}
+                      {cond.reason && <span className="text-base-content/60">({cond.reason})</span>}
                     </div>
                   ))}
                 </div>
@@ -283,7 +281,7 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
                     }}
                     disabled={loading}
                   />
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-base-content/60 text-[11px]">
                     Minimum cluster size (1-8 for CE)
                   </p>
                 </div>
@@ -303,7 +301,7 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
                     }}
                     disabled={loading}
                   />
-                  <p className="text-muted-foreground text-[11px]">
+                  <p className="text-base-content/60 text-[11px]">
                     Maximum cluster size (1-8 for CE)
                   </p>
                 </div>
@@ -335,8 +333,8 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
                       disabled={loading}
                       className="w-24"
                     />
-                    <span className="text-muted-foreground text-sm">%</span>
-                    <p className="text-muted-foreground text-[11px]">
+                    <span className="text-base-content/60 text-sm">%</span>
+                    <p className="text-base-content/60 text-[11px]">
                       Scale when average CPU exceeds this threshold.
                     </p>
                   </div>
@@ -369,8 +367,8 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
                       disabled={loading}
                       className="w-24"
                     />
-                    <span className="text-muted-foreground text-sm">%</span>
-                    <p className="text-muted-foreground text-[11px]">
+                    <span className="text-base-content/60 text-sm">%</span>
+                    <p className="text-base-content/60 text-[11px]">
                       Scale when average memory exceeds this threshold.
                     </p>
                   </div>
@@ -378,16 +376,14 @@ export function K8sHPADialog({ open, onOpenChange, namespace, clusterName }: K8s
               </div>
 
               {!cpuEnabled && !memoryEnabled && (
-                <p className="text-destructive text-sm">
-                  At least one metric target must be enabled.
-                </p>
+                <p className="text-error text-sm">At least one metric target must be enabled.</p>
               )}
             </div>
           )}
 
           {/* Disabled state info */}
           {!hpaEnabled && !existingHPA && (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-base-content/60 text-sm">
               Enable autoscaling to automatically adjust the number of Aerospike nodes based on CPU
               and/or memory utilization. The HPA will target the AerospikeCluster /scale
               subresource.

@@ -20,7 +20,7 @@ import { api } from "@/lib/api/client";
 import { type UpdateK8sClusterRequest } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/utils";
 import { useConnectionStore } from "@/stores/connection-store";
-import { toast } from "sonner";
+import { useToastStore } from "@/stores/toast-store";
 
 export default function ClusterPage({ params }: { params: Promise<{ connId: string }> }) {
   const { connId } = use(params);
@@ -101,18 +101,18 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
   const handleK8sEdit = async (data: UpdateK8sClusterRequest) => {
     try {
       await updateCluster(k8sNamespace, k8sName, data);
-      toast.success("Cluster updated successfully");
+      useToastStore.getState().addToast("success", "Cluster updated successfully");
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     }
   };
 
   const handleK8sScale = async (size: number) => {
     try {
       await scaleCluster(k8sNamespace, k8sName, size);
-      toast.success(`Cluster scaled to ${size} nodes`);
+      useToastStore.getState().addToast("success", `Cluster scaled to ${size} nodes`);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     }
   };
 
@@ -120,9 +120,9 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
     setDeleting(true);
     try {
       await deleteCluster(k8sNamespace, k8sName);
-      toast.success(`Cluster "${k8sName}" deletion initiated`);
+      useToastStore.getState().addToast("success", `Cluster "${k8sName}" deletion initiated`);
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      useToastStore.getState().addToast("error", getErrorMessage(err));
     } finally {
       setDeleting(false);
     }
@@ -198,22 +198,22 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <Button variant="neutral" size="sm" onClick={handleRefresh}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
             {isK8s && k8sDetail && (
               <>
-                <Button variant="outline" size="sm" onClick={() => setScaleOpen(true)}>
+                <Button variant="info" size="sm" onClick={() => setScaleOpen(true)}>
                   <Scale className="mr-2 h-4 w-4" />
                   Scale
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="warning"
                   size="sm"
                   disabled={k8sLoading}
                   onClick={() => setWarmRestartConfirmOpen(true)}
@@ -221,7 +221,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                   Warm Restart
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="warning"
                   size="sm"
                   disabled={k8sLoading}
                   onClick={() => setPodRestartConfirmOpen(true)}
@@ -230,15 +230,15 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                 </Button>
                 {k8sDetail.phase === "Paused" ? (
                   <Button
-                    variant="outline"
+                    variant="success"
                     size="sm"
                     disabled={k8sLoading}
                     onClick={async () => {
                       try {
                         await resumeCluster(k8sNamespace, k8sName);
-                        toast.success("Reconciliation resumed");
+                        useToastStore.getState().addToast("success", "Reconciliation resumed");
                       } catch (err) {
-                        toast.error(getErrorMessage(err));
+                        useToastStore.getState().addToast("error", getErrorMessage(err));
                       }
                     }}
                   >
@@ -246,15 +246,15 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
                   </Button>
                 ) : (
                   <Button
-                    variant="outline"
+                    variant="neutral"
                     size="sm"
                     disabled={k8sLoading}
                     onClick={async () => {
                       try {
                         await pauseCluster(k8sNamespace, k8sName);
-                        toast.success("Reconciliation paused");
+                        useToastStore.getState().addToast("success", "Reconciliation paused");
                       } catch (err) {
-                        toast.error(getErrorMessage(err));
+                        useToastStore.getState().addToast("error", getErrorMessage(err));
                       }
                     }}
                   >
@@ -348,14 +348,17 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
               try {
                 const pods = selectedPods.length > 0 ? selectedPods : undefined;
                 await triggerOperation(k8sNamespace, k8sName, "WarmRestart", pods);
-                toast.success(
-                  pods
-                    ? `Warm restart initiated for ${pods.length} pod(s)`
-                    : "Warm restart initiated",
-                );
+                useToastStore
+                  .getState()
+                  .addToast(
+                    "success",
+                    pods
+                      ? `Warm restart initiated for ${pods.length} pod(s)`
+                      : "Warm restart initiated",
+                  );
                 setSelectedPods([]);
               } catch (err) {
-                toast.error(getErrorMessage(err));
+                useToastStore.getState().addToast("error", getErrorMessage(err));
               }
             }}
           />
@@ -374,14 +377,17 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
               try {
                 const pods = selectedPods.length > 0 ? selectedPods : undefined;
                 await triggerOperation(k8sNamespace, k8sName, "PodRestart", pods);
-                toast.success(
-                  pods
-                    ? `Pod restart initiated for ${pods.length} pod(s)`
-                    : "Pod restart initiated for all pods",
-                );
+                useToastStore
+                  .getState()
+                  .addToast(
+                    "success",
+                    pods
+                      ? `Pod restart initiated for ${pods.length} pod(s)`
+                      : "Pod restart initiated for all pods",
+                  );
                 setSelectedPods([]);
               } catch (err) {
-                toast.error(getErrorMessage(err));
+                useToastStore.getState().addToast("error", getErrorMessage(err));
               }
             }}
           />

@@ -4,13 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
 import { WizardMonitoringStep } from "./WizardMonitoringStep";
 import { WizardAclStep } from "./WizardAclStep";
 import { WizardRollingUpdateStep } from "./WizardRollingUpdateStep";
@@ -25,6 +19,7 @@ import type {
   TolerationConfig,
   K8sNodeInfo,
   ServiceMetadataConfig,
+  PodSecurityContextConfig,
 } from "@/lib/api/types";
 
 function CollapsibleSection({
@@ -48,12 +43,12 @@ function CollapsibleSection({
       >
         <div>
           <span className="text-sm font-medium">{title}</span>
-          <span className="text-muted-foreground ml-2 text-xs">{summary}</span>
+          <span className="text-base-content/60 ml-2 text-xs">{summary}</span>
         </div>
         {open ? (
-          <ChevronDown className="text-muted-foreground h-4 w-4" />
+          <ChevronDown className="text-base-content/60 h-4 w-4" />
         ) : (
-          <ChevronRight className="text-muted-foreground h-4 w-4" />
+          <ChevronRight className="text-base-content/60 h-4 w-4" />
         )}
       </button>
       {open && <div className="space-y-4 border-t px-4 pt-4 pb-4">{children}</div>}
@@ -135,7 +130,7 @@ function WizardPodSettingsStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure pod-level settings: metadata, scheduling, network, and lifecycle.
       </p>
 
@@ -221,7 +216,7 @@ function WizardPodSettingsStep({
           Enable Readiness Gate (acko.io/aerospike-ready)
         </Label>
       </div>
-      <p className="text-muted-foreground -mt-2 ml-6 text-[10px]">
+      <p className="text-base-content/60 -mt-2 ml-6 text-[10px]">
         Pods are excluded from Service endpoints until Aerospike joins cluster mesh and finishes
         migrations.
       </p>
@@ -232,41 +227,33 @@ function WizardPodSettingsStep({
           <Label className="text-xs">Pod Management Policy</Label>
           <Select
             value={scheduling?.podManagementPolicy || "default"}
-            onValueChange={(v) => {
+            onChange={(e) => {
+              const v = e.target.value;
               updateScheduling({
                 podManagementPolicy:
                   v === "default" ? undefined : (v as "OrderedReady" | "Parallel"),
               });
             }}
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default (OrderedReady)</SelectItem>
-              <SelectItem value="OrderedReady">OrderedReady</SelectItem>
-              <SelectItem value="Parallel">Parallel</SelectItem>
-            </SelectContent>
+            <option value="default">Default (OrderedReady)</option>
+            <option value="OrderedReady">OrderedReady</option>
+            <option value="Parallel">Parallel</option>
           </Select>
         </div>
         <div className="grid gap-1">
           <Label className="text-xs">DNS Policy</Label>
           <Select
             value={scheduling?.dnsPolicy || "default"}
-            onValueChange={(v) => {
+            onChange={(e) => {
+              const v = e.target.value;
               updateScheduling({ dnsPolicy: v === "default" ? undefined : v });
             }}
           >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Default (ClusterFirst)</SelectItem>
-              <SelectItem value="ClusterFirst">ClusterFirst</SelectItem>
-              <SelectItem value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</SelectItem>
-              <SelectItem value="Default">Default</SelectItem>
-              <SelectItem value="None">None</SelectItem>
-            </SelectContent>
+            <option value="default">Default (ClusterFirst)</option>
+            <option value="ClusterFirst">ClusterFirst</option>
+            <option value="ClusterFirstWithHostNet">ClusterFirstWithHostNet</option>
+            <option value="Default">Default</option>
+            <option value="None">None</option>
           </Select>
         </div>
       </div>
@@ -274,7 +261,7 @@ function WizardPodSettingsStep({
       {/* Node Selector */}
       <div className="grid gap-2">
         <Label className="text-sm font-semibold">Node Selector</Label>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Constrain pods to nodes with matching labels.
         </p>
         {Object.entries(scheduling?.nodeSelector ?? {}).length > 0 && (
@@ -336,7 +323,7 @@ function WizardPodSettingsStep({
       {/* Tolerations */}
       <div className="grid gap-2">
         <Label className="text-sm font-semibold">Tolerations</Label>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Allow pods to be scheduled on nodes with matching taints.
         </p>
         {(scheduling?.tolerations ?? []).map((tol, idx) => (
@@ -357,15 +344,13 @@ function WizardPodSettingsStep({
               <Label className="text-[10px]">Operator</Label>
               <Select
                 value={tol.operator ?? "Equal"}
-                onValueChange={(v) => updateToleration(idx, { operator: v as "Equal" | "Exists" })}
+                onChange={(e) =>
+                  updateToleration(idx, { operator: e.target.value as "Equal" | "Exists" })
+                }
+                className="h-8 w-24 text-xs"
               >
-                <SelectTrigger className="h-8 w-24 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Equal">Equal</SelectItem>
-                  <SelectItem value="Exists">Exists</SelectItem>
-                </SelectContent>
+                <option value="Equal">Equal</option>
+                <option value="Exists">Exists</option>
               </Select>
             </div>
             <div className="grid gap-1">
@@ -382,26 +367,22 @@ function WizardPodSettingsStep({
               <Label className="text-[10px]">Effect</Label>
               <Select
                 value={tol.effect ?? ""}
-                onValueChange={(v) =>
+                onChange={(e) =>
                   updateToleration(idx, {
-                    effect: v as TolerationConfig["effect"],
+                    effect: e.target.value as TolerationConfig["effect"],
                   })
                 }
+                className="h-8 w-36 text-xs"
               >
-                <SelectTrigger className="h-8 w-36 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NoSchedule">NoSchedule</SelectItem>
-                  <SelectItem value="PreferNoSchedule">PreferNoSchedule</SelectItem>
-                  <SelectItem value="NoExecute">NoExecute</SelectItem>
-                </SelectContent>
+                <option value="NoSchedule">NoSchedule</option>
+                <option value="PreferNoSchedule">PreferNoSchedule</option>
+                <option value="NoExecute">NoExecute</option>
               </Select>
             </div>
             <button
               type="button"
               onClick={() => removeToleration(idx)}
-              className="text-muted-foreground hover:text-destructive mb-1 self-end p-1"
+              className="text-base-content/60 hover:text-error mb-1 self-end p-1"
               title="Remove toleration"
             >
               <X className="h-4 w-4" />
@@ -425,7 +406,7 @@ function WizardPodSettingsStep({
             <Label htmlFor="multi-pod-per-host" className="cursor-pointer text-xs">
               Multi Pod Per Host
             </Label>
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-base-content/60 text-[10px]">
               Allow multiple Aerospike pods on the same Kubernetes node.
             </p>
           </div>
@@ -442,7 +423,7 @@ function WizardPodSettingsStep({
             <Label htmlFor="host-network" className="cursor-pointer text-xs">
               Host Network
             </Label>
-            <p className="text-muted-foreground text-[10px]">
+            <p className="text-base-content/60 text-[10px]">
               Use the host&apos;s network namespace instead of pod networking.
             </p>
           </div>
@@ -465,7 +446,7 @@ function WizardPodSettingsStep({
           onChange={(e) => updateScheduling({ serviceAccountName: e.target.value || undefined })}
           placeholder="e.g. aerospike-sa"
         />
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Kubernetes service account to use for Aerospike pods.
         </p>
       </div>
@@ -489,7 +470,7 @@ function WizardPodSettingsStep({
           placeholder="e.g. 600"
           className="w-40"
         />
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Time in seconds before a pod is forcefully terminated. Leave empty for Kubernetes default
           (30s).
         </p>
@@ -498,7 +479,7 @@ function WizardPodSettingsStep({
       {/* Image Pull Secrets */}
       <div className="grid gap-2">
         <Label className="text-sm font-semibold">Image Pull Secrets</Label>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Kubernetes secrets for pulling container images from private registries.
         </p>
         {(scheduling?.imagePullSecrets ?? []).length > 0 && (
@@ -544,6 +525,140 @@ function WizardPodSettingsStep({
           </button>
         </div>
       </div>
+
+      {/* Topology Spread Constraints */}
+      <div className="grid gap-2">
+        <Label className="text-sm font-semibold">Topology Spread Constraints</Label>
+        <p className="text-base-content/60 text-[10px]">
+          Control how pods are spread across topology domains (zones, nodes, etc.).
+        </p>
+        {(scheduling?.topologySpreadConstraints ?? []).map((tsc, idx) => (
+          <div key={idx} className="space-y-2 rounded border p-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium">Constraint #{idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const current = (scheduling?.topologySpreadConstraints ?? []).filter(
+                    (_, i) => i !== idx,
+                  );
+                  updateScheduling({
+                    topologySpreadConstraints: current.length > 0 ? current : undefined,
+                  });
+                }}
+                className="text-base-content/60 hover:text-error p-1"
+                title="Remove constraint"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="grid gap-1">
+                <Label className="text-[10px]">Max Skew</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={tsc.maxSkew}
+                  onChange={(e) => {
+                    const current = [...(scheduling?.topologySpreadConstraints ?? [])];
+                    current[idx] = { ...current[idx], maxSkew: parseInt(e.target.value) || 1 };
+                    updateScheduling({ topologySpreadConstraints: current });
+                  }}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-[10px]">Topology Key</Label>
+                <Select
+                  value={tsc.topologyKey}
+                  onChange={(e) => {
+                    const current = [...(scheduling?.topologySpreadConstraints ?? [])];
+                    current[idx] = { ...current[idx], topologyKey: e.target.value };
+                    updateScheduling({ topologySpreadConstraints: current });
+                  }}
+                  className="h-8 text-xs"
+                >
+                  <option value="topology.kubernetes.io/zone">topology.kubernetes.io/zone</option>
+                  <option value="kubernetes.io/hostname">kubernetes.io/hostname</option>
+                  <option value="topology.kubernetes.io/region">
+                    topology.kubernetes.io/region
+                  </option>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-[10px]">When Unsatisfiable</Label>
+                <Select
+                  value={tsc.whenUnsatisfiable}
+                  onChange={(e) => {
+                    const current = [...(scheduling?.topologySpreadConstraints ?? [])];
+                    current[idx] = {
+                      ...current[idx],
+                      whenUnsatisfiable: e.target.value as "DoNotSchedule" | "ScheduleAnyway",
+                    };
+                    updateScheduling({ topologySpreadConstraints: current });
+                  }}
+                  className="h-8 text-xs"
+                >
+                  <option value="DoNotSchedule">DoNotSchedule</option>
+                  <option value="ScheduleAnyway">ScheduleAnyway</option>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-1">
+              <Label className="text-[10px]">
+                Label Selector (optional, key=value comma-separated)
+              </Label>
+              <Input
+                value={
+                  tsc.labelSelector
+                    ? Object.entries(tsc.labelSelector)
+                        .map(([k, v]) => `${k}=${v}`)
+                        .join(", ")
+                    : ""
+                }
+                onChange={(e) => {
+                  const entries = e.target.value
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                  const labels: Record<string, string> = {};
+                  for (const entry of entries) {
+                    const [k, v] = entry.split("=").map((s) => s.trim());
+                    if (k && v) labels[k] = v;
+                  }
+                  const current = [...(scheduling?.topologySpreadConstraints ?? [])];
+                  current[idx] = {
+                    ...current[idx],
+                    labelSelector: Object.keys(labels).length > 0 ? labels : undefined,
+                  };
+                  updateScheduling({ topologySpreadConstraints: current });
+                }}
+                placeholder="e.g. app=aerospike, env=prod"
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            const current = scheduling?.topologySpreadConstraints ?? [];
+            updateScheduling({
+              topologySpreadConstraints: [
+                ...current,
+                {
+                  maxSkew: 1,
+                  topologyKey: "topology.kubernetes.io/zone",
+                  whenUnsatisfiable: "DoNotSchedule",
+                },
+              ],
+            });
+          }}
+          className="text-accent hover:text-accent/80 flex items-center gap-1 text-xs font-medium"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Topology Spread Constraint
+        </button>
+      </div>
     </div>
   );
 }
@@ -586,7 +701,7 @@ function WizardNodeBlockListStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Select Kubernetes nodes to exclude from scheduling Aerospike pods.
       </p>
 
@@ -596,13 +711,13 @@ function WizardNodeBlockListStep({
           {blockedNodes.map((node) => (
             <span
               key={node}
-              className="bg-destructive/10 text-destructive inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              className="bg-error/10 text-error inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
             >
               {node}
               <button
                 type="button"
                 onClick={() => removeNode(node)}
-                className="hover:bg-destructive/20 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full"
+                className="hover:bg-error/20 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full"
                 title={`Remove ${node}`}
               >
                 &times;
@@ -629,8 +744,8 @@ function WizardNodeBlockListStep({
                   className="flex cursor-pointer items-center gap-2 text-xs"
                 >
                   <span className="font-mono">{node.name}</span>
-                  {node.zone && <span className="text-muted-foreground">({node.zone})</span>}
-                  {!node.ready && <span className="text-destructive text-[10px]">Not Ready</span>}
+                  {node.zone && <span className="text-base-content/60">({node.zone})</span>}
+                  {!node.ready && <span className="text-error text-[10px]">Not Ready</span>}
                 </Label>
               </div>
             ))}
@@ -663,7 +778,7 @@ function WizardNodeBlockListStep({
             Add
           </button>
         </div>
-        <p className="text-muted-foreground text-[10px]">
+        <p className="text-base-content/60 text-[10px]">
           Enter a K8s node name to block, then press Enter or click Add.
         </p>
       </div>
@@ -692,7 +807,7 @@ function WizardValidationPolicyStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure validation behavior for the Aerospike cluster.
       </p>
 
@@ -701,7 +816,7 @@ function WizardValidationPolicyStep({
           <Label htmlFor="skip-workdir-validate" className="cursor-pointer text-xs">
             Skip Work Dir Validate
           </Label>
-          <p className="text-muted-foreground text-[10px]">
+          <p className="text-base-content/60 text-[10px]">
             Skip validation of the working directory on pod startup. Useful when using custom
             storage configurations.
           </p>
@@ -737,7 +852,7 @@ function WizardBandwidthStep({
 
   return (
     <div className="space-y-4">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure CNI bandwidth limits for Aerospike pods. Values use standard Kubernetes bandwidth
         notation (e.g. &quot;1M&quot;, &quot;10M&quot;, &quot;100M&quot;).
       </p>
@@ -753,7 +868,7 @@ function WizardBandwidthStep({
             onChange={(e) => updateBandwidth({ ingress: e.target.value || undefined })}
             placeholder="e.g. 10M"
           />
-          <p className="text-muted-foreground text-[10px]">Max incoming bandwidth per pod</p>
+          <p className="text-base-content/60 text-[10px]">Max incoming bandwidth per pod</p>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="bw-egress" className="text-xs">
@@ -765,13 +880,14 @@ function WizardBandwidthStep({
             onChange={(e) => updateBandwidth({ egress: e.target.value || undefined })}
             placeholder="e.g. 10M"
           />
-          <p className="text-muted-foreground text-[10px]">Max outgoing bandwidth per pod</p>
+          <p className="text-base-content/60 text-[10px]">Max outgoing bandwidth per pod</p>
         </div>
       </div>
     </div>
   );
 }
 
+/** Service Metadata editor for headless and pod services. */
 function ServiceMetadataEditor({
   title,
   description,
@@ -947,6 +1063,185 @@ function ServiceMetadataEditor({
   );
 }
 
+function WizardPodSecurityContextStep({
+  form,
+  updateForm,
+}: {
+  form: WizardAdvancedStepProps["form"];
+  updateForm: WizardAdvancedStepProps["updateForm"];
+}) {
+  const scheduling = form.podScheduling;
+  const ctx = scheduling?.podSecurityContext;
+
+  const updateSecurityContext = (updates: Partial<PodSecurityContextConfig>) => {
+    const next = { ...ctx, ...updates };
+    const hasValue =
+      next.runAsUser != null ||
+      next.runAsGroup != null ||
+      next.runAsNonRoot != null ||
+      next.fsGroup != null ||
+      (next.supplementalGroups && next.supplementalGroups.length > 0);
+    updateForm({
+      podScheduling: {
+        ...scheduling,
+        podSecurityContext: hasValue ? (next as PodSecurityContextConfig) : undefined,
+      },
+    });
+  };
+
+  const [newSupGroup, setNewSupGroup] = useState("");
+
+  return (
+    <div className="space-y-4">
+      <p className="text-base-content/60 text-sm">
+        Configure the pod-level security context for Aerospike pods.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="run-as-user" className="text-xs">
+            Run As User
+          </Label>
+          <Input
+            id="run-as-user"
+            type="number"
+            min={0}
+            value={ctx?.runAsUser ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              updateSecurityContext({ runAsUser: val ? parseInt(val, 10) : undefined });
+            }}
+            placeholder="e.g. 1000"
+          />
+        </div>
+        <div className="grid gap-1.5">
+          <Label htmlFor="run-as-group" className="text-xs">
+            Run As Group
+          </Label>
+          <Input
+            id="run-as-group"
+            type="number"
+            min={0}
+            value={ctx?.runAsGroup ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              updateSecurityContext({ runAsGroup: val ? parseInt(val, 10) : undefined });
+            }}
+            placeholder="e.g. 1000"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor="fs-group" className="text-xs">
+            FS Group
+          </Label>
+          <Input
+            id="fs-group"
+            type="number"
+            min={0}
+            value={ctx?.fsGroup ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              updateSecurityContext({ fsGroup: val ? parseInt(val, 10) : undefined });
+            }}
+            placeholder="e.g. 1000"
+          />
+          <p className="text-base-content/60 text-[10px]">
+            GID applied to all volumes mounted in the pod.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 self-start pt-6">
+          <Switch
+            id="run-as-non-root"
+            checked={ctx?.runAsNonRoot ?? false}
+            onCheckedChange={(checked) =>
+              updateSecurityContext({ runAsNonRoot: checked || undefined })
+            }
+          />
+          <Label htmlFor="run-as-non-root" className="cursor-pointer text-xs">
+            Run As Non-Root
+          </Label>
+        </div>
+      </div>
+
+      {/* Supplemental Groups */}
+      <div className="grid gap-2">
+        <Label className="text-xs font-semibold">Supplemental Groups</Label>
+        <p className="text-base-content/60 text-[10px]">
+          Additional GIDs applied to the first process run in each container.
+        </p>
+        {(ctx?.supplementalGroups ?? []).length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {ctx!.supplementalGroups!.map((gid) => (
+              <span
+                key={gid}
+                className="bg-accent/10 text-accent inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+              >
+                {gid}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = (ctx?.supplementalGroups ?? []).filter((g) => g !== gid);
+                    updateSecurityContext({
+                      supplementalGroups: next.length > 0 ? next : undefined,
+                    });
+                  }}
+                  className="hover:bg-accent/20 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full"
+                  title={`Remove ${gid}`}
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Input
+            value={newSupGroup}
+            onChange={(e) => setNewSupGroup(e.target.value)}
+            type="number"
+            min={0}
+            placeholder="e.g. 1000"
+            className="w-32"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const val = parseInt(newSupGroup, 10);
+                if (!isNaN(val)) {
+                  const current = ctx?.supplementalGroups ?? [];
+                  if (!current.includes(val)) {
+                    updateSecurityContext({ supplementalGroups: [...current, val] });
+                  }
+                  setNewSupGroup("");
+                }
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const val = parseInt(newSupGroup, 10);
+              if (!isNaN(val)) {
+                const current = ctx?.supplementalGroups ?? [];
+                if (!current.includes(val)) {
+                  updateSecurityContext({ supplementalGroups: [...current, val] });
+                }
+                setNewSupGroup("");
+              }
+            }}
+            disabled={!newSupGroup.trim() || isNaN(parseInt(newSupGroup, 10))}
+            className="bg-accent text-accent-foreground hover:bg-accent/80 rounded px-3 text-xs font-medium disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WizardServiceMetadataStep({
   form,
   updateForm,
@@ -1079,6 +1374,9 @@ export function WizardAdvancedStep({
       form.podScheduling?.imagePullSecrets?.length
         ? `${form.podScheduling.imagePullSecrets.length} pull secret(s)`
         : null,
+      form.podScheduling?.topologySpreadConstraints?.length
+        ? `${form.podScheduling.topologySpreadConstraints.length} spread constraint(s)`
+        : null,
     ]
       .filter(Boolean)
       .join(", ") || "Default";
@@ -1114,12 +1412,26 @@ export function WizardAdvancedStep({
           .join(", ")
       : "No limits";
 
+  const securityContextSummary =
+    [
+      form.podScheduling?.podSecurityContext?.runAsUser != null
+        ? `UID: ${form.podScheduling.podSecurityContext.runAsUser}`
+        : null,
+      form.podScheduling?.podSecurityContext?.runAsGroup != null
+        ? `GID: ${form.podScheduling.podSecurityContext.runAsGroup}`
+        : null,
+      form.podScheduling?.podSecurityContext?.runAsNonRoot ? "Non-Root" : null,
+      form.podScheduling?.podSecurityContext?.fsGroup != null
+        ? `fsGroup: ${form.podScheduling.podSecurityContext.fsGroup}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(", ") || "Default";
+
   const serviceMetadataSummary =
     [
       form.podService != null ? "Pod Service" : null,
-      form.headlessService?.annotations || form.headlessService?.labels
-        ? "Headless Service"
-        : null,
+      form.headlessService?.annotations || form.headlessService?.labels ? "Headless Service" : null,
     ]
       .filter(Boolean)
       .join(", ") || "Default";
@@ -1128,7 +1440,7 @@ export function WizardAdvancedStep({
 
   return (
     <div className="space-y-3">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-base-content/60 text-sm">
         Configure optional settings. All sections have sensible defaults — expand only what you
         need.
       </p>
