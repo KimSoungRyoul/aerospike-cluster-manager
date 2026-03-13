@@ -563,6 +563,7 @@ Common use cases include:
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/events` | Get Kubernetes events (supports `?category=` filter) |
 | `POST` | `/api/k8s/clusters/{namespace}/{name}/operations` | Trigger operations (WarmRestart, PodRestart) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/health` | Get cluster health summary (pods, migration, conditions) |
+| `GET` | `/api/k8s/clusters/{namespace}/{name}/migration-status` | Get real-time migration status (overall + per-pod remaining records) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/config-drift` | Detect configuration drift (spec vs applied spec, pod hash groups) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/reconciliation-status` | Get reconciliation health (circuit breaker state, backoff timer) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/pods/{pod}/logs` | Get container logs for a pod |
