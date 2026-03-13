@@ -68,9 +68,9 @@ The Aerospike Cluster Manager is a web-based GUI that provides two primary capab
 ### Frontend (Next.js 16)
 
 - **App Router** pages under `src/app/` for each feature area (`/browser`, `/cluster`, `/k8s/clusters`, `/k8s/templates`, `/admin`, `/indexes`, `/udfs`, `/terminal`, `/settings`).
-- **Zustand stores** manage client-side state (`connection-store`, `k8s-cluster-store`, `browser-store`, `query-store`, `admin-store`, `metrics-store`, `filter-store`, `ui-store`).
+- **Zustand stores** manage client-side state (`connection-store`, `k8s-cluster-store`, `browser-store`, `query-store`, `admin-store`, `metrics-store`, `filter-store`, `ui-store`, `toast-store`).
 - K8s features are conditionally shown based on whether `GET /api/k8s/clusters` returns a 404 (K8s disabled) or a successful response.
-- The **K8s cluster creation wizard** is a multi-step form with 10+ steps covering basic config, namespace/storage, monitoring, resources, ACL/security, rolling update, rack config, sidecars, advanced settings, and review.
+- The **K8s cluster creation wizard** is a multi-step form with 11 steps (Step 0–10) covering creation mode, basic config, namespace/storage, monitoring, resources, ACL/security, rolling update, rack config, sidecars, advanced settings, and review.
 
 ### Backend (FastAPI)
 
@@ -202,3 +202,8 @@ This deploys the Cluster Manager as a Deployment with:
 | Config Drift Detection | No | Yes |
 | Reconciliation Health | No | Yes |
 | Events Timeline | No | Yes |
+
+## See also
+
+- [Data Management Guide](./data-management.md)
+- [Kubernetes Cluster Management Guide](./k8s-management.md)

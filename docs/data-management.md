@@ -70,7 +70,7 @@ Retrieve multiple records by primary key in a single request. Enter a list of pr
 
 ## Query Builder
 
-The query page (`/browser/{connId}` with query toolbar) supports three query strategies:
+The Query Builder is not a separate route -- it is accessed via the **query toolbar** on the Record Browser page (`/browser/{connId}`). It supports three query strategies:
 
 1. **Primary Key Lookup** -- Direct record retrieval by namespace, set, and primary key. Integer keys are auto-detected.
 2. **Predicate Query** -- Filter records using secondary index predicates (equality match, range query) on indexed bins.
@@ -160,3 +160,8 @@ The settings page (`/settings`) provides:
 - **CE Limitations** -- Reference card showing Aerospike Community Edition restrictions (max nodes, namespaces, data capacity, durable deletes, XDR).
 - **About** -- Application version and framework information.
 - **Keyboard Shortcuts** -- `Cmd+B` (toggle sidebar), `` Cmd+` `` (toggle terminal).
+
+## See also
+
+- [Architecture Overview](./architecture.md)
+- [Kubernetes Cluster Management Guide](./k8s-management.md)
