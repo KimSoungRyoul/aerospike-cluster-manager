@@ -169,6 +169,17 @@ Delete the cluster with a confirmation dialog. Associated connection profiles ar
 
 Displays rack distribution and data migration status across the cluster.
 
+### Migration Status
+
+The cluster detail page includes a dedicated **Migration Status** card that shows real-time data migration progress. This is useful when scaling, rebalancing, or performing rolling restarts that trigger data redistribution.
+
+- **Idle state** -- When no migration is active, a green "No Active Migration" badge is displayed.
+- **Active migration** -- Shows overall remaining records count and a progress indicator. Each pod's migration state is displayed in the pod table with per-pod remaining record counts.
+- **Auto-refresh** -- During active migration, the migration status automatically refreshes every **5 seconds** so you can monitor progress without manual page reloads.
+- **Graceful fallback** -- If the operator's CR does not include a `status.migrationStatus` field (e.g., older operator versions), the UI gracefully falls back to an "Unknown" state instead of erroring.
+
+The backend exposes `GET /api/k8s/clusters/{namespace}/{name}/migration-status` which extracts migration information from the AerospikeCluster CR status. See the [K8s API Endpoints](../README.md#k8s-api-endpoints) table for details.
+
 ### Pod Status Table
 
 Per-pod details including:
@@ -179,6 +190,7 @@ Per-pod details including:
 - Stability indicator (unstableSince timestamp)
 - Config hash and pod spec hash for drift detection
 - Last restart reason and timestamp
+- Migration status (remaining records per pod during active migration)
 
 ### Events Timeline
 
@@ -249,6 +261,7 @@ Templates serve as comprehensive baseline configurations with override fields fo
 |------|--------------|-----------|
 | Cluster list | 10 seconds | Any cluster in transitional phase |
 | Cluster detail | 5 seconds | Cluster in transitional phase or active operation |
+| Migration status | 5 seconds | Active data migration detected |
 
 Transitional phases: `InProgress`, `ScalingUp`, `ScalingDown`, `WaitingForMigration`, `RollingRestart`, `ACLSync`, `Deleting`.
 
