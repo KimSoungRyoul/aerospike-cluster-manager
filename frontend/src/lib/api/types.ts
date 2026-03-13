@@ -966,6 +966,12 @@ export interface TemplateRackConfig {
   maxRacksPerNode?: number;
 }
 
+export interface TemplateServiceConfig {
+  featureKeyFile?: string;
+  protoFdMax?: number;
+  extraParams?: Record<string, string | number>;
+}
+
 export interface CreateK8sTemplateRequest {
   name: string;
   description?: string;
@@ -977,6 +983,7 @@ export interface CreateK8sTemplateRequest {
   storage?: TemplateStorageConfig;
   networkPolicy?: NetworkAccessConfig;
   aerospikeConfig?: Record<string, unknown>;
+  serviceConfig?: TemplateServiceConfig;
   networkConfig?: TemplateNetworkConfig;
   rackConfig?: TemplateRackConfig;
 }
@@ -991,6 +998,7 @@ export interface UpdateK8sTemplateRequest {
   storage?: TemplateStorageConfig;
   networkPolicy?: NetworkAccessConfig;
   aerospikeConfig?: Record<string, unknown>;
+  serviceConfig?: TemplateServiceConfig;
   networkConfig?: TemplateNetworkConfig;
   rackConfig?: TemplateRackConfig;
 }

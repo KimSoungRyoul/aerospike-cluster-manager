@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { api } from "@/lib/api/client";
 import { useToastStore } from "@/stores/toast-store";
 import { getErrorMessage } from "@/lib/utils";
-import type { CreateK8sTemplateRequest } from "@/lib/api/types";
+import type { CreateK8sTemplateRequest, TemplateServiceConfig } from "@/lib/api/types";
 
 export default function CreateTemplatePage() {
   const router = useRouter();
@@ -56,6 +56,12 @@ export default function CreateTemplatePage() {
   const [includeNetworkConfig, setIncludeNetworkConfig] = useState(false);
   // Rack config
   const [maxRacksPerNode, setMaxRacksPerNode] = useState<number | undefined>(undefined);
+  // Service config
+  const [includeServiceConfig, setIncludeServiceConfig] = useState(false);
+  const [protoFdMax, setProtoFdMax] = useState<number | undefined>(undefined);
+  const [serviceExtraParams, setServiceExtraParams] = useState<{ key: string; value: string }[]>(
+    [],
+  );
 
   useEffect(() => {
     api
@@ -114,6 +120,23 @@ export default function CreateTemplatePage() {
       }
       if (maxRacksPerNode != null && maxRacksPerNode > 0) {
         data.rackConfig = { maxRacksPerNode };
+      }
+      if (includeServiceConfig) {
+        const svcConfig: TemplateServiceConfig = {};
+        if (protoFdMax != null) {
+          svcConfig.protoFdMax = protoFdMax;
+        }
+        const validExtra = serviceExtraParams.filter((p) => p.key.trim() && p.value.trim());
+        if (validExtra.length > 0) {
+          svcConfig.extraParams = {};
+          for (const param of validExtra) {
+            const numVal = Number(param.value);
+            svcConfig.extraParams[param.key.trim()] = isNaN(numVal) ? param.value.trim() : numVal;
+          }
+        }
+        if (svcConfig.protoFdMax != null || svcConfig.extraParams) {
+          data.serviceConfig = svcConfig;
+        }
       }
 
       await createTemplate(data);
@@ -459,6 +482,94 @@ export default function CreateTemplatePage() {
               for no limit.
             </p>
           </div>
+        </div>
+
+        {/* Service Config */}
+        <div className="bg-card space-y-4 rounded-xl border p-6">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="tmpl-service-config"
+              checked={includeServiceConfig}
+              onCheckedChange={(c) => setIncludeServiceConfig(c === true)}
+              disabled={loading}
+            />
+            <Label htmlFor="tmpl-service-config" className="cursor-pointer text-sm font-semibold">
+              Include Service Config
+            </Label>
+          </div>
+          {includeServiceConfig && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground text-xs">
+                Aerospike service-level configuration defaults (maps to aerospikeConfig.service).
+              </p>
+              <div className="grid gap-2 sm:w-1/2">
+                <Label className="text-xs">proto-fd-max (Max Client Connections)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={protoFdMax ?? ""}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value);
+                    setProtoFdMax(isNaN(v) ? undefined : Math.max(0, v));
+                  }}
+                  placeholder="Default (15000)"
+                  disabled={loading}
+                />
+                <p className="text-muted-foreground text-[10px]">
+                  Maximum number of open file descriptors for client connections.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Additional Service Parameters</Label>
+                {serviceExtraParams.map((param, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={param.key}
+                      onChange={(e) => {
+                        const next = [...serviceExtraParams];
+                        next[idx] = { ...next[idx], key: e.target.value };
+                        setServiceExtraParams(next);
+                      }}
+                      placeholder="Key (e.g. migrate-threads)"
+                      className="flex-1"
+                      disabled={loading}
+                    />
+                    <Input
+                      value={param.value}
+                      onChange={(e) => {
+                        const next = [...serviceExtraParams];
+                        next[idx] = { ...next[idx], value: e.target.value };
+                        setServiceExtraParams(next);
+                      }}
+                      placeholder="Value"
+                      className="flex-1"
+                      disabled={loading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setServiceExtraParams(serviceExtraParams.filter((_, i) => i !== idx))
+                      }
+                      className="text-muted-foreground hover:text-destructive p-1"
+                      title="Remove parameter"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setServiceExtraParams([...serviceExtraParams, { key: "", value: "" }])
+                  }
+                  className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
+                  disabled={loading}
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Service Parameter
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

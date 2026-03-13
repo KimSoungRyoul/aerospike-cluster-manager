@@ -26,6 +26,7 @@ import type {
   K8sTemplateDetail,
   UpdateK8sTemplateRequest,
   TopologySpreadConstraintConfig,
+  TemplateServiceConfig,
 } from "@/lib/api/types";
 
 interface K8sTemplateEditDialogProps {
@@ -65,6 +66,11 @@ export function K8sTemplateEditDialog({
   const [topologySpreadConstraints, setTopologySpreadConstraints] = useState<
     TopologySpreadConstraintConfig[]
   >([]);
+  // Service Config
+  const [protoFdMax, setProtoFdMax] = useState<number | undefined>(undefined);
+  const [serviceExtraParams, setServiceExtraParams] = useState<{ key: string; value: string }[]>(
+    [],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -95,6 +101,23 @@ export function K8sTemplateEditDialog({
     rackConfigSpec?.maxRacksPerNode != null ? Number(rackConfigSpec.maxRacksPerNode) : undefined;
   const initialTopologySpreadConstraints: TopologySpreadConstraintConfig[] =
     (scheduling?.topologySpreadConstraints as TopologySpreadConstraintConfig[] | undefined) ?? [];
+  // Service config: read from spec.aerospikeConfig.service (CRD format) or spec.serviceConfig (API format)
+  const aerospikeConfig = spec.aerospikeConfig as Record<string, unknown> | undefined;
+  const serviceSection =
+    (aerospikeConfig?.service as Record<string, unknown> | undefined) ??
+    (spec.serviceConfig as Record<string, unknown> | undefined);
+  const initialProtoFdMax =
+    serviceSection?.["proto-fd-max"] != null
+      ? Number(serviceSection["proto-fd-max"])
+      : serviceSection?.protoFdMax != null
+        ? Number(serviceSection.protoFdMax)
+        : undefined;
+  const knownServiceKeys = new Set(["proto-fd-max", "protoFdMax", "feature-key-file", "featureKeyFile"]);
+  const initialServiceExtraParams: { key: string; value: string }[] = serviceSection
+    ? Object.entries(serviceSection)
+        .filter(([k]) => !knownServiceKeys.has(k))
+        .map(([k, v]) => ({ key: k, value: String(v) }))
+    : [];
 
   // Reset form on open
   useEffect(() => {
@@ -115,6 +138,8 @@ export function K8sTemplateEditDialog({
       setHeartbeatTimeout(initialHeartbeatTimeout);
       setMaxRacksPerNode(initialMaxRacksPerNode);
       setTopologySpreadConstraints(initialTopologySpreadConstraints.map((t) => ({ ...t })));
+      setProtoFdMax(initialProtoFdMax);
+      setServiceExtraParams(initialServiceExtraParams.map((p) => ({ ...p })));
       setError(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -138,7 +163,9 @@ export function K8sTemplateEditDialog({
       heartbeatTimeout !== initialHeartbeatTimeout ||
       maxRacksPerNode !== initialMaxRacksPerNode ||
       JSON.stringify(topologySpreadConstraints) !==
-        JSON.stringify(initialTopologySpreadConstraints)
+        JSON.stringify(initialTopologySpreadConstraints) ||
+      protoFdMax !== initialProtoFdMax ||
+      JSON.stringify(serviceExtraParams) !== JSON.stringify(initialServiceExtraParams)
     );
   }, [
     description,
@@ -173,6 +200,10 @@ export function K8sTemplateEditDialog({
     initialMaxRacksPerNode,
     topologySpreadConstraints,
     initialTopologySpreadConstraints,
+    protoFdMax,
+    initialProtoFdMax,
+    serviceExtraParams,
+    initialServiceExtraParams,
   ]);
 
   const handleSave = async () => {
@@ -242,6 +273,26 @@ export function K8sTemplateEditDialog({
       // Rack Config
       if (maxRacksPerNode !== initialMaxRacksPerNode) {
         data.rackConfig = maxRacksPerNode != null ? { maxRacksPerNode } : undefined;
+      }
+
+      // Service Config
+      const serviceChanged =
+        protoFdMax !== initialProtoFdMax ||
+        JSON.stringify(serviceExtraParams) !== JSON.stringify(initialServiceExtraParams);
+      if (serviceChanged) {
+        const svcConfig: TemplateServiceConfig = {};
+        if (protoFdMax != null) {
+          svcConfig.protoFdMax = protoFdMax;
+        }
+        const validExtra = serviceExtraParams.filter((p) => p.key.trim() && p.value.trim());
+        if (validExtra.length > 0) {
+          svcConfig.extraParams = {};
+          for (const param of validExtra) {
+            const numVal = Number(param.value);
+            svcConfig.extraParams[param.key.trim()] = isNaN(numVal) ? param.value.trim() : numVal;
+          }
+        }
+        data.serviceConfig = svcConfig;
       }
 
       await onSave(data);
@@ -475,6 +526,78 @@ export function K8sTemplateEditDialog({
             <p className="text-muted-foreground text-xs">
               Maximum number of racks per Kubernetes node. Leave empty for no limit.
             </p>
+          </div>
+
+          {/* Service Config */}
+          <div className="space-y-2">
+            <Label className="font-semibold">Service Config</Label>
+            <p className="text-muted-foreground text-xs">
+              Aerospike service-level configuration defaults (maps to aerospikeConfig.service).
+            </p>
+            <div className="space-y-2">
+              <div>
+                <Label htmlFor="tmpl-proto-fd-max" className="text-xs">
+                  proto-fd-max (Max Client Connections)
+                </Label>
+                <Input
+                  id="tmpl-proto-fd-max"
+                  type="number"
+                  min={0}
+                  value={protoFdMax ?? ""}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value);
+                    setProtoFdMax(isNaN(v) ? undefined : Math.max(0, v));
+                  }}
+                  placeholder="Default (15000)"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Additional Service Parameters</Label>
+                {serviceExtraParams.map((param, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      value={param.key}
+                      onChange={(e) => {
+                        const next = [...serviceExtraParams];
+                        next[idx] = { ...next[idx], key: e.target.value };
+                        setServiceExtraParams(next);
+                      }}
+                      placeholder="Key (e.g. migrate-threads)"
+                      className="flex-1"
+                    />
+                    <Input
+                      value={param.value}
+                      onChange={(e) => {
+                        const next = [...serviceExtraParams];
+                        next[idx] = { ...next[idx], value: e.target.value };
+                        setServiceExtraParams(next);
+                      }}
+                      placeholder="Value"
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setServiceExtraParams(serviceExtraParams.filter((_, i) => i !== idx))
+                      }
+                      className="text-muted-foreground hover:text-destructive p-1"
+                      title="Remove parameter"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setServiceExtraParams([...serviceExtraParams, { key: "", value: "" }])
+                  }
+                  className="text-primary hover:text-primary/80 flex items-center gap-1 text-xs font-medium"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Service Parameter
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Topology Spread Constraints */}

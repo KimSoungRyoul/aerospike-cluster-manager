@@ -725,14 +725,22 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
             cr["spec"]["storage"] = storage
     if req.network_policy:
         cr["spec"]["aerospikeNetworkPolicy"] = build_network_policy(req.network_policy)
+    # Build aerospikeConfig with namespaceDefaults and service sub-sections
+    aerospike_cfg: dict[str, Any] = {}
     if req.aerospike_config:
-        cr["spec"]["aerospikeConfig"] = {"namespaceDefaults": req.aerospike_config}
+        aerospike_cfg["namespaceDefaults"] = req.aerospike_config
     if req.service_config:
         svc_cfg: dict[str, Any] = {}
         if req.service_config.feature_key_file:
-            svc_cfg["featureKeyFile"] = req.service_config.feature_key_file
+            svc_cfg["feature-key-file"] = req.service_config.feature_key_file
+        if req.service_config.proto_fd_max is not None:
+            svc_cfg["proto-fd-max"] = req.service_config.proto_fd_max
+        if req.service_config.extra_params:
+            svc_cfg.update(req.service_config.extra_params)
         if svc_cfg:
-            cr["spec"]["serviceConfig"] = svc_cfg
+            aerospike_cfg["service"] = svc_cfg
+    if aerospike_cfg:
+        cr["spec"]["aerospikeConfig"] = aerospike_cfg
     if req.network_config:
         net_cfg: dict[str, Any] = {}
         if req.network_config.heartbeat_mode:
@@ -801,14 +809,22 @@ def build_template_update_patch(body: UpdateK8sTemplateRequest) -> dict[str, Any
             patch["spec"]["storage"] = storage
     if body.network_policy is not None:
         patch["spec"]["aerospikeNetworkPolicy"] = build_network_policy(body.network_policy)
+    # Build aerospikeConfig with namespaceDefaults and service sub-sections
+    aerospike_cfg: dict[str, Any] = {}
     if body.aerospike_config is not None:
-        patch["spec"]["aerospikeConfig"] = {"namespaceDefaults": body.aerospike_config}
+        aerospike_cfg["namespaceDefaults"] = body.aerospike_config
     if body.service_config is not None:
         svc_cfg: dict[str, Any] = {}
         if body.service_config.feature_key_file:
-            svc_cfg["featureKeyFile"] = body.service_config.feature_key_file
+            svc_cfg["feature-key-file"] = body.service_config.feature_key_file
+        if body.service_config.proto_fd_max is not None:
+            svc_cfg["proto-fd-max"] = body.service_config.proto_fd_max
+        if body.service_config.extra_params:
+            svc_cfg.update(body.service_config.extra_params)
         if svc_cfg:
-            patch["spec"]["serviceConfig"] = svc_cfg
+            aerospike_cfg["service"] = svc_cfg
+    if aerospike_cfg:
+        patch["spec"]["aerospikeConfig"] = aerospike_cfg
     if body.network_config is not None:
         net_cfg: dict[str, Any] = {}
         if body.network_config.heartbeat_mode:
