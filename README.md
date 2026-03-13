@@ -574,6 +574,7 @@ Common use cases include:
 | `GET` | `/api/k8s/templates` | List all AerospikeClusterTemplate resources (cluster-scoped) |
 | `POST` | `/api/k8s/templates` | Create a new AerospikeClusterTemplate |
 | `GET` | `/api/k8s/templates/{name}` | Get template detail (spec, status, usedBy) |
+| `PATCH` | `/api/k8s/templates/{name}` | Update a template (scheduling, storage, monitoring, resources, etc.) |
 | `DELETE` | `/api/k8s/templates/{name}` | Delete a template (fails if referenced by clusters) |
 | `GET` | `/api/k8s/namespaces` | List available Kubernetes namespaces |
 | `GET` | `/api/k8s/storageclasses` | List available Kubernetes storage classes |
@@ -822,6 +823,10 @@ server {
 ```
 
 When running inside Kubernetes, set `K8S_MANAGEMENT_ENABLED=true` and ensure the pod's service account has permissions to manage `AerospikeCluster` and `AerospikeClusterTemplate` custom resources.
+
+### Kubernetes Operator Integration
+
+The Aerospike Cluster Manager is designed to work alongside the [Aerospike CE Kubernetes Operator](https://github.com/KimSoungRyoul/aerospike-ce-kubernetes-operator) as the GUI management plane. See the [Architecture Guide](docs/architecture.md) for full details on how the components fit together.
 
 ## License
 
