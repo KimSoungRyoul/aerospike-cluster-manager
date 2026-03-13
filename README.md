@@ -481,15 +481,15 @@ The cluster creation wizard (Advanced step) and the cluster edit dialog support 
 - **maxSkew** -- Maximum allowed difference in pod count between topology domains
 - **topologyKey** -- The node label key that defines the topology domain (e.g., `topology.kubernetes.io/zone`, `kubernetes.io/hostname`)
 - **whenUnsatisfiable** -- Scheduling behavior when the constraint cannot be satisfied: `DoNotSchedule` (hard) or `ScheduleAnyway` (soft)
-- **labelSelector** -- Label selector to identify which pods are subject to this constraint
+- **labelSelector** -- Label selector to identify which pods are subject to this constraint. The UI provides a key-value pair editor for matchLabels
 
 Multiple constraints can be added to enforce distribution across both zones and individual nodes simultaneously. For example, you can ensure pods are evenly spread across availability zones while also preventing too many pods on a single node.
 
-Templates also support topology spread constraints in the scheduling configuration, enabling standardized distribution policies across all clusters created from a template.
+Topology spread constraints are available in both the cluster creation wizard and edit dialog.
 
 ### Pod Security Context
 
-The cluster edit dialog supports configuring a pod-level `securityContext` for Aerospike pods. This allows operators to enforce security policies such as:
+Both the cluster creation wizard (Advanced step) and the cluster edit dialog support configuring a pod-level `securityContext`. This allows operators to enforce security policies such as:
 
 - **runAsUser / runAsGroup** -- Run all containers as a specific UID/GID
 - **runAsNonRoot** -- Enforce non-root execution
@@ -504,7 +504,7 @@ The security context is applied at the pod level and affects all containers (Aer
 The Namespace & Storage wizard step supports configuring multiple storage volumes per Aerospike namespace. Each volume can be independently configured with:
 
 - **Volume Name** -- Unique identifier for the volume within the cluster
-- **Storage Type** -- `memory` (in-memory) or `device` (persistent PVC-backed)
+- **Source Type** -- Volume source: `Persistent Volume (PVC)`, `Empty Dir`, `Secret`, `ConfigMap`, or `Host Path`
 - **Storage Class** -- Kubernetes StorageClass for PVC provisioning (per volume)
 - **Volume Size** -- Independent size per volume (e.g., 10Gi for data, 5Gi for index)
 - **Volume Mode** -- `Filesystem` or `Block` mode
