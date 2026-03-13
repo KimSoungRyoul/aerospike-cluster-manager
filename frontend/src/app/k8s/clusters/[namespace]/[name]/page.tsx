@@ -33,6 +33,7 @@ import { K8sHPADialog } from "@/components/k8s/k8s-hpa-dialog";
 import { K8sReconciliationHealth } from "@/components/k8s/k8s-reconciliation-health";
 import { K8sMigrationStatus } from "@/components/k8s/k8s-migration-status";
 import { K8sOperationStatus } from "@/components/k8s/k8s-operation-status";
+import { K8sRackTopology } from "@/components/k8s/k8s-rack-topology";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { useToastStore } from "@/stores/toast-store";
@@ -445,6 +446,13 @@ export default function K8sClusterDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Rack Topology */}
+      <K8sRackTopology
+        rackConfig={selectedCluster.spec?.rackConfig}
+        pods={selectedCluster.pods}
+        migrationStatus={migrationStatus}
+      />
 
       {/* Status Dashboard: Pending Restart Pods, Last Reconcile, Operator Version */}
       {(selectedCluster.pendingRestartPods.length > 0 ||
