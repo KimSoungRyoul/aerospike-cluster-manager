@@ -174,7 +174,7 @@ Displays rack distribution and data migration status across the cluster.
 The cluster detail page includes a dedicated **Migration Status** card that shows real-time data migration progress. This is useful when scaling, rebalancing, or performing rolling restarts that trigger data redistribution.
 
 - **Idle state** -- When no migration is active, a green "No Active Migration" badge is displayed.
-- **Active migration** -- Shows overall remaining records count and a progress indicator. Each pod's migration state is displayed in the pod table with per-pod remaining record counts.
+- **Active migration** -- Shows overall remaining partitions count and a progress indicator. Each pod's migration state is displayed in the pod table with per-pod remaining partition counts.
 - **Auto-refresh** -- During active migration, the migration status automatically refreshes every **5 seconds** so you can monitor progress without manual page reloads.
 - **Graceful fallback** -- If the operator's CR does not include a `status.migrationStatus` field (e.g., older operator versions), the UI gracefully falls back to an "Unknown" state instead of erroring.
 
@@ -190,14 +190,14 @@ The migration status card on the cluster detail page displays the following info
 
 | Element | Description |
 |---------|-------------|
-| **Remaining Records** | Total number of records still being migrated across the cluster. This count decreases as migrations complete. |
+| **Remaining Partitions** | Total number of partitions still being migrated across the cluster. This count decreases as migrations complete. |
 | **Activity Indicator** | A visual indicator (spinner or progress animation) that shows whether migration is actively in progress. |
 | **Status Badge** | Color-coded badge: green for "No Active Migration", yellow/orange for "Migrating", gray for "Unknown". |
 | **Auto-Refresh** | The card automatically refreshes every 5 seconds while migration is active, stopping once the migration completes. |
 
 #### Per-Pod Migration Column
 
-The pod status table includes a **Migration** column that shows per-pod remaining record counts during active migration. This helps identify which specific pods are still sending or receiving data, making it easier to pinpoint bottlenecks or stalled migrations.
+The pod status table includes a **Migration** column that shows per-pod remaining partition counts during active migration. This helps identify which specific pods are still sending or receiving data, making it easier to pinpoint bottlenecks or stalled migrations.
 
 #### How Migration Data Is Fetched
 
@@ -218,7 +218,7 @@ Migration status becomes active during the following operations:
 - **Rack rebalancing** -- When rack configuration changes, data redistributes to satisfy rack-aware placement rules.
 - **Replication factor changes** -- Increasing or decreasing the replication factor triggers data redistribution.
 
-Once all remaining records reach zero across all pods, the status returns to idle and auto-refresh stops.
+Once all remaining partitions reach zero across all pods, the status returns to idle and auto-refresh stops.
 
 ### Rack Topology Visualization
 
@@ -271,7 +271,7 @@ Per-pod details including:
 - Stability indicator (unstableSince timestamp)
 - Config hash and pod spec hash for drift detection
 - Last restart reason and timestamp
-- Migration status (remaining records per pod during active migration)
+- Migration status (remaining partitions per pod during active migration)
 
 ### Events Timeline
 

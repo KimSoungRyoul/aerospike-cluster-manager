@@ -134,7 +134,7 @@ See the [Architecture Guide](./architecture.md) for a complete RBAC configuratio
 
 ### Migration status shows active but cluster appears idle
 
-**Symptoms:** The migration card shows remaining records, but no scaling or restart operation is in progress.
+**Symptoms:** The migration card shows remaining partitions, but no scaling or restart operation is in progress.
 
 **Possible causes and solutions:**
 
