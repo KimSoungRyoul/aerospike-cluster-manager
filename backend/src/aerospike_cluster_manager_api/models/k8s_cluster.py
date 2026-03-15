@@ -1120,14 +1120,14 @@ class ReconciliationStatus(BaseModel):
 
 class PodMigrationStatus(BaseModel):
     pod_name: str = Field(alias="podName")
-    migrating_records: int = Field(default=0, alias="migratingRecords")
+    migrating_partitions: int = Field(default=0, alias="migratingPartitions")
 
     model_config = ConfigDict(populate_by_name=True)
 
 
 class MigrationStatusResponse(BaseModel):
     in_progress: bool = Field(default=False, alias="inProgress")
-    remaining_records: int = Field(default=0, alias="remainingRecords")
+    remaining_partitions: int = Field(default=0, alias="remainingPartitions")
     last_checked: str | None = Field(default=None, alias="lastChecked")
     pods: list[PodMigrationStatus] = Field(default_factory=list)
 
