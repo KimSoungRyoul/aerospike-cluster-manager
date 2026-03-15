@@ -169,6 +169,98 @@ Delete the cluster with a confirmation dialog. Associated connection profiles ar
 
 Displays rack distribution and data migration status across the cluster.
 
+### Migration Status
+
+The cluster detail page includes a dedicated **Migration Status** card that shows real-time data migration progress. This is useful when scaling, rebalancing, or performing rolling restarts that trigger data redistribution.
+
+- **Idle state** -- When no migration is active, a green "No Active Migration" badge is displayed.
+- **Active migration** -- Shows overall remaining partitions count and a progress indicator. Each pod's migration state is displayed in the pod table with per-pod remaining partition counts.
+- **Auto-refresh** -- During active migration, the migration status automatically refreshes every **5 seconds** so you can monitor progress without manual page reloads.
+- **Graceful fallback** -- If the operator's CR does not include a `status.migrationStatus` field (e.g., older operator versions), the UI gracefully falls back to an "Unknown" state instead of erroring.
+
+The backend exposes `GET /api/k8s/clusters/{namespace}/{name}/migration-status` which extracts migration information from the AerospikeCluster CR status. See the [K8s API Endpoints](../README.md#k8s-api-endpoints) table for details.
+
+### Migration Status Monitoring
+
+The migration status monitoring system provides comprehensive visibility into Aerospike data migrations across the cluster. Migrations occur whenever the data distribution across nodes needs to change -- for example, during scale-down, scale-up, rolling restarts, or rack rebalancing.
+
+#### Migration Status Card
+
+The migration status card on the cluster detail page displays the following information:
+
+| Element | Description |
+|---------|-------------|
+| **Remaining Partitions** | Total number of partitions still being migrated across the cluster. This count decreases as migrations complete. |
+| **Activity Indicator** | A visual indicator (spinner or progress animation) that shows whether migration is actively in progress. |
+| **Status Badge** | Color-coded badge: green for "No Active Migration", yellow/orange for "Migrating", gray for "Unknown". |
+| **Auto-Refresh** | The card automatically refreshes every 5 seconds while migration is active, stopping once the migration completes. |
+
+#### Per-Pod Migration Column
+
+The pod status table includes a **Migration** column that shows per-pod remaining partition counts during active migration. This helps identify which specific pods are still sending or receiving data, making it easier to pinpoint bottlenecks or stalled migrations.
+
+#### How Migration Data Is Fetched
+
+The UI retrieves migration data from the AerospikeCluster custom resource's `status.migrationStatus` field, which is populated by the Aerospike CE Kubernetes Operator. The data flow is:
+
+1. The operator queries each Aerospike node for migration statistics via the Aerospike info protocol.
+2. The operator writes aggregated migration status into the CR's `status.migrationStatus` field.
+3. The backend reads the CR status via the Kubernetes API and exposes it at `GET /api/k8s/clusters/{namespace}/{name}/migration-status`.
+4. The frontend polls this endpoint every 5 seconds during active migration.
+
+#### When Migration Status Appears
+
+Migration status becomes active during the following operations:
+
+- **Scale-down** -- Records from removed nodes are redistributed to remaining nodes.
+- **Scale-up** -- Existing data is rebalanced to include the new nodes.
+- **Rolling restart** -- As pods restart one by one, data temporarily migrates to maintain replication factor.
+- **Rack rebalancing** -- When rack configuration changes, data redistributes to satisfy rack-aware placement rules.
+- **Replication factor changes** -- Increasing or decreasing the replication factor triggers data redistribution.
+
+Once all remaining partitions reach zero across all pods, the status returns to idle and auto-refresh stops.
+
+### Rack Topology Visualization
+
+The rack topology view provides a visual diagram of how Aerospike pods are distributed across racks and availability zones. This is accessible from the cluster detail page when rack configuration is enabled.
+
+#### Topology Diagram
+
+The diagram presents a hierarchical layout:
+
+- **Zones** -- Top-level grouping by Kubernetes availability zone (e.g., `us-east-1a`, `us-east-1b`). Each zone is displayed as a labeled container.
+- **Racks** -- Within each zone, racks are shown with their rack ID. Each rack groups the pods assigned to it.
+- **Pods** -- Individual pods are displayed within their assigned rack, showing the pod name and current status.
+
+#### Pod Color-Coding by Status
+
+Pods in the topology view are color-coded to provide at-a-glance health information:
+
+| Color | Status | Description |
+|-------|--------|-------------|
+| **Green** | Ready | Pod is fully running and the readiness gate is satisfied. |
+| **Yellow** | Not Ready | Pod exists but is not yet ready (e.g., starting up, failing readiness checks). |
+| **Orange** | Migrating | Pod is involved in active data migration (sending or receiving records). |
+| **Red** | Unstable | Pod has been not-ready for an extended period (has an `unstableSince` timestamp). |
+
+#### Rack-Level Statistics
+
+Each rack in the topology view displays summary statistics:
+
+- **Pod count** -- Number of pods assigned to the rack (e.g., "3/3 Ready").
+- **Zone label** -- The availability zone the rack is mapped to.
+- **Rack ID** -- The numeric rack identifier used by Aerospike for data placement.
+
+#### Interpreting the Topology View
+
+The topology visualization helps operators:
+
+- **Verify even distribution** -- Confirm that pods are spread evenly across racks and zones as expected by the rack configuration.
+- **Identify zone imbalances** -- Spot situations where one zone has more pods than others, which could affect fault tolerance.
+- **Locate unhealthy pods** -- Quickly find pods that are not ready, unstable, or actively migrating by scanning for non-green colors.
+- **Validate rack assignments** -- Ensure that rack-to-zone mappings match the intended topology, especially after scaling or configuration changes.
+- **Monitor rolling operations** -- During rolling restarts or scale operations, watch how pod states change across racks in real time.
+
 ### Pod Status Table
 
 Per-pod details including:
@@ -179,6 +271,7 @@ Per-pod details including:
 - Stability indicator (unstableSince timestamp)
 - Config hash and pod spec hash for drift detection
 - Last restart reason and timestamp
+- Migration status (remaining partitions per pod during active migration)
 
 ### Events Timeline
 
@@ -249,6 +342,7 @@ Templates serve as comprehensive baseline configurations with override fields fo
 |------|--------------|-----------|
 | Cluster list | 10 seconds | Any cluster in transitional phase |
 | Cluster detail | 5 seconds | Cluster in transitional phase or active operation |
+| Migration status | 5 seconds | Active data migration detected |
 
 Transitional phases: `InProgress`, `ScalingUp`, `ScalingDown`, `WaitingForMigration`, `RollingRestart`, `ACLSync`, `Deleting`.
 

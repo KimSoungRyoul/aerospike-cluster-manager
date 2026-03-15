@@ -201,6 +201,7 @@ This deploys the Cluster Manager as a Deployment with:
 | Pod Logs Viewer | No | Yes |
 | Config Drift Detection | No | Yes |
 | Reconciliation Health | No | Yes |
+| Migration Status Monitoring | No | Yes |
 | Events Timeline | No | Yes |
 
 ## See also

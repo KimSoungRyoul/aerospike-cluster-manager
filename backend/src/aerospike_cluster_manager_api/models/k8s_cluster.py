@@ -927,7 +927,9 @@ class TemplateServiceConfig(BaseModel):
     model_config = {"populate_by_name": True}
 
     feature_key_file: str | None = Field(default=None, alias="featureKeyFile", description="Path to feature key file")
-    proto_fd_max: int | None = Field(default=None, alias="protoFdMax", description="Maximum number of client connections (proto-fd-max)")
+    proto_fd_max: int | None = Field(
+        default=None, alias="protoFdMax", description="Maximum number of client connections (proto-fd-max)"
+    )
     extra_params: dict[str, Any] | None = Field(
         default=None,
         alias="extraParams",
@@ -1107,6 +1109,27 @@ class ReconciliationStatus(BaseModel):
     last_reconcile_time: str | None = Field(None, alias="lastReconcileTime")
     estimated_backoff_seconds: int | None = Field(None, alias="estimatedBackoffSeconds")
     phase: str = "Unknown"
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+# ---------------------------------------------------------------------------
+# Migration Status models
+# ---------------------------------------------------------------------------
+
+
+class PodMigrationStatus(BaseModel):
+    pod_name: str = Field(alias="podName")
+    migrating_partitions: int = Field(default=0, alias="migratingPartitions")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class MigrationStatusResponse(BaseModel):
+    in_progress: bool = Field(default=False, alias="inProgress")
+    remaining_partitions: int = Field(default=0, alias="remainingPartitions")
+    last_checked: str | None = Field(default=None, alias="lastChecked")
+    pods: list[PodMigrationStatus] = Field(default_factory=list)
 
     model_config = ConfigDict(populate_by_name=True)
 
