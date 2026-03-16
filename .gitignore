@@ -59,3 +59,4 @@ build/
 Thumbs.db
 .AppleDouble
 .LSOverride
+.claude/
