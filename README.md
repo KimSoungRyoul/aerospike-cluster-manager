@@ -120,6 +120,8 @@ npm run dev                        # http://localhost:3000
   - Enhanced monitoring configuration: exporter image, metric labels, exporter resources (CPU/memory), exporter environment variables, ServiceMonitor config (enabled/interval/labels), PrometheusRule config (enabled/labels/custom alerting rules)
   - Seeds Finder Services UI: edit dialog with LoadBalancer service port, target port, external traffic policy (Cluster/Local), annotations, labels, load balancer source ranges (CIDR list), and wizard review step display
   - Cluster health dashboard with rack distribution and migration status
+  - Migration status monitoring: real-time remaining records, per-pod migration column, auto-refresh during active migration, graceful fallback for older operators
+  - Rack topology visualization: visual diagram of zones, racks, and pods with color-coded status (ready, not-ready, migrating, unstable) and rack-level statistics
   - Pod logs viewer with tail lines, copy, and download
   - Export cluster CR as clean YAML
   - Rack-level overrides (per-rack aerospikeConfig, storage, podSpec)
@@ -563,6 +565,7 @@ Common use cases include:
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/events` | Get Kubernetes events (supports `?category=` filter) |
 | `POST` | `/api/k8s/clusters/{namespace}/{name}/operations` | Trigger operations (WarmRestart, PodRestart) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/health` | Get cluster health summary (pods, migration, conditions) |
+| `GET` | `/api/k8s/clusters/{namespace}/{name}/migration-status` | Get real-time migration status (overall + per-pod remaining records) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/config-drift` | Detect configuration drift (spec vs applied spec, pod hash groups) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/reconciliation-status` | Get reconciliation health (circuit breaker state, backoff timer) |
 | `GET` | `/api/k8s/clusters/{namespace}/{name}/pods/{pod}/logs` | Get container logs for a pod |

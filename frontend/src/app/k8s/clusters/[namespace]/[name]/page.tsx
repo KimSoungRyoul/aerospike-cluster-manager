@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -31,12 +31,18 @@ import { K8sEventTimeline } from "@/components/k8s/k8s-event-timeline";
 import { K8sEditDialog } from "@/components/k8s/k8s-edit-dialog";
 import { K8sHPADialog } from "@/components/k8s/k8s-hpa-dialog";
 import { K8sReconciliationHealth } from "@/components/k8s/k8s-reconciliation-health";
+import { K8sMigrationStatus } from "@/components/k8s/k8s-migration-status";
 import { K8sOperationStatus } from "@/components/k8s/k8s-operation-status";
+import { K8sRackTopology } from "@/components/k8s/k8s-rack-topology";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { useToastStore } from "@/stores/toast-store";
 import { cn, getErrorMessage } from "@/lib/utils";
-import { TRANSITIONAL_PHASES, type UpdateK8sClusterRequest } from "@/lib/api/types";
+import {
+  TRANSITIONAL_PHASES,
+  type MigrationStatus,
+  type UpdateK8sClusterRequest,
+} from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 
 function formatRelativeTime(isoString: string): string {
@@ -89,9 +95,14 @@ export default function K8sClusterDetailPage() {
   const [warmRestartConfirmOpen, setWarmRestartConfirmOpen] = useState(false);
   const [podRestartConfirmOpen, setPodRestartConfirmOpen] = useState(false);
   const [pendingPodsExpanded, setPendingPodsExpanded] = useState(false);
+  const [migrationStatus, setMigrationStatus] = useState<MigrationStatus | null>(null);
 
   const namespace = params?.namespace || "";
   const name = params?.name || "";
+
+  const handleMigrationUpdate = useCallback((status: MigrationStatus | null) => {
+    setMigrationStatus(status);
+  }, []);
 
   useEffect(() => {
     if (namespace && name) {
@@ -287,6 +298,8 @@ export default function K8sClusterDetailPage() {
         }}
       />
 
+      <K8sMigrationStatus namespace={namespace} name={name} onUpdate={handleMigrationUpdate} />
+
       {/* Overview */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
@@ -433,6 +446,13 @@ export default function K8sClusterDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Rack Topology */}
+      <K8sRackTopology
+        rackConfig={selectedCluster.spec?.rackConfig}
+        pods={selectedCluster.pods}
+        migrationStatus={migrationStatus}
+      />
 
       {/* Status Dashboard: Pending Restart Pods, Last Reconcile, Operator Version */}
       {(selectedCluster.pendingRestartPods.length > 0 ||
@@ -624,6 +644,7 @@ export default function K8sClusterDetailPage() {
             onSelectionChange={setSelectedPods}
             namespace={namespace}
             clusterName={name}
+            migrationStatus={migrationStatus}
           />
         </CardContent>
       </Card>

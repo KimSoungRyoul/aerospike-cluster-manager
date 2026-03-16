@@ -75,7 +75,7 @@ export function FilterConditionEditor({
     }
   };
 
-  const currentOpLabel = operators.find((o) => o.value === condition.operator)?.label ?? "=";
+  const _currentOpLabel = operators.find((o) => o.value === condition.operator)?.label ?? "=";
 
   return (
     <div className="w-[260px] space-y-2.5 p-3">

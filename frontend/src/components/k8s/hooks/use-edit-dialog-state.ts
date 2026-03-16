@@ -314,7 +314,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
   useEffect(() => {
     if (open && !prevOpenRef.current) {
       const snap = initialsSnapshotRef.current;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: synchronize form state with dialog open/close
+
       setState({
         ...snap,
         // Deep-copy mutable collections
@@ -329,9 +329,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
         headlessServiceConfig: snap.headlessServiceConfig
           ? { ...snap.headlessServiceConfig }
           : null,
-        storageVolumes: snap.storageVolumes.map((v) =>
-          JSON.parse(JSON.stringify(v)),
-        ),
+        storageVolumes: snap.storageVolumes.map((v) => JSON.parse(JSON.stringify(v))),
         seedsFinderServices: snap.seedsFinderServices
           ? {
               loadBalancer: snap.seedsFinderServices.loadBalancer
@@ -402,8 +400,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
     JSON.stringify(state.sidecars) !== JSON.stringify(snap.sidecars) ||
     JSON.stringify(state.initContainers) !== JSON.stringify(snap.initContainers) ||
     JSON.stringify(state.podServiceConfig) !== JSON.stringify(snap.podServiceConfig) ||
-    JSON.stringify(state.headlessServiceConfig) !==
-      JSON.stringify(snap.headlessServiceConfig) ||
+    JSON.stringify(state.headlessServiceConfig) !== JSON.stringify(snap.headlessServiceConfig) ||
     state.enableRackIDOverride !== snap.enableRackIDOverride ||
     JSON.stringify(state.storageVolumes) !== JSON.stringify(snap.storageVolumes) ||
     state.storageCleanupThreads !== snap.storageCleanupThreads ||

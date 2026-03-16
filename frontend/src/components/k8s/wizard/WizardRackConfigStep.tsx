@@ -196,7 +196,7 @@ function RackConfigJsonEditor({
         className={`font-mono text-xs ${parseError ? "border-error" : ""}`}
         placeholder='{"namespaces": [...]}'
       />
-      {parseError && <p className="text-xs text-error">{parseError}</p>}
+      {parseError && <p className="text-error text-xs">{parseError}</p>}
     </div>
   );
 }

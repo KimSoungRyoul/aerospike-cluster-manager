@@ -1283,6 +1283,74 @@ def compute_config_drift(cr: dict) -> dict:
     }
 
 
+def extract_migration_status(cluster_cr: dict) -> dict:
+    """Extract migration info from the CR's status section.
+
+    Handles gracefully when migration status fields are missing/null,
+    which is expected when the operator hasn't populated them yet.
+    """
+    status = cluster_cr.get("status", {})
+
+    # Extract top-level migration status from status.migrationStatus
+    migration_status = status.get("migrationStatus", {}) or {}
+    in_progress = migration_status.get("inProgress", False)
+    remaining_partitions = migration_status.get("remainingPartitions", 0)
+    last_checked = migration_status.get("lastChecked")
+
+    # Extract per-pod migration info from status.pods[].migratingPartitions
+    pods_status = status.get("pods", {}) or {}
+    pod_migration_list = []
+    total_migrating = 0
+
+    if isinstance(pods_status, dict):
+        for pod_name, pod_info in pods_status.items():
+            if isinstance(pod_info, dict):
+                migrating_partitions = pod_info.get("migratingPartitions", 0) or 0
+                total_migrating += migrating_partitions
+                if migrating_partitions > 0:
+                    pod_migration_list.append(
+                        {
+                            "podName": pod_name,
+                            "migratingPartitions": migrating_partitions,
+                        }
+                    )
+    elif isinstance(pods_status, list):
+        for pod_info in pods_status:
+            if isinstance(pod_info, dict):
+                pod_name = pod_info.get("name", pod_info.get("podName", "unknown"))
+                migrating_partitions = pod_info.get("migratingPartitions", 0) or 0
+                total_migrating += migrating_partitions
+                if migrating_partitions > 0:
+                    pod_migration_list.append(
+                        {
+                            "podName": pod_name,
+                            "migratingPartitions": migrating_partitions,
+                        }
+                    )
+
+    # If top-level migration status is missing, infer from per-pod data
+    if not migration_status:
+        in_progress = total_migrating > 0
+        remaining_partitions = total_migrating
+
+    # Also check phase for migration indication
+    phase = status.get("phase", "")
+    if phase == "WaitingForMigration" and not in_progress:
+        in_progress = True
+
+    # Ensure consistency: if not in progress, don't report migrating pods
+    if not in_progress:
+        pod_migration_list = []
+        remaining_partitions = 0
+
+    return {
+        "inProgress": in_progress,
+        "remainingPartitions": remaining_partitions,
+        "lastChecked": last_checked,
+        "pods": pod_migration_list,
+    }
+
+
 def extract_reconciliation_status(cr: dict) -> dict:
     """Extract reconciliation health info including circuit breaker state."""
     status = cr.get("status", {})
