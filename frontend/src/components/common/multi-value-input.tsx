@@ -101,7 +101,7 @@ export function MultiValueInput({
           {addLabel}
         </Button>
       </div>
-      {error && <p className="text-xs text-error">{error}</p>}
+      {error && <p className="text-error text-xs">{error}</p>}
     </div>
   );
 }
