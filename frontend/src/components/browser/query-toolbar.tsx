@@ -127,7 +127,7 @@ export function QueryToolbar({
     onQueryExecuted,
   ]);
 
-  const currentModeLabel = MODE_OPTIONS.find((o) => o.value === viewMode)?.label ?? "Scan All";
+  const _currentModeLabel = MODE_OPTIONS.find((o) => o.value === viewMode)?.label ?? "Scan All";
   const showClear = viewMode !== "browse";
   const showBadge = viewMode !== "browse" && store.hasExecuted;
 
