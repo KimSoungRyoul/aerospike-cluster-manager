@@ -63,7 +63,7 @@ RUN groupadd --gid 1001 appuser \
     && useradd --uid 1001 --gid appuser --shell /bin/false --create-home appuser \
     && mkdir -p /app/data \
     && chown -R appuser:appuser /app \
-    && chmod 777 /app/data
+    && chmod 755 /app/data
 
 USER appuser
 

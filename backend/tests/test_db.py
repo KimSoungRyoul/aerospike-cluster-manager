@@ -103,7 +103,7 @@ class TestCreateConnection:
 
     async def test_insert_duplicate_id_raises(self, init_test_db, sample_connection):
         await db.create_connection(sample_connection)
-        with pytest.raises((sqlite3.IntegrityError, Exception)):
+        with pytest.raises(sqlite3.IntegrityError):
             await db.create_connection(sample_connection)
 
 
@@ -191,9 +191,13 @@ class TestCloseDb:
 
     async def test_close_when_already_closed(self):
         """Calling close_db() when already closed should not raise."""
+        original = db._backend
         db._backend = None
-        await db.close_db()
-        assert db._backend is None
+        try:
+            await db.close_db()
+            assert db._backend is None
+        finally:
+            db._backend = original
 
 
 class TestGetBackendWithoutInit:

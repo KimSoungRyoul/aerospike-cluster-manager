@@ -7,15 +7,15 @@ config before initialization.
 
 from __future__ import annotations
 
+import types
 from typing import TYPE_CHECKING
 
 from aerospike_cluster_manager_api import config
 
 if TYPE_CHECKING:
-    from aerospike_cluster_manager_api.db import _postgres, _sqlite
     from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
-_backend: _postgres | _sqlite | None = None  # type: ignore[valid-type]
+_backend: types.ModuleType | None = None
 
 
 def _get_backend():

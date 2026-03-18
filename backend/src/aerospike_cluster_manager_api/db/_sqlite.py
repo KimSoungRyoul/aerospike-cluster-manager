@@ -45,15 +45,24 @@ def _get_conn() -> aiosqlite.Connection:
 async def init_db() -> None:
     global _conn
     db_path = config.SQLITE_PATH
-    os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
+    if db_path != ":memory:":
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
     logger.info("Connecting to SQLite at %s …", db_path)
+    old_conn = _conn
     conn = await aiosqlite.connect(db_path)
     conn.row_factory = sqlite3.Row
-    await conn.execute("PRAGMA journal_mode=WAL")
-    await conn.execute("PRAGMA foreign_keys=ON")
-    await conn.execute(CREATE_TABLE_SQL)
-    await conn.commit()
-    _conn = conn
+    try:
+        await conn.execute("PRAGMA journal_mode=WAL")
+        await conn.execute("PRAGMA foreign_keys=ON")
+        await conn.execute(CREATE_TABLE_SQL)
+        await conn.commit()
+        _conn = conn
+    except Exception:
+        await conn.close()
+        _conn = old_conn
+        raise
+    if old_conn is not None:
+        await old_conn.close()
     logger.info("Database initialized (SQLite)")
 
 
@@ -122,23 +131,27 @@ async def get_connection(conn_id: str) -> ConnectionProfile | None:
 
 async def create_connection(conn: ConnectionProfile) -> None:
     db_conn = _get_conn()
-    await db_conn.execute(
-        """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (
-            conn.id,
-            conn.name,
-            json.dumps(conn.hosts),
-            conn.port,
-            conn.clusterName,
-            conn.username,
-            conn.password,
-            conn.color,
-            conn.createdAt,
-            conn.updatedAt,
-        ),
-    )
-    await db_conn.commit()
+    try:
+        await db_conn.execute(
+            """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                conn.id,
+                conn.name,
+                json.dumps(conn.hosts),
+                conn.port,
+                conn.clusterName,
+                conn.username,
+                conn.password,
+                conn.color,
+                conn.createdAt,
+                conn.updatedAt,
+            ),
+        )
+        await db_conn.commit()
+    except Exception:
+        await db_conn.rollback()
+        raise
 
 
 async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | None:
@@ -192,6 +205,10 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
 
 async def delete_connection(conn_id: str) -> bool:
     db_conn = _get_conn()
-    cursor = await db_conn.execute("DELETE FROM connections WHERE id = ?", (conn_id,))
-    await db_conn.commit()
+    try:
+        cursor = await db_conn.execute("DELETE FROM connections WHERE id = ?", (conn_id,))
+        await db_conn.commit()
+    except Exception:
+        await db_conn.rollback()
+        raise
     return cursor.rowcount == 1
