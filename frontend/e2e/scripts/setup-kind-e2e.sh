@@ -9,7 +9,7 @@ NAMESPACE="${NAMESPACE:-acko-system}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
 CHART_DIR="${REPO_ROOT}/charts/aerospike-ce-kubernetes-operator"
-OPERATOR_IMG="ghcr.io/kimsoungryoul/aerospike-ce-kubernetes-operator:e2e"
+OPERATOR_IMG="ghcr.io/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator:e2e"
 FRONTEND_IMG="aerospike-cluster-manager-frontend:e2e"
 BACKEND_IMG="aerospike-cluster-manager-backend:e2e"
 
@@ -62,7 +62,7 @@ echo "[OK] Backend image loaded into Kind"
 echo "[...] Helm installing ${RELEASE}..."
 helm upgrade --install "${RELEASE}" "${CHART_DIR}" \
   --namespace "${NAMESPACE}" --create-namespace \
-  --set image.repository=ghcr.io/kimsoungryoul/aerospike-ce-kubernetes-operator \
+  --set image.repository=ghcr.io/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator \
   --set image.tag=e2e \
   --set image.pullPolicy=Never \
   --set ui.enabled=true \

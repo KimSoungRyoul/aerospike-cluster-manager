@@ -1,7 +1,7 @@
 # Aerospike Cluster Manager
 
-[![CI](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/ci.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/ci.yaml)
-[![CD](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/cd.yaml/badge.svg)](https://github.com/KimSoungRyoul/aerospike-cluster-manager/actions/workflows/cd.yaml)
+[![CI](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/ci.yaml/badge.svg)](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/ci.yaml)
+[![CD](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/cd.yaml/badge.svg)](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/cd.yaml)
 ![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
@@ -379,7 +379,7 @@ All data management endpoints are prefixed with `/api` and require a `{conn_id}`
 
 ## K8s Cluster Management
 
-When running inside a Kubernetes cluster (or with `K8S_MANAGEMENT_ENABLED=true`), the Aerospike Cluster Manager provides a full GUI for managing `AerospikeCluster` custom resources (`acko.io/v1alpha1`) deployed by the [Aerospike CE Kubernetes Operator](https://github.com/KimSoungRyoul/aerospike-ce-kubernetes-operator).
+When running inside a Kubernetes cluster (or with `K8S_MANAGEMENT_ENABLED=true`), the Aerospike Cluster Manager provides a full GUI for managing `AerospikeCluster` custom resources (`acko.io/v1alpha1`) deployed by the [Aerospike CE Kubernetes Operator](https://github.com/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator).
 
 ### Cluster Lifecycle
 
@@ -893,7 +893,7 @@ When running inside Kubernetes, set `K8S_MANAGEMENT_ENABLED=true` and ensure the
 
 ### Kubernetes Operator Integration
 
-The Aerospike Cluster Manager is designed to work alongside the [Aerospike CE Kubernetes Operator](https://github.com/KimSoungRyoul/aerospike-ce-kubernetes-operator) as the GUI management plane. See the [Architecture Guide](docs/architecture.md) for full details on how the components fit together.
+The Aerospike Cluster Manager is designed to work alongside the [Aerospike CE Kubernetes Operator](https://github.com/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator) as the GUI management plane. See the [Architecture Guide](docs/architecture.md) for full details on how the components fit together.
 
 ## License
 

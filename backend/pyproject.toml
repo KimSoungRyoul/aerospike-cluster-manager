@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Aerospike Cluster Manager Backend API"
 readme = "README.md"
 authors = [
-    { name = "KimSoungRyoul", email = "KimSoungRyoul@gmail.com" }
+    { name = "aerospike-ce-ecosystem", email = "aerospike-ce-ecosystem@users.noreply.github.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [

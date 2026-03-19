@@ -82,7 +82,7 @@ See the [Architecture Guide](./architecture.md) for a complete RBAC configuratio
    kubectl get crd aerospikeclusters.acko.io
    kubectl get crd aerospikeclustertemplates.acko.io
    ```
-2. If missing, install the [Aerospike CE Kubernetes Operator](https://github.com/KimSoungRyoul/aerospike-ce-kubernetes-operator) which registers the required CRDs.
+2. If missing, install the [Aerospike CE Kubernetes Operator](https://github.com/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator) which registers the required CRDs.
 
 ## PostgreSQL Connection Errors
 

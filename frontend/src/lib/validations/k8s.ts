@@ -107,3 +107,47 @@ export function parseMemoryBytes(mem: string): number {
   const unit = m[2];
   return parseFloat(m[1]) * Math.pow(1024, MEMORY_UNITS[unit] ?? 0);
 }
+
+/** Aerospike overhead factor (30% for primary index, buffers, internal structures). */
+const AEROSPIKE_MEMORY_OVERHEAD = 1.3;
+
+/**
+ * Calculate minimum pod memory (bytes) required for the given namespaces.
+ * Only in-memory namespaces contribute; device namespaces use disk.
+ */
+export function calculateMinMemoryBytes(
+  namespaces: AerospikeNamespaceConfig[],
+): number {
+  const totalDataBytes = namespaces.reduce((sum, ns) => {
+    if (ns.storageEngine.type === "memory") {
+      return sum + (ns.storageEngine.dataSize ?? 1073741824);
+    }
+    return sum;
+  }, 0);
+  if (totalDataBytes === 0) return 0;
+  return Math.ceil(totalDataBytes * AEROSPIKE_MEMORY_OVERHEAD);
+}
+
+/** Format bytes to a human-readable K8s memory string (e.g., "2Gi"). */
+export function formatMemoryGi(bytes: number): string {
+  const gi = Math.ceil(bytes / (1024 ** 3));
+  return `${Math.max(1, gi)}Gi`;
+}
+
+/**
+ * Validate that memory limit is sufficient for namespace data sizes.
+ * Returns a warning message or null if ok.
+ */
+export function validateMemoryForNamespaces(
+  memoryLimit: string,
+  namespaces: AerospikeNamespaceConfig[],
+): string | null {
+  const minBytes = calculateMinMemoryBytes(namespaces);
+  if (minBytes === 0) return null;
+  const limitBytes = parseMemoryBytes(memoryLimit);
+  if (limitBytes === 0) return null;
+  if (limitBytes < minBytes) {
+    return `Memory limit (${memoryLimit}) is insufficient for namespace data sizes. Minimum recommended: ${formatMemoryGi(minBytes)}`;
+  }
+  return null;
+}

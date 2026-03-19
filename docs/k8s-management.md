@@ -4,7 +4,7 @@ This guide covers the Kubernetes cluster lifecycle management features of the Ae
 
 ## Prerequisites
 
-- Kubernetes cluster with the [Aerospike CE Kubernetes Operator](https://github.com/KimSoungRyoul/aerospike-ce-kubernetes-operator) installed.
+- Kubernetes cluster with the [Aerospike CE Kubernetes Operator](https://github.com/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator) installed.
 - `K8S_MANAGEMENT_ENABLED=true` environment variable set on the backend.
 - Service account with RBAC permissions for AerospikeCluster and AerospikeClusterTemplate CRDs (see [Architecture Guide](architecture.md)).
 

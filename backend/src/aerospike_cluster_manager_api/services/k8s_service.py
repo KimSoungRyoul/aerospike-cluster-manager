@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
+from aerospike_cluster_manager_api.models.k8s.scheduling import ResourceConfig, ResourceSpec, _parse_memory_bytes
 from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
     CreateK8sClusterRequest,
@@ -427,13 +428,33 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
                 storage_spec["filesystemVolumePolicy"] = req.storage.filesystem_volume_policy
             if req.storage.block_volume_policy is not None:
                 storage_spec["blockVolumePolicy"] = req.storage.block_volume_policy
-            if req.storage.local_storage_classes is not None:
-                storage_spec["localStorageClasses"] = req.storage.local_storage_classes
-            if req.storage.delete_local_storage_on_restart is not None:
-                storage_spec["deleteLocalStorageOnRestart"] = req.storage.delete_local_storage_on_restart
             cr["spec"]["storage"] = storage_spec
 
-    # Pod resources
+    # Pod resources — auto-size memory based on namespace data-size totals
+    total_ns_bytes = sum(
+        (ns.storage_engine.data_size or 1073741824)
+        for ns in req.namespaces
+        if ns.storage_engine.type == "memory"
+    )
+    if total_ns_bytes > 0:
+        # Aerospike needs ~30% overhead for primary index, buffers, and internal structures
+        min_memory_bytes = int(total_ns_bytes * 1.3)
+        min_memory_gi = max(1, -(-min_memory_bytes // (1024 ** 3)))  # ceil division to GiB
+
+        if req.resources:
+            # Ensure user-specified limits are sufficient
+            limit_bytes = _parse_memory_bytes(req.resources.limits.memory)
+            if limit_bytes < min_memory_bytes:
+                req.resources.limits.memory = f"{min_memory_gi}Gi"
+            request_bytes = _parse_memory_bytes(req.resources.requests.memory)
+            if request_bytes > _parse_memory_bytes(req.resources.limits.memory):
+                req.resources.requests.memory = req.resources.limits.memory
+        else:
+            req.resources = ResourceConfig(
+                requests=ResourceSpec(cpu="500m", memory=f"{min_memory_gi}Gi"),
+                limits=ResourceSpec(cpu="2", memory=f"{min_memory_gi}Gi"),
+            )
+
     if req.resources:
         cr["spec"]["podSpec"] = {
             "aerospikeContainer": {

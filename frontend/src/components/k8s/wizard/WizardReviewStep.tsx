@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { AEROSPIKE_IMAGES } from "@/lib/constants";
 import { Select } from "@/components/ui/select";
+import {
+  validateMemoryForNamespaces,
+  calculateMinMemoryBytes,
+  formatMemoryGi,
+} from "@/lib/validations/k8s";
 import type { WizardReviewStepProps } from "./types";
 
 type EditingField = string | null;
@@ -299,6 +304,42 @@ export function WizardReviewStep({
             </div>
           </>
         )}
+
+        {(() => {
+          const memLimit = form.resources?.limits.memory ?? "4Gi";
+          const warning = validateMemoryForNamespaces(memLimit, form.namespaces);
+          if (!warning) return null;
+          const recommended = formatMemoryGi(calculateMinMemoryBytes(form.namespaces));
+          return (
+            <div className="bg-warning/10 border-warning/30 col-span-2 flex items-start gap-2 rounded-md border p-3">
+              <TriangleAlert className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+              <div className="text-xs">
+                <p className="text-warning font-medium">{warning}</p>
+                {updateForm && (
+                  <button
+                    type="button"
+                    className="text-warning mt-1 underline"
+                    onClick={() => {
+                      if (!form.resources) return;
+                      updateForm({
+                        resources: {
+                          ...form.resources,
+                          limits: { ...form.resources.limits, memory: recommended },
+                        },
+                      });
+                    }}
+                  >
+                    Auto-fix: set memory limit to {recommended}
+                  </button>
+                )}
+                <p className="text-warning/70 mt-1">
+                  The backend will auto-adjust if you proceed, but it is recommended to fix this
+                  explicitly.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
 
         <span className="text-base-content/60">Monitoring</span>
         {editable ? (
