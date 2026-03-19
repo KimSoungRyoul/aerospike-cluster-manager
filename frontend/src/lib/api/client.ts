@@ -368,13 +368,6 @@ export const api = {
       },
     ),
 
-  // Terminal
-  executeCommand: (connId: string, command: string) =>
-    request<import("./types").TerminalCommand>(`/api/terminal/${encodePathSegment(connId)}`, {
-      method: "POST",
-      body: JSON.stringify({ command }),
-    }),
-
   // Metrics
   getMetrics: (connId: string) =>
     request<import("./types").ClusterMetrics>(`/api/metrics/${encodePathSegment(connId)}`),

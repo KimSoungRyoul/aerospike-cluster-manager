@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Table2, Server, Database, Shield, Code2, Terminal } from "lucide-react";
+import { Table2, Server, Database, Shield, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -10,7 +10,6 @@ const tabs = [
   { label: "Indexes", icon: Database, path: "indexes" },
   { label: "Admin", icon: Shield, path: "admin" },
   { label: "UDFs", icon: Code2, path: "udfs" },
-  { label: "Terminal", icon: Terminal, path: "terminal" },
 ];
 
 interface TabBarProps {

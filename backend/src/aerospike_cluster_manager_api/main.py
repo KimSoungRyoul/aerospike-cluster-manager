@@ -27,7 +27,6 @@ from aerospike_cluster_manager_api.routers import (
     query,
     records,
     sample_data,
-    terminal,
     udfs,
 )
 
@@ -201,7 +200,6 @@ _routers = [
     records.router,
     query.router,
     indexes.router,
-    terminal.router,
     admin_users.router,
     admin_roles.router,
     udfs.router,

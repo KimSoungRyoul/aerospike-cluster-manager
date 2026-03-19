@@ -250,18 +250,6 @@ export default function SettingsPage() {
                 </kbd>
               </div>
             </div>
-            <div className="divider bg-border/50 my-0" />
-            <div className="flex items-center justify-between py-0.5">
-              <span className="text-muted-foreground">Toggle Terminal</span>
-              <div className="flex gap-1">
-                <kbd className="bg-base-200/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
-                  Cmd
-                </kbd>
-                <kbd className="bg-base-200/50 rounded-md border px-2 py-0.5 font-mono text-[11px] shadow-sm">
-                  `
-                </kbd>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>

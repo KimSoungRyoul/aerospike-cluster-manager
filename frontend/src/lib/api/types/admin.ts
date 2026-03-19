@@ -53,12 +53,3 @@ export interface ApplyUDFRequest {
   functionName: string;
   args: BinValue[];
 }
-
-// === Terminal ===
-export interface TerminalCommand {
-  id: string;
-  command: string;
-  output: string;
-  timestamp: string;
-  success: boolean;
-}

@@ -26,19 +26,6 @@ export const K8S_DETAIL_POLL_INTERVAL_MS = 5_000;
 export const K8S_DETAIL_POLL_MAX_BACKOFF_MS = 60_000;
 export const SIDEBAR_HEALTH_POLL_INTERVAL_MS = 30_000;
 
-export const QUICK_COMMANDS = [
-  { label: "namespaces", command: "show namespaces" },
-  { label: "sets", command: "show sets" },
-  { label: "bins", command: "show bins" },
-  { label: "sindex", command: "show sindex" },
-  { label: "udfs", command: "show udfs" },
-  { label: "config", command: "show config" },
-  { label: "statistics", command: "show statistics" },
-  { label: "build", command: "build" },
-  { label: "node", command: "node" },
-  { label: "status", command: "status" },
-] as const;
-
 export const PRESET_COLORS = [
   "#0097D3",
   "#c4373a",
