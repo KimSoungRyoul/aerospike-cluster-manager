@@ -14,8 +14,8 @@ from starlette.responses import Response
 from aerospike_cluster_manager_api import db
 from aerospike_cluster_manager_api.client_manager import client_manager
 from aerospike_cluster_manager_api.constants import INFO_BUILD, INFO_EDITION, INFO_NAMESPACES
-from aerospike_cluster_manager_api.dependencies import _get_verified_connection
-from aerospike_cluster_manager_api.info_parser import parse_list
+from aerospike_cluster_manager_api.dependencies import VerifiedConnectionProfile, _get_verified_connection
+from aerospike_cluster_manager_api.info_parser import parse_kv_pairs, parse_list, safe_int
 from aerospike_cluster_manager_api.models.connection import (
     ConnectionProfile,
     ConnectionProfileResponse,
@@ -53,6 +53,9 @@ async def create_connection(request: Request, body: CreateConnectionRequest) -> 
         username=body.username,
         password=body.password,
         color=body.color,
+        label=body.label,
+        label_color=body.label_color,
+        description=body.description,
         createdAt=now,
         updatedAt=now,
     )
@@ -61,11 +64,8 @@ async def create_connection(request: Request, body: CreateConnectionRequest) -> 
 
 
 @router.get("/{conn_id}", summary="Get connection", description="Retrieve a single connection profile by its ID.")
-async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfileResponse:
+async def get_connection(conn: VerifiedConnectionProfile) -> ConnectionProfileResponse:
     """Retrieve a single connection profile by its ID."""
-    conn = await db.get_connection(conn_id)
-    if not conn:
-        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
     return ConnectionProfileResponse.from_profile(conn)
 
 
@@ -77,7 +77,7 @@ async def update_connection(
     conn_id: str = Depends(_get_verified_connection),
 ) -> ConnectionProfileResponse:
     """Update an existing connection profile with new settings."""
-    update_data = body.model_dump(exclude_none=True)
+    update_data = body.model_dump(exclude_unset=True, by_alias=False)
     conn = await db.update_connection(conn_id, update_data)
     if not conn:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
@@ -102,13 +102,53 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
         namespaces = parse_list(ns_raw)
         build = (await client.info_random_node(INFO_BUILD)).strip()
         edition = (await client.info_random_node(INFO_EDITION)).strip()
+        node_count = len(node_names)
+
+        # Collect namespace-level summary metrics
+        total_ops = 0
+        memory_used = 0
+        memory_total = 0
+        disk_used = 0
+        disk_total = 0
+
+        try:
+            for ns_name in namespaces:
+                ns_info = await client.info_random_node(f"namespace/{ns_name}")
+                kv = parse_kv_pairs(ns_info)
+                # CE 8 uses unified data_used_bytes/data_total_bytes for both memory and device.
+                # Fall back to legacy memory_used_bytes/memory-size for older versions.
+                ns_data_used = (
+                    safe_int(kv.get("data_used_bytes"))
+                    if "data_used_bytes" in kv
+                    else safe_int(kv.get("memory_used_bytes"))
+                )
+                ns_data_total = (
+                    safe_int(kv.get("data_total_bytes"))
+                    if "data_total_bytes" in kv
+                    else safe_int(kv.get("memory-size"))
+                )
+                # Multiply per-node values by node count for cluster-wide estimate
+                memory_used += ns_data_used * node_count
+                memory_total += ns_data_total * node_count
+                disk_used += safe_int(kv.get("device_used_bytes")) * node_count
+                disk_total += safe_int(kv.get("device-total-bytes")) * node_count
+                total_ops += (
+                    safe_int(kv.get("client_read_success")) + safe_int(kv.get("client_write_success"))
+                ) * node_count
+        except Exception:
+            logger.debug("Failed to collect namespace stats for connection '%s'", conn_id, exc_info=True)
 
         return ConnectionStatus(
             connected=True,
-            nodeCount=len(node_names),
+            nodeCount=node_count,
             namespaceCount=len(namespaces),
             build=build,
             edition=edition,
+            totalOps=total_ops,
+            memoryUsed=memory_used,
+            memoryTotal=memory_total,
+            diskUsed=disk_used,
+            diskTotal=disk_total,
         )
     except (AerospikeError, ClusterError, ConnectionRefusedError, OSError):
         logger.warning("Health check failed for connection '%s'", conn_id, exc_info=True)

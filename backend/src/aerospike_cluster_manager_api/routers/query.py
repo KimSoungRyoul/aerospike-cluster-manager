@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import cast
 
 from aerospike_py.exception import RecordNotFound
 from fastapi import APIRouter, HTTPException
@@ -10,8 +11,7 @@ from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QU
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.models.query import QueryRequest, QueryResponse
-from aerospike_cluster_manager_api.routers.records import _auto_detect_pk
-from aerospike_cluster_manager_api.utils import build_predicate
+from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryRes
         if not body.set:
             raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
 
-        pk = _auto_detect_pk(body.primaryKey)
+        pk = auto_detect_pk(body.primaryKey)
 
         try:
             raw_result = await client.get((body.namespace, body.set, pk), policy=POLICY_READ)
@@ -50,7 +50,7 @@ async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryRes
 
     q = client.query(body.namespace, body.set or "")
     if body.predicate:
-        q.where(build_predicate(body.predicate))
+        q.where(cast(tuple[str, ...], build_predicate(body.predicate)))
     if body.selectBins:
         q.select(*body.selectBins)
     raw_results = await q.results(POLICY_QUERY)

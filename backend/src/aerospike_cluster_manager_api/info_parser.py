@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 
 def parse_kv_pairs(response: str, sep: str = ";") -> dict[str, str]:
     """Parse ``"key=val;key2=val2"`` into a dict."""
@@ -67,7 +69,7 @@ def safe_bool(value: str | None) -> bool:
 
 
 def aggregate_node_kv(
-    info_all_results: list[tuple[str, int | None, str]],
+    info_all_results: Sequence[tuple[str, int | None, str]],
     keys_to_sum: set[str] | frozenset[str] = frozenset(),
     keys_to_min: set[str] | frozenset[str] = frozenset(),
 ) -> dict[str, str]:
@@ -105,7 +107,7 @@ def aggregate_node_kv(
 
 
 def aggregate_set_records(
-    info_all_results: list[tuple[str, int | None, str]],
+    info_all_results: Sequence[tuple[str, int | None, str]],
     replication_factor: int = 1,
 ) -> list[dict]:
     """Aggregate set info from all nodes into deduplicated set records.

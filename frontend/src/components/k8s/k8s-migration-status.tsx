@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRightLeft, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/formatters";
+import { formatNumber, formatRelativeTime } from "@/lib/formatters";
 import { api } from "@/lib/api/client";
 import type { MigrationStatus } from "@/lib/api/types";
 
@@ -14,24 +14,6 @@ interface K8sMigrationStatusProps {
   name: string;
   className?: string;
   onUpdate?: (status: MigrationStatus | null) => void;
-}
-
-function formatTimestamp(iso: string | null): string {
-  if (!iso) return "N/A";
-  try {
-    const date = new Date(iso);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return "just now";
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return `${diffSec}s ago`;
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    return `${diffHr}h ago`;
-  } catch {
-    return iso;
-  }
 }
 
 export function K8sMigrationStatus({
@@ -178,7 +160,7 @@ export function K8sMigrationStatus({
         {/* Last checked */}
         <div className="text-base-content/60 flex items-center gap-1.5 text-xs">
           <Clock className="h-3 w-3" />
-          <span>Last checked: {formatTimestamp(status.lastChecked)}</span>
+          <span>Last checked: {formatRelativeTime(status.lastChecked)}</span>
           {inProgress && (
             <span className="text-base-content/40 ml-auto">Auto-refreshing every 5s</span>
           )}

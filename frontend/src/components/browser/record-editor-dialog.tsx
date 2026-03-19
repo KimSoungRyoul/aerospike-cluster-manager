@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,76 +9,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 
-import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
-import type { AerospikeRecord, BinValue, BinEntry } from "@/lib/api/types";
+import { RecordMetadataGrid } from "@/components/browser/record-metadata-grid";
+import { BinRow } from "@/components/browser/bin-row";
+import type { AerospikeRecord, BinEntry } from "@/lib/api/types";
+
+// Re-export bin helpers for backwards compatibility with existing import sites
+export {
+  parseBinValue,
+  detectBinType,
+  serializeBinValue,
+  createEmptyBinEntry,
+  buildBinEntriesFromRecord,
+} from "@/lib/bin-utils";
 export type { BinEntry } from "@/lib/api/types";
-import { BIN_TYPES, type BinType } from "@/lib/constants";
-import { cn } from "@/lib/utils";
-
-/* ─── Helpers ────────────────────────────────────────── */
-
-export function parseBinValue(value: string, type: BinType): BinValue {
-  switch (type) {
-    case "integer": {
-      const n = parseInt(value, 10);
-      return isNaN(n) ? 0 : n;
-    }
-    case "float": {
-      const f = parseFloat(value);
-      return isNaN(f) ? 0 : f;
-    }
-    case "bool":
-      return value.toLowerCase() === "true";
-    case "list":
-    case "map":
-    case "geojson":
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    case "bytes":
-      return value;
-    default:
-      return value;
-  }
-}
-
-export function detectBinType(value: BinValue | undefined): BinType {
-  if (value === null || value === undefined) return "string";
-  if (typeof value === "boolean") return "bool";
-  if (typeof value === "number") return Number.isInteger(value) ? "integer" : "float";
-  if (Array.isArray(value)) return "list";
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    if ("type" in obj && "coordinates" in obj) return "geojson";
-    return "map";
-  }
-  return "string";
-}
-
-export function serializeBinValue(value: BinValue): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
-  return String(value);
-}
-
-export function createEmptyBinEntry(): BinEntry {
-  return { id: crypto.randomUUID(), name: "", value: "", type: "string" };
-}
-
-export function buildBinEntriesFromRecord(record: AerospikeRecord): BinEntry[] {
-  return Object.entries(record.bins).map(([name, value]) => ({
-    id: crypto.randomUUID(),
-    name,
-    value: serializeBinValue(value),
-    type: detectBinType(value),
-  }));
-}
 
 /* ─── Component ──────────────────────────────────────── */
 
@@ -95,6 +39,9 @@ export interface RecordEditorFieldsProps {
   useCodeEditor: Record<string, boolean>;
   onToggleCodeEditor: (id: string) => void;
   saving: boolean;
+  record?: AerospikeRecord | null;
+  namespace?: string;
+  setName?: string;
 }
 
 interface RecordEditorDialogProps extends RecordEditorFieldsProps {
@@ -118,53 +65,30 @@ export function RecordEditorFields({
   useCodeEditor: codeEditorMap,
   onToggleCodeEditor,
   saving,
+  record,
+  namespace,
+  setName,
 }: RecordEditorFieldsProps) {
-  const typeAccent: Record<string, string> = {
-    string: "border-l-foreground/15",
-    integer: "border-l-accent/60",
-    float: "border-l-accent/60",
-    bool: "border-l-success/60",
-    list: "border-l-chart-2/60",
-    map: "border-l-chart-4/60",
-    bytes: "border-l-muted-foreground/30",
-    geojson: "border-l-chart-4/60",
-  };
-
   return (
     <div className="space-y-5 p-5">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
-            Primary Key
-          </Label>
-          <Input
-            placeholder="Record key"
-            value={pk}
-            onChange={(e) => onPKChange(e.target.value)}
-            disabled={mode === "edit" || saving}
-            className="border-base-300/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
-            TTL (seconds)
-          </Label>
-          <Input
-            type="number"
-            placeholder="0 = default"
-            value={ttl}
-            onChange={(e) => onTTLChange(e.target.value)}
-            disabled={saving}
-            className="border-base-300/50 focus-visible:ring-accent/30 h-9 font-mono text-sm"
-          />
-        </div>
-      </div>
+      <RecordMetadataGrid
+        record={record}
+        mode={mode === "create" ? "create" : "edit"}
+        pk={pk}
+        onPKChange={onPKChange}
+        ttl={ttl}
+        onTTLChange={onTTLChange}
+        disabled={saving}
+        namespace={namespace}
+        setName={setName}
+      />
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-muted-foreground/60 font-mono text-[11px] tracking-wider uppercase">
+      <section>
+        <div className="mb-2.5 flex items-center justify-between">
+          <h4 className="text-muted-foreground/60 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
             Bins
-          </Label>
+            <span className="bg-border/30 h-px w-8" />
+          </h4>
           <Button
             type="button"
             variant="outline"
@@ -178,88 +102,34 @@ export function RecordEditorFields({
           </Button>
         </div>
 
-        {bins.map((bin) => {
-          const isComplex = ["list", "map", "geojson"].includes(bin.type);
-          const showCode = codeEditorMap[bin.id];
-          return (
-            <div
+        <div className="divide-base-300/30 divide-y overflow-hidden rounded-lg border">
+          {/* Header row */}
+          <div
+            className="bin-row-grid bg-base-200/30 text-muted-foreground/50 font-mono text-[11px] tracking-wider uppercase"
+            data-header
+          >
+            <span className="text-right">#</span>
+            <span>Name</span>
+            <span>Type</span>
+            <span>Value</span>
+            <span />
+          </div>
+          {bins.map((bin, i) => (
+            <BinRow
               key={bin.id}
-              className={cn(
-                "border-base-300/40 hover:border-base-300/60 space-y-2.5 rounded-md border border-l-2 p-3 transition-colors",
-                typeAccent[bin.type] || "border-l-border",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Bin name"
-                  value={bin.name}
-                  onChange={(e) => onUpdateBin(bin.id, "name", e.target.value)}
-                  disabled={saving}
-                  className="border-base-300/40 h-8 flex-1 font-mono text-sm"
-                />
-                <Select
-                  value={bin.type}
-                  onChange={(e) => onUpdateBin(bin.id, "type", e.target.value)}
-                  className="border-base-300/40 h-8 w-[110px] font-mono text-xs"
-                  disabled={saving}
-                >
-                  {BIN_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </Select>
-                {bins.length > 1 && (
-                  <button
-                    type="button"
-                    className="text-muted-foreground/50 hover:text-error hover:bg-error/10 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md transition-colors disabled:pointer-events-none disabled:opacity-50"
-                    onClick={() => onRemoveBin(bin.id)}
-                    disabled={saving}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-
-              {isComplex && (
-                <button
-                  type="button"
-                  className="text-muted-foreground/60 hover:text-accent font-mono text-[11px] transition-colors disabled:pointer-events-none disabled:opacity-50"
-                  onClick={() => onToggleCodeEditor(bin.id)}
-                  disabled={saving}
-                >
-                  {showCode ? "↩ simple input" : "⌨ code editor"}
-                </button>
-              )}
-
-              {isComplex && showCode ? (
-                <div className="border-base-300/40 h-[200px] overflow-hidden rounded-md border">
-                  <CodeEditor
-                    value={bin.value}
-                    onChange={(v) => onUpdateBin(bin.id, "value", v)}
-                    language="json"
-                    height="200px"
-                  />
-                </div>
-              ) : (
-                <Input
-                  placeholder={
-                    bin.type === "bool"
-                      ? "true / false"
-                      : bin.type === "integer" || bin.type === "float"
-                        ? "0"
-                        : "Value"
-                  }
-                  value={bin.value}
-                  onChange={(e) => onUpdateBin(bin.id, "value", e.target.value)}
-                  disabled={saving}
-                  className="border-base-300/40 h-8 font-mono text-sm"
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
+              mode="edit"
+              index={i + 1}
+              bin={bin}
+              onUpdate={onUpdateBin}
+              onRemove={onRemoveBin}
+              canRemove={bins.length > 1}
+              useCodeEditor={codeEditorMap[bin.id] ?? false}
+              onToggleCodeEditor={onToggleCodeEditor}
+              saving={saving}
+            />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -315,6 +185,8 @@ export function RecordEditorDialog({
             useCodeEditor={codeEditorMap}
             onToggleCodeEditor={onToggleCodeEditor}
             saving={saving}
+            namespace={namespace}
+            setName={set}
           />
         </div>
 

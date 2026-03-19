@@ -26,19 +26,6 @@ export const K8S_DETAIL_POLL_INTERVAL_MS = 5_000;
 export const K8S_DETAIL_POLL_MAX_BACKOFF_MS = 60_000;
 export const SIDEBAR_HEALTH_POLL_INTERVAL_MS = 30_000;
 
-export const QUICK_COMMANDS = [
-  { label: "namespaces", command: "show namespaces" },
-  { label: "sets", command: "show sets" },
-  { label: "bins", command: "show bins" },
-  { label: "sindex", command: "show sindex" },
-  { label: "udfs", command: "show udfs" },
-  { label: "config", command: "show config" },
-  { label: "statistics", command: "show statistics" },
-  { label: "build", command: "build" },
-  { label: "node", command: "node" },
-  { label: "status", command: "status" },
-] as const;
-
 export const PRESET_COLORS = [
   "#0097D3",
   "#c4373a",
@@ -123,3 +110,45 @@ export const NO_VALUE_OPERATORS: FilterOperator[] = ["exists", "not_exists", "is
 export const DUAL_VALUE_OPERATORS: FilterOperator[] = ["between"];
 
 export const AEROSPIKE_IMAGES = ["aerospike:ce-8.1.1.1"] as const;
+
+// === Cluster Label Presets ===
+export const LABEL_PRESETS = [
+  { name: "Production", color: "#EF4444" },
+  { name: "Staging", color: "#F59E0B" },
+  { name: "Development", color: "#22C55E" },
+  { name: "Testing", color: "#3B82F6" },
+  { name: "Archive", color: "#6B7280" },
+  { name: "Analytics", color: "#8B5CF6" },
+] as const;
+
+export const LABEL_COLORS = [
+  "#EF4444",
+  "#F59E0B",
+  "#22C55E",
+  "#3B82F6",
+  "#6B7280",
+  "#8B5CF6",
+  "#EC4899",
+] as const;
+
+export const BIN_TYPE_COLORS: Record<BinType, string> = {
+  string: "bg-success/10 text-success border-success/20",
+  integer: "bg-info/10 text-info border-info/20",
+  float: "bg-info/10 text-info border-info/20",
+  bool: "bg-secondary/10 text-secondary border-secondary/20",
+  list: "bg-warning/10 text-warning border-warning/20",
+  map: "bg-accent/15 text-accent border-accent/25",
+  bytes: "bg-base-200 text-muted-foreground border-base-300",
+  geojson: "bg-info/10 text-info border-info/20",
+};
+
+export const BIN_TYPE_BORDER_COLORS: Record<BinType, string> = {
+  string: "border-l-success/40",
+  integer: "border-l-info/40",
+  float: "border-l-info/40",
+  bool: "border-l-secondary/40",
+  list: "border-l-warning/40",
+  map: "border-l-accent/40",
+  bytes: "border-l-muted-foreground/20",
+  geojson: "border-l-info/40",
+};

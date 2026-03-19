@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import threading
-from typing import Any
+from typing import Any, cast
 
 from aerospike_cluster_manager_api import config
 
@@ -76,6 +76,26 @@ class K8sClient:
             self._initialized = True
 
     # ------------------------------------------------------------------
+    # Typed accessors — call only after _ensure_initialized()
+    # ------------------------------------------------------------------
+
+    def _get_custom_api(self) -> Any:
+        assert self._custom_api is not None, "K8s client not initialized; call _ensure_initialized() first"
+        return self._custom_api
+
+    def _get_core_api(self) -> Any:
+        assert self._core_api is not None, "K8s client not initialized; call _ensure_initialized() first"
+        return self._core_api
+
+    def _get_storage_api(self) -> Any:
+        assert self._storage_api is not None, "K8s client not initialized; call _ensure_initialized() first"
+        return self._storage_api
+
+    def _get_autoscaling_api(self) -> Any:
+        assert self._autoscaling_api is not None, "K8s client not initialized; call _ensure_initialized() first"
+        return self._autoscaling_api
+
+    # ------------------------------------------------------------------
     # Sync helpers
     # ------------------------------------------------------------------
 
@@ -86,7 +106,9 @@ class K8sClient:
 
         if isinstance(e, ApiException):
             msg = (str(e.body) if e.body else "")[:2000]
-            return K8sApiError(status=e.status, reason=e.reason or "", message=msg)
+            return K8sApiError(
+                status=int(e.status) if e.status is not None else 500, reason=e.reason or "", message=msg
+            )
         logger.error("Unexpected error in K8s operation: %s", e, exc_info=True)
         return K8sApiError(status=500, reason="InternalError", message="Internal server error")
 
@@ -97,8 +119,9 @@ class K8sClient:
     def _list_custom_objects_sync(self, plural: str, namespace: str | None = None) -> list[dict[str, Any]]:
         self._ensure_initialized()
         try:
+            api = self._get_custom_api()
             if namespace:
-                result = self._custom_api.list_namespaced_custom_object(
+                result = api.list_namespaced_custom_object(
                     group=GROUP,
                     version=VERSION,
                     namespace=namespace,
@@ -106,26 +129,29 @@ class K8sClient:
                     _request_timeout=_K8S_API_TIMEOUT,
                 )
             else:
-                result = self._custom_api.list_cluster_custom_object(
+                result = api.list_cluster_custom_object(
                     group=GROUP,
                     version=VERSION,
                     plural=plural,
                     _request_timeout=_K8S_API_TIMEOUT,
                 )
-            return result.get("items", [])
+            return cast(dict[str, Any], result).get("items", [])
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
     def _get_custom_object_sync(self, plural: str, namespace: str, name: str) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.get_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=plural,
-                name=name,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().get_namespaced_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    namespace=namespace,
+                    plural=plural,
+                    name=name,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -133,13 +159,16 @@ class K8sClient:
     def _create_custom_object_sync(self, plural: str, namespace: str, body: dict[str, Any]) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.create_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=plural,
-                body=body,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().create_namespaced_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    namespace=namespace,
+                    plural=plural,
+                    body=body,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -147,14 +176,17 @@ class K8sClient:
     def _patch_custom_object_sync(self, plural: str, namespace: str, name: str, body: dict[str, Any]) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.patch_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=plural,
-                name=name,
-                body=body,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().patch_namespaced_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    namespace=namespace,
+                    plural=plural,
+                    name=name,
+                    body=body,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -162,13 +194,16 @@ class K8sClient:
     def _delete_custom_object_sync(self, plural: str, namespace: str, name: str) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.delete_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=plural,
-                name=name,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().delete_namespaced_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    namespace=namespace,
+                    plural=plural,
+                    name=name,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -180,25 +215,28 @@ class K8sClient:
     def _list_cluster_custom_objects_sync(self, plural: str) -> list[dict[str, Any]]:
         self._ensure_initialized()
         try:
-            result = self._custom_api.list_cluster_custom_object(
+            result = self._get_custom_api().list_cluster_custom_object(
                 group=GROUP,
                 version=VERSION,
                 plural=plural,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
-            return result.get("items", [])
+            return cast(dict[str, Any], result).get("items", [])
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
     def _get_cluster_custom_object_sync(self, plural: str, name: str) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.get_cluster_custom_object(
-                group=GROUP,
-                version=VERSION,
-                plural=plural,
-                name=name,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().get_cluster_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    plural=plural,
+                    name=name,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -206,12 +244,15 @@ class K8sClient:
     def _create_cluster_custom_object_sync(self, plural: str, body: dict[str, Any]) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.create_cluster_custom_object(
-                group=GROUP,
-                version=VERSION,
-                plural=plural,
-                body=body,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().create_cluster_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    plural=plural,
+                    body=body,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -219,13 +260,16 @@ class K8sClient:
     def _patch_cluster_custom_object_sync(self, plural: str, name: str, body: dict[str, Any]) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.patch_cluster_custom_object(
-                group=GROUP,
-                version=VERSION,
-                plural=plural,
-                name=name,
-                body=body,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().patch_cluster_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    plural=plural,
+                    name=name,
+                    body=body,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -233,12 +277,15 @@ class K8sClient:
     def _delete_cluster_custom_object_sync(self, plural: str, name: str) -> dict[str, Any]:
         self._ensure_initialized()
         try:
-            return self._custom_api.delete_cluster_custom_object(
-                group=GROUP,
-                version=VERSION,
-                plural=plural,
-                name=name,
-                _request_timeout=_K8S_API_TIMEOUT,
+            return cast(
+                dict[str, Any],
+                self._get_custom_api().delete_cluster_custom_object(
+                    group=GROUP,
+                    version=VERSION,
+                    plural=plural,
+                    name=name,
+                    _request_timeout=_K8S_API_TIMEOUT,
+                ),
             )
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -271,7 +318,7 @@ class K8sClient:
         logger.debug("_list_namespaces_sync()")
         self._ensure_initialized()
         try:
-            result = self._core_api.list_namespace(_request_timeout=_K8S_API_TIMEOUT)
+            result = self._get_core_api().list_namespace(_request_timeout=_K8S_API_TIMEOUT)
             return [ns.metadata.name for ns in result.items]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -283,7 +330,7 @@ class K8sClient:
         from kubernetes.client.rest import ApiException
 
         try:
-            self._core_api.create_namespace(
+            self._get_core_api().create_namespace(
                 client.V1Namespace(metadata=client.V1ObjectMeta(name=name)),
                 _request_timeout=_K8S_API_TIMEOUT,
             )
@@ -300,7 +347,7 @@ class K8sClient:
         logger.debug("_list_storage_classes_sync()")
         self._ensure_initialized()
         try:
-            result = self._storage_api.list_storage_class(_request_timeout=_K8S_API_TIMEOUT)
+            result = self._get_storage_api().list_storage_class(_request_timeout=_K8S_API_TIMEOUT)
             return [sc.metadata.name for sc in result.items]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
@@ -309,7 +356,7 @@ class K8sClient:
         logger.debug("_list_pods_sync(namespace=%s, label_selector=%s)", namespace, label_selector)
         self._ensure_initialized()
         try:
-            result = self._core_api.list_namespaced_pod(
+            result = self._get_core_api().list_namespaced_pod(
                 namespace=namespace,
                 label_selector=label_selector,
                 _request_timeout=_K8S_API_TIMEOUT,
@@ -368,7 +415,7 @@ class K8sClient:
         logger.debug("_list_secrets_sync(namespace=%s)", namespace)
         self._ensure_initialized()
         try:
-            result = self._core_api.list_namespaced_secret(
+            result = self._get_core_api().list_namespaced_secret(
                 namespace=namespace,
                 field_selector="type=Opaque",
                 _request_timeout=_K8S_API_TIMEOUT,
@@ -382,7 +429,7 @@ class K8sClient:
         logger.debug("_list_nodes_sync()")
         self._ensure_initialized()
         try:
-            result = self._core_api.list_node(_request_timeout=_K8S_API_TIMEOUT)
+            result = self._get_core_api().list_node(_request_timeout=_K8S_API_TIMEOUT)
             nodes = []
             for node in result.items:
                 labels = node.metadata.labels or {}
@@ -402,7 +449,7 @@ class K8sClient:
         logger.debug("_list_events_sync(namespace=%s)", namespace)
         self._ensure_initialized()
         try:
-            result = self._core_api.list_namespaced_event(
+            result = self._get_core_api().list_namespaced_event(
                 namespace=namespace,
                 field_selector=field_selector,
                 _request_timeout=_K8S_API_TIMEOUT,
@@ -439,7 +486,7 @@ class K8sClient:
             }
             if container:
                 kwargs["container"] = container
-            return self._core_api.read_namespaced_pod_log(**kwargs)
+            return cast(str, self._get_core_api().read_namespaced_pod_log(**kwargs))
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -513,12 +560,12 @@ class K8sClient:
         logger.debug("_get_hpa_sync(namespace=%s, name=%s)", namespace, name)
         self._ensure_initialized()
         try:
-            hpa = self._autoscaling_api.read_namespaced_horizontal_pod_autoscaler(
+            hpa = self._get_autoscaling_api().read_namespaced_horizontal_pod_autoscaler(
                 name=name,
                 namespace=namespace,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
-            return hpa.to_dict()
+            return cast(dict[str, Any], hpa.to_dict())  # type: ignore[reportAttributeAccessIssue]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -599,12 +646,12 @@ class K8sClient:
             cluster_name, namespace, min_replicas, max_replicas, cpu_target_percent, memory_target_percent
         )
         try:
-            result = self._autoscaling_api.create_namespaced_horizontal_pod_autoscaler(
+            result = self._get_autoscaling_api().create_namespaced_horizontal_pod_autoscaler(
                 namespace=namespace,
                 body=hpa,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
-            return result.to_dict()
+            return cast(dict[str, Any], result.to_dict())  # type: ignore[reportAttributeAccessIssue]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -625,13 +672,13 @@ class K8sClient:
         )
 
         try:
-            result = self._autoscaling_api.replace_namespaced_horizontal_pod_autoscaler(
+            result = self._get_autoscaling_api().replace_namespaced_horizontal_pod_autoscaler(
                 name=cluster_name,
                 namespace=namespace,
                 body=hpa,
                 _request_timeout=_K8S_API_TIMEOUT,
             )
-            return result.to_dict()
+            return cast(dict[str, Any], result.to_dict())  # type: ignore[reportAttributeAccessIssue]
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -640,7 +687,7 @@ class K8sClient:
         logger.debug("_delete_hpa_sync(namespace=%s, name=%s)", namespace, name)
         self._ensure_initialized()
         try:
-            self._autoscaling_api.delete_namespaced_horizontal_pod_autoscaler(
+            self._get_autoscaling_api().delete_namespaced_horizontal_pod_autoscaler(
                 name=name,
                 namespace=namespace,
                 _request_timeout=_K8S_API_TIMEOUT,

@@ -24,7 +24,18 @@ repos:
       - id: ruff-format
         files: ^backend/
 
-  # ── Frontend (eslint + prettier) ─────────────────────────
+  # ── Python / Backend (pyright) ───────────────────────────
+  - repo: local
+    hooks:
+      - id: pyright
+        name: pyright
+        entry: bash -c 'cd backend && uv run pyright src/'
+        language: system
+        files: ^backend/src/.*\.py$
+        types: [python]
+        pass_filenames: false
+
+  # ── Frontend (eslint + prettier + tsc) ──────────────────
   - repo: local
     hooks:
       - id: eslint
@@ -40,3 +51,11 @@ repos:
         language: system
         files: ^frontend/.*\.(ts|tsx|json|md|css)$
         types: [file]
+
+      - id: tsc
+        name: tsc (type-check)
+        entry: bash -c 'cd frontend && npx tsc --noEmit'
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        types: [file]
+        pass_filenames: false

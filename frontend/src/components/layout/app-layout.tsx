@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useKeyboardShortcuts();
 
   const connIdMatch = pathname?.match(
-    /\/(browser|cluster|indexes|admin|udfs|terminal|observability)\/([^/]+)/,
+    /\/(browser|cluster|indexes|admin|udfs|observability)\/([^/]+)/,
   );
   const connId = connIdMatch?.[2];
   const isConnectionPage = pathname === "/" || pathname === "/settings";

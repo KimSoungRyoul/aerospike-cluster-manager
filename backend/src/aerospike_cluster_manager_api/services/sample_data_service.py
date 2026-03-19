@@ -65,8 +65,8 @@ async def create_sample_records(
     elapsed_ms = int((time.monotonic() - start) * 1000)
 
     return CreateSampleDataResponse(
-        records_created=records_created,
-        indexes_created=indexes_created,
-        indexes_skipped=indexes_skipped,
-        elapsed_ms=elapsed_ms,
+        recordsCreated=records_created,
+        indexesCreated=indexes_created,
+        indexesSkipped=indexes_skipped,
+        elapsedMs=elapsed_ms,
     )

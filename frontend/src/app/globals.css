@@ -250,17 +250,6 @@
     transparent 70%
   );
 }
-/* ─── Terminal ───────────────────────────────────────── */
-:root {
-  --terminal-bg: oklch(8% 0.03 260);
-  --terminal-text: oklch(87% 0.02 250);
-  --terminal-text-muted: oklch(50% 0.02 250);
-  --terminal-text-dim: oklch(42% 0.015 250);
-  --terminal-border: oklch(20% 0.025 255);
-  --terminal-input: oklch(12% 0.035 260);
-  --terminal-prompt: oklch(60% 0.18 145);
-}
-
 /* ─── Scrollbar ──────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 5px;
@@ -342,29 +331,6 @@
 }
 .stagger-6 {
   animation-delay: 0.3s;
-}
-
-/* ─── Terminal Styling ───────────────────────────────── */
-.terminal-output {
-  font-family: var(--font-mono), ui-monospace, monospace;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.terminal-output .timestamp {
-  color: var(--color-muted-foreground);
-}
-
-.terminal-output .success {
-  color: var(--color-chart-3);
-}
-
-.terminal-output .error {
-  color: var(--color-error);
-}
-
-.terminal-output .command {
-  color: var(--color-chart-1);
 }
 
 /* ─── Metric Value ───────────────────────────────────── */
@@ -571,6 +537,35 @@ kbd {
 /* Safe area padding for iOS notch/home indicator */
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ─── Bin Row Grid ──────────────────────────────────── */
+.bin-row-grid {
+  display: grid;
+  grid-template-columns: 28px minmax(100px, 180px) 72px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 40px;
+  transition: background-color 0.15s ease;
+}
+
+.bin-row-grid:not([data-header]):hover {
+  background: color-mix(in oklch, var(--color-base-200) 40%, transparent);
+}
+
+@media (max-width: 640px) {
+  .bin-row-grid {
+    grid-template-columns: 1fr auto;
+    gap: 4px;
+    padding: 10px 12px;
+  }
+  .bin-row-grid > :nth-child(1) {
+    display: none; /* hide index # */
+  }
+  .bin-row-grid > :nth-child(5) {
+    display: none; /* hide spacer/action when stacked */
+  }
 }
 
 /* Row actions visible on touch devices (no hover) */

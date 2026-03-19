@@ -74,7 +74,7 @@ export function Header() {
               asChild
             >
               <a
-                href="https://github.com/KimSoungRyoul/aerospike-cluster-manager"
+                href="https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager"
                 target="_blank"
                 rel="noopener noreferrer"
               >

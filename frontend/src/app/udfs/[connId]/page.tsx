@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState, useCallback, useMemo } from "react";
-import { Plus, Trash2, Eye, Play, Upload, FileCode, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Eye, Upload, FileCode, RefreshCw } from "lucide-react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DataTable } from "@/components/common/data-table";
@@ -26,7 +25,7 @@ import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-la
 import { api } from "@/lib/api/client";
 import type { UDFModule } from "@/lib/api/types";
 import { truncateMiddle } from "@/lib/formatters";
-import { sanitizeFilename, sanitizeInput } from "@/lib/sanitize";
+import { sanitizeFilename } from "@/lib/sanitize";
 import { getErrorMessage } from "@/lib/utils";
 import { useToastStore } from "@/stores/toast-store";
 
@@ -44,16 +43,6 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
 
   // View source dialog
   const [viewSource, setViewSource] = useState<UDFModule | null>(null);
-
-  // Apply UDF dialog
-  const [applyOpen, setApplyOpen] = useState(false);
-  const [applyModule, setApplyModule] = useState("");
-  const [applyNs, setApplyNs] = useState("");
-  const [applySet, setApplySet] = useState("");
-  const [applyPK, setApplyPK] = useState("");
-  const [applyFunction, setApplyFunction] = useState("");
-  const [applyArgs, setApplyArgs] = useState("[]");
-  const [applying, setApplying] = useState(false);
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<UDFModule | null>(null);
@@ -129,46 +118,6 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
     }
   };
 
-  const handleApply = async () => {
-    if (!applyNs.trim() || !applyPK.trim() || !applyFunction.trim()) {
-      useToastStore.getState().addToast("error", "Namespace, PK, and function name are required");
-      return;
-    }
-    setApplying(true);
-    try {
-      let args;
-      try {
-        args = JSON.parse(applyArgs);
-      } catch {
-        useToastStore.getState().addToast("error", "Invalid JSON for arguments");
-        setApplying(false);
-        return;
-      }
-      // Sanitize user inputs to prevent AQL injection
-      const safePK = sanitizeInput(applyPK);
-      const safeFunction = sanitizeInput(applyFunction);
-      // Use the terminal API to apply the UDF since there's no direct apply endpoint
-      const command = `execute ${applyModule}.${safeFunction}(${JSON.stringify(args)}) on ${applyNs}.${applySet || ""} where PK = '${safePK}'`;
-      await api.executeCommand(connId, command);
-      useToastStore.getState().addToast("success", "UDF applied successfully");
-      setApplyOpen(false);
-    } catch (err) {
-      useToastStore.getState().addToast("error", getErrorMessage(err));
-    } finally {
-      setApplying(false);
-    }
-  };
-
-  const openApplyDialog = useCallback((udf: UDFModule) => {
-    setApplyModule(udf.filename.replace(/\.lua$/, ""));
-    setApplyNs("");
-    setApplySet("");
-    setApplyPK("");
-    setApplyFunction("");
-    setApplyArgs("[]");
-    setApplyOpen(true);
-  }, []);
-
   const udfColumns = useMemo<ColumnDef<UDFModule>[]>(
     () => [
       {
@@ -213,15 +162,6 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0"
-              onClick={() => openApplyDialog(row.original)}
-              aria-label="Apply UDF"
-            >
-              <Play className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
               className="text-error h-8 w-8 p-0"
               onClick={() => setDeleteTarget(row.original)}
               aria-label="Delete UDF"
@@ -234,7 +174,7 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
       },
     ],
 
-    [openApplyDialog],
+    [],
   );
 
   return (
@@ -352,72 +292,6 @@ export default function UDFsPage({ params }: { params: Promise<{ connId: string 
               height="400px"
             />
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Apply UDF Dialog */}
-      <Dialog open={applyOpen} onOpenChange={setApplyOpen}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle>Apply UDF</DialogTitle>
-            <DialogDescription>Execute {applyModule} on a specific record.</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid gap-2">
-              <Label>Namespace</Label>
-              <Input
-                placeholder="test"
-                value={applyNs}
-                onChange={(e) => setApplyNs(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Set</Label>
-              <Input
-                placeholder="demo"
-                value={applySet}
-                onChange={(e) => setApplySet(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Primary Key</Label>
-              <Input
-                placeholder="key1"
-                value={applyPK}
-                onChange={(e) => setApplyPK(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Function Name</Label>
-              <Input
-                placeholder="my_function"
-                value={applyFunction}
-                onChange={(e) => setApplyFunction(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Arguments (JSON array)</Label>
-              <Textarea
-                placeholder='["arg1", 42]'
-                value={applyArgs}
-                onChange={(e) => setApplyArgs(e.target.value)}
-                rows={3}
-                className="font-mono"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApplyOpen(false)} disabled={applying}>
-              Cancel
-            </Button>
-            <LoadingButton
-              onClick={handleApply}
-              disabled={applying || !applyNs.trim() || !applyPK.trim() || !applyFunction.trim()}
-              loading={applying}
-            >
-              Apply
-            </LoadingButton>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

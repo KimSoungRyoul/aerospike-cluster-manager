@@ -23,7 +23,8 @@ PORT: int = _get_int("PORT", 8000)
 
 ENABLE_POSTGRES: bool = os.getenv("ENABLE_POSTGRES", "false").lower() in ("true", "1", "yes")
 SQLITE_PATH: str = os.getenv("SQLITE_PATH", "./data/connections.db")
-DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://aerospike:aerospike@localhost:5432/aerospike_manager")
+# Required when ENABLE_POSTGRES=true; set via DATABASE_URL env var
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
 LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
 LOG_FORMAT: str = os.getenv("LOG_FORMAT", "text")  # "text" or "json"

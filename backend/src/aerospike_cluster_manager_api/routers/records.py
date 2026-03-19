@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any, cast
 
 from aerospike_py.exception import RecordNotFound
+from aerospike_py.types import WriteMeta
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
 
@@ -17,27 +19,12 @@ from aerospike_cluster_manager_api.models.record import (
     RecordListResponse,
     RecordWriteRequest,
 )
-from aerospike_cluster_manager_api.utils import build_predicate
+from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
 
 logger = logging.getLogger(__name__)
 
-
-def _auto_detect_pk(pk: str) -> str | int:
-    """Convert PK to int only when the round-trip is lossless (no leading zeros).
-
-    "1"     → 1    (integer key)
-    "00001" → "00001"  (string key — leading zeros preserved)
-    "-5"    → -5   (negative integer key)
-    "abc"   → "abc"  (string key)
-    """
-    try:
-        as_int = int(pk)
-        if str(as_int) == pk:
-            return as_int
-    except ValueError:
-        pass
-    return pk
-
+# Backward-compatible alias for the moved utility function.
+_auto_detect_pk = auto_detect_pk
 
 router = APIRouter(prefix="/records", tags=["records"])
 
@@ -105,9 +92,9 @@ async def put_record(body: RecordWriteRequest, client: AerospikeClient) -> Aeros
 
     key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
 
-    meta = None
+    meta: WriteMeta | None = None
     if body.ttl is not None:
-        meta = {"ttl": body.ttl}
+        meta = WriteMeta(ttl=body.ttl)
 
     await client.put(key_tuple, body.bins, meta=meta, policy=POLICY_WRITE)
     result = await client.get(key_tuple, policy=POLICY_READ)
@@ -161,24 +148,24 @@ async def get_filtered_records(
             records=records,
             total=len(records),
             page=1,
-            page_size=body.page_size,
-            has_more=False,
-            execution_time_ms=elapsed_ms,
-            scanned_records=len(records),
-            returned_records=len(records),
+            pageSize=body.page_size,
+            hasMore=False,
+            executionTimeMs=elapsed_ms,
+            scannedRecords=len(records),
+            returnedRecords=len(records),
         )
 
     # Build query
     q = client.query(body.namespace, body.set or "")
 
     if body.predicate:
-        q.where(build_predicate(body.predicate))
+        q.where(cast(tuple[str, ...], build_predicate(body.predicate)))
 
     if body.select_bins:
         q.select(*body.select_bins)
 
     # Build policy with optional filter expression
-    policy = dict(POLICY_QUERY)
+    policy: dict[str, Any] = dict(POLICY_QUERY)
     if body.filters:
         policy["filter_expression"] = build_expression(body.filters)
 
@@ -204,9 +191,9 @@ async def get_filtered_records(
         records=records,
         total=total,
         page=body.page,
-        page_size=body.page_size,
-        has_more=start + body.page_size < total,
-        execution_time_ms=elapsed_ms,
-        scanned_records=scanned,
-        returned_records=len(records),
+        pageSize=body.page_size,
+        hasMore=start + body.page_size < total,
+        executionTimeMs=elapsed_ms,
+        scannedRecords=scanned,
+        returnedRecords=len(records),
     )

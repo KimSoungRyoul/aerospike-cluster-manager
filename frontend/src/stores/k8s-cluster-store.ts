@@ -3,18 +3,17 @@ import type {
   K8sClusterSummary,
   K8sClusterDetail,
   K8sTemplateSummary,
-  K8sTemplateDetail,
   CreateK8sClusterRequest,
-  CreateK8sTemplateRequest,
   UpdateK8sClusterRequest,
-  UpdateK8sTemplateRequest,
   K8sClusterEvent,
   ClusterHealthSummary,
+  K8sNodeInfo,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 import { withLoading } from "@/lib/store-utils";
 import { getErrorMessage } from "@/lib/utils";
 import { K8S_DETAIL_POLL_INTERVAL_MS, K8S_DETAIL_POLL_MAX_BACKOFF_MS } from "@/lib/constants";
+import { useK8sTemplateStore } from "./k8s-template-store";
 
 // Module-level variables for detail polling
 let _k8sDetailIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -22,8 +21,6 @@ let _k8sDetailIntervalId: ReturnType<typeof setInterval> | null = null;
 interface K8sClusterState {
   clusters: K8sClusterSummary[];
   selectedCluster: K8sClusterDetail | null;
-  templates: K8sTemplateSummary[];
-  selectedTemplate: K8sTemplateDetail | null;
   loading: boolean;
   error: string | null;
   k8sAvailable: boolean;
@@ -32,17 +29,18 @@ interface K8sClusterState {
   consecutiveErrors: number;
   _pollingTarget: { namespace: string; name: string } | null;
 
+  // Infrastructure data (K8s namespaces, storage classes, secrets, nodes)
+  k8sNamespaces: string[];
+  k8sStorageClasses: string[];
+  k8sSecrets: string[];
+  k8sNodes: K8sNodeInfo[];
+
   checkAvailability: () => Promise<void>;
   fetchClusters: (namespace?: string) => Promise<void>;
   fetchCluster: (namespace: string, name: string) => Promise<void>;
   createCluster: (data: CreateK8sClusterRequest) => Promise<K8sClusterSummary>;
   deleteCluster: (namespace: string, name: string) => Promise<void>;
   scaleCluster: (namespace: string, name: string, size: number) => Promise<void>;
-  fetchTemplates: () => Promise<void>;
-  fetchTemplate: (name: string) => Promise<void>;
-  createTemplate: (data: CreateK8sTemplateRequest) => Promise<K8sTemplateSummary>;
-  updateTemplate: (name: string, data: UpdateK8sTemplateRequest) => Promise<void>;
-  deleteTemplate: (name: string) => Promise<void>;
   triggerOperation: (
     namespace: string,
     name: string,
@@ -56,6 +54,16 @@ interface K8sClusterState {
   startDetailPolling: (namespace: string, name: string) => void;
   stopDetailPolling: () => void;
   clearDetailData: () => void;
+
+  /** @deprecated Use useK8sTemplateStore instead. Kept for backward compatibility with the wizard. */
+  templates: K8sTemplateSummary[];
+  /** @deprecated Use useK8sTemplateStore instead. Kept for backward compatibility with the wizard. */
+  fetchTemplates: () => Promise<void>;
+
+  fetchK8sNamespaces: () => Promise<void>;
+  fetchK8sStorageClasses: () => Promise<void>;
+  fetchK8sSecrets: (namespace: string) => Promise<void>;
+  fetchK8sNodes: () => Promise<void>;
 }
 
 export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
@@ -74,8 +82,6 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
   return {
     clusters: [],
     selectedCluster: null,
-    templates: [],
-    selectedTemplate: null,
     loading: false,
     error: null,
     k8sAvailable: false,
@@ -83,6 +89,18 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
     detailHealth: null,
     consecutiveErrors: 0,
     _pollingTarget: null,
+    k8sNamespaces: [],
+    k8sStorageClasses: [],
+    k8sSecrets: [],
+    k8sNodes: [],
+
+    // Deprecated proxies — delegate to useK8sTemplateStore.
+    // The wizard still reads `templates` and `fetchTemplates` from this store.
+    templates: [],
+    fetchTemplates: async () => {
+      await useK8sTemplateStore.getState().fetchTemplates();
+      set({ templates: useK8sTemplateStore.getState().templates });
+    },
 
     checkAvailability: async () => {
       try {
@@ -148,59 +166,6 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
           if (selectedCluster?.name === name && selectedCluster?.namespace === namespace) {
             await loadCluster(namespace, name);
           }
-        },
-        { rethrow: true },
-      );
-    },
-
-    fetchTemplates: async () => {
-      try {
-        const templates = await api.getK8sTemplates();
-        set({ templates });
-      } catch {
-        // Don't set global error — template fetch failures should not block cluster pages
-      }
-    },
-
-    fetchTemplate: async (name: string) => {
-      await withLoading(set, async () => {
-        const template = await api.getK8sTemplate(name);
-        set({ selectedTemplate: template });
-      });
-    },
-
-    createTemplate: async (data: CreateK8sTemplateRequest) => {
-      const result = await withLoading(
-        set,
-        async () => {
-          const res = await api.createK8sTemplate(data);
-          await get().fetchTemplates();
-          return res;
-        },
-        { rethrow: true },
-      );
-      return result as K8sTemplateSummary;
-    },
-
-    updateTemplate: async (name: string, data: UpdateK8sTemplateRequest) => {
-      await withLoading(
-        set,
-        async () => {
-          await api.updateK8sTemplate(name, data);
-          await get().fetchTemplate(name);
-          await get().fetchTemplates();
-        },
-        { rethrow: true },
-      );
-    },
-
-    deleteTemplate: async (name: string) => {
-      await withLoading(
-        set,
-        async () => {
-          await api.deleteK8sTemplate(name);
-          set({ selectedTemplate: null });
-          await get().fetchTemplates();
         },
         { rethrow: true },
       );
@@ -319,6 +284,30 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
 
     clearDetailData: () => {
       set({ detailEvents: [], detailHealth: null, selectedCluster: null });
+    },
+
+    fetchK8sNamespaces: async () => {
+      const namespaces = await api.getK8sNamespaces();
+      set({ k8sNamespaces: namespaces });
+    },
+
+    fetchK8sStorageClasses: async () => {
+      const storageClasses = await api.getK8sStorageClasses();
+      set({ k8sStorageClasses: storageClasses });
+    },
+
+    fetchK8sSecrets: async (namespace: string) => {
+      try {
+        const secrets = await api.getK8sSecrets(namespace);
+        set({ k8sSecrets: secrets });
+      } catch {
+        set({ k8sSecrets: [] });
+      }
+    },
+
+    fetchK8sNodes: async () => {
+      const nodes = await api.getK8sNodes();
+      set({ k8sNodes: nodes });
     },
   };
 });

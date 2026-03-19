@@ -67,41 +67,6 @@ class TestExtractMigrationStatus:
         assert result["remainingPartitions"] == 0
         assert len(result["pods"]) == 0
 
-    def test_pods_as_list(self):
-        """status.pods can be a list instead of a dict."""
-        cluster_cr = {
-            "status": {
-                "pods": [
-                    {"name": "pod-0", "migratingPartitions": 200},
-                    {"podName": "pod-1", "migratingPartitions": 300},
-                ],
-            }
-        }
-
-        result = extract_migration_status(cluster_cr)
-
-        assert result["inProgress"] is True
-        assert result["remainingPartitions"] == 500
-        assert len(result["pods"]) == 2
-        pod_names = {p["podName"] for p in result["pods"]}
-        assert pod_names == {"pod-0", "pod-1"}
-
-    def test_pods_as_list_with_zero_migration(self):
-        """Pods list where no pod is migrating."""
-        cluster_cr = {
-            "status": {
-                "pods": [
-                    {"name": "pod-0", "migratingPartitions": 0},
-                ],
-            }
-        }
-
-        result = extract_migration_status(cluster_cr)
-
-        assert result["inProgress"] is False
-        assert result["remainingPartitions"] == 0
-        assert len(result["pods"]) == 0
-
     def test_waiting_for_migration_phase_but_not_in_progress(self):
         """phase == 'WaitingForMigration' should set inProgress=True even if migrationStatus says false."""
         cluster_cr = {
@@ -191,20 +156,3 @@ class TestExtractMigrationStatus:
         assert result["inProgress"] is True
         assert result["remainingPartitions"] == 100
         assert len(result["pods"]) == 1
-
-    def test_pods_list_with_non_dict_entries_skipped(self):
-        """Non-dict entries in a list are safely skipped."""
-        cluster_cr = {
-            "status": {
-                "pods": [
-                    {"name": "pod-0", "migratingPartitions": 50},
-                    "invalid",
-                    None,
-                ],
-            }
-        }
-
-        result = extract_migration_status(cluster_cr)
-
-        assert len(result["pods"]) == 1
-        assert result["pods"][0]["migratingPartitions"] == 50

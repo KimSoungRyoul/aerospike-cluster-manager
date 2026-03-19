@@ -17,7 +17,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
+import { useK8sTemplateStore } from "@/stores/k8s-template-store";
 import { api } from "@/lib/api/client";
 import { useToastStore } from "@/stores/toast-store";
 import { getErrorMessage } from "@/lib/utils";
@@ -25,7 +25,7 @@ import type { CreateK8sTemplateRequest, TemplateServiceConfig } from "@/lib/api/
 
 export default function CreateTemplatePage() {
   const router = useRouter();
-  const { createTemplate } = useK8sClusterStore();
+  const { createTemplate } = useK8sTemplateStore();
   const [loading, setLoading] = useState(false);
   const [storageClasses, setStorageClasses] = useState<string[]>([]);
 

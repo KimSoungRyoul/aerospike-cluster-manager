@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Aerospike Cluster Manager Backend API"
 readme = "README.md"
 authors = [
-    { name = "KimSoungRyoul", email = "KimSoungRyoul@gmail.com" }
+    { name = "aerospike-ce-ecosystem", email = "aerospike-ce-ecosystem@users.noreply.github.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [
@@ -48,12 +48,20 @@ known-first-party = ["aerospike_cluster_manager_api"]
 [dependency-groups]
 dev = [
     "ruff>=0.15.1",
+    "pyright>=1.1.400",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
     "httpx>=0.26.0",
     "pytest-cov>=5.0.0",
     "testcontainers[postgres]>=4.0.0",
 ]
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+pythonPlatform = "All"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

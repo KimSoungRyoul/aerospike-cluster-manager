@@ -1,3 +1,4 @@
+import { TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,6 +10,9 @@ import {
   validateK8sMemory,
   parseCpuMillis,
   parseMemoryBytes,
+  validateMemoryForNamespaces,
+  calculateMinMemoryBytes,
+  formatMemoryGi,
 } from "@/lib/validations/k8s";
 import { AEROSPIKE_IMAGES } from "@/lib/constants";
 import type { WizardBasicStepProps } from "./types";
@@ -156,6 +160,9 @@ export function WizardBasicStep({
           const cpuValid = !validateK8sCpu(res.requests.cpu) && !validateK8sCpu(res.limits.cpu);
           const memValid =
             !validateK8sMemory(res.requests.memory) && !validateK8sMemory(res.limits.memory);
+          const nsMemWarning = memValid
+            ? validateMemoryForNamespaces(res.limits.memory, form.namespaces)
+            : null;
           return (
             <>
               {cpuValid && parseCpuMillis(res.limits.cpu) < parseCpuMillis(res.requests.cpu) && (
@@ -165,6 +172,29 @@ export function WizardBasicStep({
                 parseMemoryBytes(res.limits.memory) < parseMemoryBytes(res.requests.memory) && (
                   <p className="text-error text-xs">Memory limit must be &gt;= request</p>
                 )}
+              {nsMemWarning && (
+                <div className="bg-warning/10 border-warning/30 flex items-start gap-2 rounded-md border p-3">
+                  <TriangleAlert className="text-warning mt-0.5 h-4 w-4 shrink-0" />
+                  <div className="text-xs">
+                    <p className="text-warning font-medium">{nsMemWarning}</p>
+                    <button
+                      type="button"
+                      className="text-warning mt-1 underline"
+                      onClick={() => {
+                        const recommended = formatMemoryGi(
+                          calculateMinMemoryBytes(form.namespaces),
+                        );
+                        updateResource("limits", "memory", recommended);
+                        if (parseMemoryBytes(res.requests.memory) > parseMemoryBytes(recommended)) {
+                          updateResource("requests", "memory", recommended);
+                        }
+                      }}
+                    >
+                      Auto-fix: set to {formatMemoryGi(calculateMinMemoryBytes(form.namespaces))}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           );
         })()}

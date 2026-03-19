@@ -19,6 +19,7 @@ import {
   Circle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/formatters";
 import type { K8sClusterEvent, EventCategory } from "@/lib/api/types";
 import { EVENT_CATEGORIES } from "@/lib/api/types";
 
@@ -35,26 +36,6 @@ const CATEGORY_CONFIG: Record<EventCategory, { icon: React.ElementType; color: s
   "Circuit Breaker": { icon: Zap, color: "text-red-600" },
   Other: { icon: Circle, color: "text-gray-500" },
 };
-
-function formatTimestamp(ts?: string): string {
-  if (!ts) return "";
-  try {
-    const date = new Date(ts);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return "just now";
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return `${diffSec}s ago`;
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin}m ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr}h ago`;
-    const diffDay = Math.floor(diffHr / 24);
-    return `${diffDay}d ago`;
-  } catch {
-    return ts;
-  }
-}
 
 interface K8sEventTimelineProps {
   events: K8sClusterEvent[];
@@ -87,6 +68,8 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
           </CardTitle>
           {selectedCategory && (
             <button
+              type="button"
+              aria-label="Clear category filter"
               onClick={() => setSelectedCategory(null)}
               className="text-base-content/60 hover:text-base-content flex items-center gap-1 text-xs"
             >
@@ -103,6 +86,8 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
             return (
               <button
                 key={cat}
+                type="button"
+                aria-pressed={isSelected}
                 onClick={() => setSelectedCategory(isSelected ? null : cat)}
                 className={cn(
                   "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors",
@@ -156,7 +141,7 @@ export function K8sEventTimeline({ events, className }: K8sEventTimelineProps) {
                     <p className="text-base-content/60 truncate text-xs">{event.message}</p>
                   </div>
                   <span className="text-base-content/60 flex-shrink-0 text-xs">
-                    {formatTimestamp(event.lastTimestamp)}
+                    {formatRelativeTime(event.lastTimestamp)}
                   </span>
                 </div>
               );

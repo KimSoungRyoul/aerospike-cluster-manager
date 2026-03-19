@@ -27,7 +27,6 @@ from aerospike_cluster_manager_api.routers import (
     query,
     records,
     sample_data,
-    terminal,
     udfs,
 )
 
@@ -61,7 +60,7 @@ app = FastAPI(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[reportArgumentType]
 app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
@@ -201,7 +200,6 @@ _routers = [
     records.router,
     query.router,
     indexes.router,
-    terminal.router,
     admin_users.router,
     admin_roles.router,
     udfs.router,

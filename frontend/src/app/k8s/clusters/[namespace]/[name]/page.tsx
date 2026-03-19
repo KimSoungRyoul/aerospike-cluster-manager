@@ -35,34 +35,17 @@ import { K8sMigrationStatus } from "@/components/k8s/k8s-migration-status";
 import { K8sOperationStatus } from "@/components/k8s/k8s-operation-status";
 import { K8sRackTopology } from "@/components/k8s/k8s-rack-topology";
 import { K8sOperationTriggerDialog } from "@/components/k8s/k8s-operation-trigger-dialog";
+import { PauseResumeButton } from "@/components/k8s/pause-resume-button";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import { useToastStore } from "@/stores/toast-store";
 import { cn, getErrorMessage } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/formatters";
 import {
   TRANSITIONAL_PHASES,
   type MigrationStatus,
   type UpdateK8sClusterRequest,
 } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
-
-function formatRelativeTime(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return "just now";
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return `${diffSec}s ago`;
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? "s" : ""} ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? "s" : ""} ago`;
-    const diffDay = Math.floor(diffHr / 24);
-    return `${diffDay} day${diffDay !== 1 ? "s" : ""} ago`;
-  } catch {
-    return isoString;
-  }
-}
 
 export default function K8sClusterDetailPage() {
   const params = useParams<{ namespace: string; name: string }>();
@@ -264,39 +247,14 @@ export default function K8sClusterDetailPage() {
                 </Button>
               </>
             )}
-            {selectedCluster.phase === "Paused" ? (
-              <Button
-                variant="success"
-                size="sm"
-                disabled={loading}
-                onClick={async () => {
-                  try {
-                    await resumeCluster(namespace, name);
-                    useToastStore.getState().addToast("success", "Reconciliation resumed");
-                  } catch (err) {
-                    useToastStore.getState().addToast("error", getErrorMessage(err));
-                  }
-                }}
-              >
-                Resume
-              </Button>
-            ) : (
-              <Button
-                variant="neutral"
-                size="sm"
-                disabled={loading}
-                onClick={async () => {
-                  try {
-                    await pauseCluster(namespace, name);
-                    useToastStore.getState().addToast("success", "Reconciliation paused");
-                  } catch (err) {
-                    useToastStore.getState().addToast("error", getErrorMessage(err));
-                  }
-                }}
-              >
-                Pause
-              </Button>
-            )}
+            <PauseResumeButton
+              namespace={namespace}
+              name={name}
+              phase={selectedCluster.phase}
+              disabled={loading}
+              pauseCluster={pauseCluster}
+              resumeCluster={resumeCluster}
+            />
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
@@ -623,9 +581,9 @@ export default function K8sClusterDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {selectedCluster.conditions.map((cond, i) => (
+              {selectedCluster.conditions.map((cond) => (
                 <div
-                  key={i}
+                  key={cond.type}
                   className="flex items-center justify-between rounded-lg border p-3 text-sm"
                 >
                   <div className="flex items-center gap-3">

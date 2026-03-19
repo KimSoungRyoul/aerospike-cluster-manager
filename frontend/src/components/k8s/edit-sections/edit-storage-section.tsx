@@ -18,6 +18,7 @@ import type {
   VolumeInitMethod,
   VolumeWipeMethod,
 } from "@/lib/api/types";
+import { resetVolumeSource } from "../wizard/storage-utils";
 
 // ---------------------------------------------------------------------------
 // EditStorageSection -- multi-volume storage editing
@@ -166,43 +167,7 @@ export function EditStorageSection({
                       value={vol.source}
                       onValueChange={(v) => {
                         const src = v as VolumeSourceType;
-                        const updated: VolumeSpec = { ...vol, source: src };
-                        if (src === "persistentVolume") {
-                          updated.persistentVolume = {
-                            size: "10Gi",
-                            volumeMode: "Filesystem",
-                            accessModes: ["ReadWriteOnce"],
-                          };
-                          updated.emptyDir = undefined;
-                          updated.secret = undefined;
-                          updated.configMap = undefined;
-                          updated.hostPath = undefined;
-                        } else if (src === "emptyDir") {
-                          updated.emptyDir = {};
-                          updated.persistentVolume = undefined;
-                          updated.secret = undefined;
-                          updated.configMap = undefined;
-                          updated.hostPath = undefined;
-                        } else if (src === "secret") {
-                          updated.secret = { secretName: "" };
-                          updated.persistentVolume = undefined;
-                          updated.emptyDir = undefined;
-                          updated.configMap = undefined;
-                          updated.hostPath = undefined;
-                        } else if (src === "configMap") {
-                          updated.configMap = { name: "" };
-                          updated.persistentVolume = undefined;
-                          updated.emptyDir = undefined;
-                          updated.secret = undefined;
-                          updated.hostPath = undefined;
-                        } else if (src === "hostPath") {
-                          updated.hostPath = { path: "", type: "DirectoryOrCreate" };
-                          updated.persistentVolume = undefined;
-                          updated.emptyDir = undefined;
-                          updated.secret = undefined;
-                          updated.configMap = undefined;
-                        }
-                        updateVolume(vi, updated);
+                        updateVolume(vi, resetVolumeSource(vol, src));
                       }}
                       disabled={loading}
                     >

@@ -11,6 +11,7 @@ from fastapi import Depends, HTTPException, Path
 
 from aerospike_cluster_manager_api import db
 from aerospike_cluster_manager_api.client_manager import client_manager
+from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,20 @@ async def _get_verified_connection(conn_id: str = Path()) -> str:
     if not conn:
         raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
     return conn_id
+
+
+async def _get_connection_profile(conn_id: str = Path()) -> ConnectionProfile:
+    """Fetch and return the full ``ConnectionProfile`` for *conn_id*.
+
+    Raises 404 if the profile does not exist.  Unlike
+    ``_get_verified_connection`` (which returns only the id string),
+    this dependency returns the full model so callers can avoid a
+    redundant database round-trip.
+    """
+    conn = await db.get_connection(conn_id)
+    if not conn:
+        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
+    return conn
 
 
 async def _get_client(conn_id: str = Depends(_get_verified_connection)) -> aerospike_py.AsyncClient:
@@ -40,3 +55,6 @@ VerifiedConnId = Annotated[str, Depends(_get_verified_connection)]
 
 AerospikeClient = Annotated[aerospike_py.AsyncClient, Depends(_get_client)]
 """Inject a cached Aerospike async client resolved from the path ``conn_id``."""
+
+VerifiedConnectionProfile = Annotated[ConnectionProfile, Depends(_get_connection_profile)]
+"""Inject a full ``ConnectionProfile`` looked up from the path ``conn_id``."""

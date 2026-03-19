@@ -83,7 +83,7 @@ The Aerospike Cluster Manager is a web-based GUI that provides two primary capab
 
 ### Aerospike CE Kubernetes Operator
 
-The operator is a separate project ([aerospike-ce-kubernetes-operator](https://github.com/KimSoungRyoul/aerospike-ce-kubernetes-operator)) that runs as a controller-manager in the Kubernetes cluster. It:
+The operator is a separate project ([aerospike-ce-kubernetes-operator](https://github.com/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator)) that runs as a controller-manager in the Kubernetes cluster. It:
 
 - Watches `AerospikeCluster` custom resources (CRD group: `acko.io`, version: `v1alpha1`).
 - Reconciles the desired state into Kubernetes primitives (StatefulSets, Services, ConfigMaps, NetworkPolicies, etc.).
@@ -153,7 +153,7 @@ The recommended production deployment for Kubernetes uses the operator's Helm ch
 ui:
   enabled: true
   image:
-    repository: ghcr.io/kimsoungryoul/aerospike-cluster-manager
+    repository: ghcr.io/aerospike-ce-ecosystem/aerospike-cluster-manager
     tag: latest
   service:
     type: ClusterIP
