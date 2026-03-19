@@ -539,6 +539,29 @@ kbd {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* ─── Bin Row Grid ──────────────────────────────────── */
+.bin-row-grid {
+  display: grid;
+  grid-template-columns: 28px minmax(100px, 180px) 72px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 40px;
+  transition: background-color 0.15s ease;
+}
+
+.bin-row-grid:hover {
+  background: color-mix(in oklch, var(--color-base-200) 40%, transparent);
+}
+
+@media (max-width: 640px) {
+  .bin-row-grid {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px 12px;
+  }
+}
+
 /* Row actions visible on touch devices (no hover) */
 @media (pointer: coarse) {
   .record-grid-row .row-actions-group {

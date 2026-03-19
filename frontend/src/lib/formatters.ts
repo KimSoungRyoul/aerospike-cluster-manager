@@ -52,6 +52,14 @@ export function formatTTLAsExpiry(ttl: number): string {
   return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
 }
 
+const NEVER_EXPIRE_TTL_PUBLIC = 4294967295;
+
+export function formatTTLHuman(ttl: number): string {
+  if (ttl === -1 || ttl === NEVER_EXPIRE_TTL_PUBLIC) return "Never expires";
+  if (ttl === 0) return "Default namespace TTL";
+  return formatUptime(ttl);
+}
+
 export function truncateMiddle(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   const half = Math.floor((maxLen - 3) / 2);

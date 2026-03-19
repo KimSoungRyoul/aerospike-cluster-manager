@@ -15,9 +15,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { JsonViewer } from "@/components/common/json-viewer";
+import { RecordMetadataGrid } from "@/components/browser/record-metadata-grid";
+import { BinRow } from "@/components/browser/bin-row";
+import { detectBinType } from "@/components/browser/record-editor-dialog";
 import type { AerospikeRecord } from "@/lib/api/types";
-import { cn } from "@/lib/utils";
 
 interface RecordViewDialogProps {
   record: AerospikeRecord | null;
@@ -25,76 +26,37 @@ interface RecordViewDialogProps {
 }
 
 export function RecordDetailSections({ record }: { record: AerospikeRecord }) {
+  const binEntries = Object.entries(record.bins);
+
   return (
     <div className="space-y-5 p-5">
-      <section>
-        <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-          Key
-          <span className="bg-border/30 h-px flex-1" />
-        </h4>
-        <div className="grid gap-1.5 font-mono text-[13px]">
-          {(
-            [
-              ["namespace", record.key.namespace],
-              ["set", record.key.set],
-              ["pk", record.key.pk],
-              ...(record.key.digest ? [["digest", record.key.digest]] : []),
-            ] as [string, string][]
-          ).map(([label, val]) => (
-            <div key={label} className="flex items-baseline gap-3">
-              <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">{label}</span>
-              <span
-                className={cn(
-                  label === "pk" && "text-accent",
-                  label === "digest" && "text-xs break-all",
-                )}
-              >
-                {val}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section>
-        <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-          Metadata
-          <span className="bg-border/30 h-px flex-1" />
-        </h4>
-        <div className="grid gap-1.5 font-mono text-[13px]">
-          <div className="flex items-baseline gap-3">
-            <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">generation</span>
-            <span>{record.meta.generation}</span>
-          </div>
-          <div className="flex items-baseline gap-3">
-            <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">ttl</span>
-            <span>
-              {record.meta.ttl === -1
-                ? "never expires"
-                : record.meta.ttl === 0
-                  ? "default namespace TTL"
-                  : `${record.meta.ttl}s`}
-            </span>
-          </div>
-          {record.meta.lastUpdateMs && (
-            <div className="flex items-baseline gap-3">
-              <span className="text-muted-foreground/50 w-20 shrink-0 text-[11px]">updated</span>
-              <span className="text-[12px]">
-                {new Date(record.meta.lastUpdateMs).toISOString()}
-              </span>
-            </div>
-          )}
-        </div>
-      </section>
+      <RecordMetadataGrid record={record} mode="view" />
 
       <section>
         <h4 className="text-muted-foreground/60 mb-2.5 flex items-center gap-2 font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
           Bins
-          <span className="text-muted-foreground/30">({Object.keys(record.bins).length})</span>
+          <span className="text-muted-foreground/30">({binEntries.length})</span>
           <span className="bg-border/30 h-px flex-1" />
         </h4>
-        <div className="border-base-300/40 bg-base-100/50 max-h-[300px] overflow-auto rounded-md border p-3">
-          <JsonViewer data={record.bins} />
+        <div className="divide-base-300/30 divide-y overflow-hidden rounded-lg border">
+          {/* Header row */}
+          <div className="bin-row-grid bg-base-200/30 text-muted-foreground/50 font-mono text-[11px] tracking-wider uppercase">
+            <span className="text-right">#</span>
+            <span>Name</span>
+            <span>Type</span>
+            <span>Value</span>
+            <span />
+          </div>
+          {binEntries.map(([name, value], i) => (
+            <BinRow
+              key={name}
+              mode="view"
+              index={i + 1}
+              name={name}
+              type={detectBinType(value)}
+              value={value}
+            />
+          ))}
         </div>
       </section>
     </div>

@@ -349,6 +349,9 @@ export function RecordDetailPage({
             useCodeEditor={useCodeEditor}
             onToggleCodeEditor={(id) => setUseCodeEditor((prev) => ({ ...prev, [id]: !prev[id] }))}
             saving={saving}
+            record={record}
+            namespace={namespace}
+            setName={setName}
           />
         </div>
       )}

@@ -130,3 +130,25 @@ export const LABEL_COLORS = [
   "#8B5CF6",
   "#EC4899",
 ] as const;
+
+export const BIN_TYPE_COLORS: Record<BinType, string> = {
+  string: "bg-success/10 text-success border-success/20",
+  integer: "bg-info/10 text-info border-info/20",
+  float: "bg-info/10 text-info border-info/20",
+  bool: "bg-secondary/10 text-secondary border-secondary/20",
+  list: "bg-warning/10 text-warning border-warning/20",
+  map: "bg-accent/15 text-accent border-accent/25",
+  bytes: "bg-base-200 text-muted-foreground border-base-300",
+  geojson: "bg-info/10 text-info border-info/20",
+};
+
+export const BIN_TYPE_BORDER_COLORS: Record<BinType, string> = {
+  string: "border-l-success/40",
+  integer: "border-l-info/40",
+  float: "border-l-info/40",
+  bool: "border-l-secondary/40",
+  list: "border-l-warning/40",
+  map: "border-l-accent/40",
+  bytes: "border-l-muted-foreground/20",
+  geojson: "border-l-info/40",
+};

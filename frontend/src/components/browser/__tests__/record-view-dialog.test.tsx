@@ -31,7 +31,7 @@ describe("Record detail surfaces", () => {
     render(<RecordViewDialog record={record} onClose={vi.fn()} />);
     expect(screen.getAllByText("Record Detail")[0]).toBeInTheDocument();
     expect(screen.getAllByText("record-1").length).toBeGreaterThan(0);
-    expect(screen.getByText("generation")).toBeInTheDocument();
+    expect(screen.getByText("Generation")).toBeInTheDocument();
   });
 
   it("renders record detail sheet content", () => {
