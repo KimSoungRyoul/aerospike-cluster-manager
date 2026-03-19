@@ -11,6 +11,7 @@ import {
   validateMemoryForNamespaces,
   calculateMinMemoryBytes,
   formatMemoryGi,
+  parseMemoryBytes,
 } from "@/lib/validations/k8s";
 import type { WizardReviewStepProps } from "./types";
 
@@ -321,12 +322,15 @@ export function WizardReviewStep({
                     className="text-warning mt-1 underline"
                     onClick={() => {
                       if (!form.resources) return;
-                      updateForm({
-                        resources: {
-                          ...form.resources,
-                          limits: { ...form.resources.limits, memory: recommended },
-                        },
-                      });
+                      const updated = {
+                        ...form.resources,
+                        limits: { ...form.resources.limits, memory: recommended },
+                      };
+                      // Also adjust requests if it exceeds the new limit
+                      if (parseMemoryBytes(form.resources.requests.memory) > parseMemoryBytes(recommended)) {
+                        updated.requests = { ...form.resources.requests, memory: recommended };
+                      }
+                      updateForm({ resources: updated });
                     }}
                   >
                     Auto-fix: set memory limit to {recommended}
