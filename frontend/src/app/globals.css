@@ -550,15 +550,21 @@ kbd {
   transition: background-color 0.15s ease;
 }
 
-.bin-row-grid:hover {
+.bin-row-grid:not([data-header]):hover {
   background: color-mix(in oklch, var(--color-base-200) 40%, transparent);
 }
 
 @media (max-width: 640px) {
   .bin-row-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr auto;
     gap: 4px;
     padding: 10px 12px;
+  }
+  .bin-row-grid > :nth-child(1) {
+    display: none; /* hide index # */
+  }
+  .bin-row-grid > :nth-child(5) {
+    display: none; /* hide spacer/action when stacked */
   }
 }
 

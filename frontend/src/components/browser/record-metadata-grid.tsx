@@ -1,9 +1,9 @@
 "use client";
 
-import { Database, Layers, KeyRound, Hash, RefreshCw, Clock } from "lucide-react";
+import { Database, Layers, KeyRound, Hash, RefreshCw, Clock, CalendarClock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { AerospikeRecord } from "@/lib/api/types";
-import { formatTTLHuman } from "@/lib/formatters";
+import { NEVER_EXPIRE_TTL, formatTTLHuman } from "@/lib/formatters";
 
 interface RecordMetadataGridProps {
   record?: AerospikeRecord | null;
@@ -83,7 +83,7 @@ export function RecordMetadataGrid({
           {mode === "view" ? (
             <span className="ml-auto">
               {formatTTLHuman(displayTTL)}
-              {displayTTL > 0 && displayTTL !== -1 && displayTTL !== 4294967295 && (
+              {displayTTL > 0 && displayTTL !== -1 && displayTTL !== NEVER_EXPIRE_TTL && (
                 <span className="text-muted-foreground/40 ml-1 text-[11px]">({displayTTL}s)</span>
               )}
             </span>
@@ -121,6 +121,16 @@ export function RecordMetadataGrid({
             <MetaLabel icon={Hash} label="Digest" />
             <span className="text-muted-foreground/60 ml-auto text-xs break-all">
               {record.key.digest}
+            </span>
+          </div>
+        )}
+
+        {/* Last Updated */}
+        {mode === "view" && record?.meta.lastUpdateMs && (
+          <div className="flex items-center gap-3">
+            <MetaLabel icon={CalendarClock} label="Updated" />
+            <span className="text-muted-foreground/60 ml-auto text-[12px]">
+              {new Date(record.meta.lastUpdateMs).toISOString()}
             </span>
           </div>
         )}

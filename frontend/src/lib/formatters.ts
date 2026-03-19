@@ -32,7 +32,7 @@ export function formatPercent(value: number, total: number): number {
   return Math.round((value / total) * 100);
 }
 
-const NEVER_EXPIRE_TTL = 4294967295; // 0xFFFFFFFF — Aerospike "never expires" sentinel
+export const NEVER_EXPIRE_TTL = 4294967295; // 0xFFFFFFFF — Aerospike "never expires" sentinel
 
 /**
  * Convert TTL (seconds remaining) to an expiration datetime string (yyyy-mm-dd hh:mm:ss).
@@ -52,10 +52,8 @@ export function formatTTLAsExpiry(ttl: number): string {
   return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
 }
 
-const NEVER_EXPIRE_TTL_PUBLIC = 4294967295;
-
 export function formatTTLHuman(ttl: number): string {
-  if (ttl === -1 || ttl === NEVER_EXPIRE_TTL_PUBLIC) return "Never expires";
+  if (ttl === -1 || ttl === NEVER_EXPIRE_TTL) return "Never expires";
   if (ttl === 0) return "Default namespace TTL";
   return formatUptime(ttl);
 }

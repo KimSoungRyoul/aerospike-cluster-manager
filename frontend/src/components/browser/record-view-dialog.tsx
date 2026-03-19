@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { RecordMetadataGrid } from "@/components/browser/record-metadata-grid";
 import { BinRow } from "@/components/browser/bin-row";
-import { detectBinType } from "@/components/browser/record-editor-dialog";
+import { detectBinType } from "@/lib/bin-utils";
 import type { AerospikeRecord } from "@/lib/api/types";
 
 interface RecordViewDialogProps {
@@ -40,7 +40,10 @@ export function RecordDetailSections({ record }: { record: AerospikeRecord }) {
         </h4>
         <div className="divide-base-300/30 divide-y overflow-hidden rounded-lg border">
           {/* Header row */}
-          <div className="bin-row-grid bg-base-200/30 text-muted-foreground/50 font-mono text-[11px] tracking-wider uppercase">
+          <div
+            className="bin-row-grid bg-base-200/30 text-muted-foreground/50 font-mono text-[11px] tracking-wider uppercase"
+            data-header
+          >
             <span className="text-right">#</span>
             <span>Name</span>
             <span>Type</span>

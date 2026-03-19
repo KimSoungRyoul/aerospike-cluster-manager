@@ -12,70 +12,17 @@ import {
 
 import { RecordMetadataGrid } from "@/components/browser/record-metadata-grid";
 import { BinRow } from "@/components/browser/bin-row";
-import type { AerospikeRecord, BinValue, BinEntry } from "@/lib/api/types";
+import type { AerospikeRecord, BinEntry } from "@/lib/api/types";
+
+// Re-export bin helpers for backwards compatibility with existing import sites
+export {
+  parseBinValue,
+  detectBinType,
+  serializeBinValue,
+  createEmptyBinEntry,
+  buildBinEntriesFromRecord,
+} from "@/lib/bin-utils";
 export type { BinEntry } from "@/lib/api/types";
-import type { BinType } from "@/lib/constants";
-
-/* ─── Helpers ────────────────────────────────────────── */
-
-export function parseBinValue(value: string, type: BinType): BinValue {
-  switch (type) {
-    case "integer": {
-      const n = parseInt(value, 10);
-      return isNaN(n) ? 0 : n;
-    }
-    case "float": {
-      const f = parseFloat(value);
-      return isNaN(f) ? 0 : f;
-    }
-    case "bool":
-      return value.toLowerCase() === "true";
-    case "list":
-    case "map":
-    case "geojson":
-      try {
-        return JSON.parse(value);
-      } catch {
-        return value;
-      }
-    case "bytes":
-      return value;
-    default:
-      return value;
-  }
-}
-
-export function detectBinType(value: BinValue | undefined): BinType {
-  if (value === null || value === undefined) return "string";
-  if (typeof value === "boolean") return "bool";
-  if (typeof value === "number") return Number.isInteger(value) ? "integer" : "float";
-  if (Array.isArray(value)) return "list";
-  if (typeof value === "object") {
-    const obj = value as Record<string, unknown>;
-    if ("type" in obj && "coordinates" in obj) return "geojson";
-    return "map";
-  }
-  return "string";
-}
-
-export function serializeBinValue(value: BinValue): string {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "object") return JSON.stringify(value, null, 2);
-  return String(value);
-}
-
-export function createEmptyBinEntry(): BinEntry {
-  return { id: crypto.randomUUID(), name: "", value: "", type: "string" };
-}
-
-export function buildBinEntriesFromRecord(record: AerospikeRecord): BinEntry[] {
-  return Object.entries(record.bins).map(([name, value]) => ({
-    id: crypto.randomUUID(),
-    name,
-    value: serializeBinValue(value),
-    type: detectBinType(value),
-  }));
-}
 
 /* ─── Component ──────────────────────────────────────── */
 
@@ -157,7 +104,10 @@ export function RecordEditorFields({
 
         <div className="divide-base-300/30 divide-y overflow-hidden rounded-lg border">
           {/* Header row */}
-          <div className="bin-row-grid bg-base-200/30 text-muted-foreground/50 font-mono text-[11px] tracking-wider uppercase">
+          <div
+            className="bin-row-grid bg-base-200/30 text-muted-foreground/50 font-mono text-[11px] tracking-wider uppercase"
+            data-header
+          >
             <span className="text-right">#</span>
             <span>Name</span>
             <span>Type</span>
