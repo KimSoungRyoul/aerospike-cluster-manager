@@ -30,9 +30,7 @@ function buildHostString(conn: ConnectionProfile): string {
   return conn.hosts.map((h) => `${h}:${conn.port}`).join(", ");
 }
 
-function mapK8sPhaseToStatus(
-  phase: K8sClusterSummary["phase"],
-): UnifiedClusterRow["status"] {
+function mapK8sPhaseToStatus(phase: K8sClusterSummary["phase"]): UnifiedClusterRow["status"] {
   if (phase === "Completed") return "connected";
   if (phase === "Error") return "disconnected";
   return "checking";
@@ -138,7 +136,9 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
             if (row.connectionId !== connectionId) return row;
             return {
               ...row,
-              status: (health.connected ? "connected" : "disconnected") as UnifiedClusterRow["status"],
+              status: (health.connected
+                ? "connected"
+                : "disconnected") as UnifiedClusterRow["status"],
               nodeCount: health.nodeCount,
               totalOps: health.totalOps,
               memoryUsed: health.memoryUsed || undefined,

@@ -111,9 +111,7 @@ export function WizardResourcesStep({
                     type="button"
                     className="text-warning mt-1 underline"
                     onClick={() => {
-                      const recommended = formatMemoryGi(
-                        calculateMinMemoryBytes(form.namespaces),
-                      );
+                      const recommended = formatMemoryGi(calculateMinMemoryBytes(form.namespaces));
                       updateResource("limits", "memory", recommended);
                       if (parseMemoryBytes(res.requests.memory) > parseMemoryBytes(recommended)) {
                         updateResource("requests", "memory", recommended);

@@ -42,7 +42,7 @@ def _get_pool() -> asyncpg.Pool:
     return _pool
 
 
-async def _apply_migrations(conn: asyncpg.Connection) -> None:
+async def _apply_migrations(conn: asyncpg.Connection | asyncpg.pool.PoolConnectionProxy) -> None:
     """Add columns introduced after the initial schema."""
     row = await conn.fetchrow(
         """SELECT column_name FROM information_schema.columns

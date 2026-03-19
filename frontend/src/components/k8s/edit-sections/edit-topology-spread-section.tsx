@@ -67,13 +67,9 @@ export function EditTopologySpreadSection({
                 className="h-7 text-[10px]"
                 disabled={disabled}
               >
-                <option value="topology.kubernetes.io/zone">
-                  topology.kubernetes.io/zone
-                </option>
+                <option value="topology.kubernetes.io/zone">topology.kubernetes.io/zone</option>
                 <option value="kubernetes.io/hostname">kubernetes.io/hostname</option>
-                <option value="topology.kubernetes.io/region">
-                  topology.kubernetes.io/region
-                </option>
+                <option value="topology.kubernetes.io/region">topology.kubernetes.io/region</option>
               </Select>
             </div>
             <div className="grid gap-1">
@@ -97,9 +93,7 @@ export function EditTopologySpreadSection({
             </div>
           </div>
           <div className="grid gap-1">
-            <Label className="text-[10px]">
-              Label Selector (key=value, comma-separated)
-            </Label>
+            <Label className="text-[10px]">Label Selector (key=value, comma-separated)</Label>
             <Input
               value={
                 tsc.labelSelector

@@ -185,9 +185,7 @@ export function WizardBasicStep({
                           calculateMinMemoryBytes(form.namespaces),
                         );
                         updateResource("limits", "memory", recommended);
-                        if (
-                          parseMemoryBytes(res.requests.memory) > parseMemoryBytes(recommended)
-                        ) {
+                        if (parseMemoryBytes(res.requests.memory) > parseMemoryBytes(recommended)) {
                           updateResource("requests", "memory", recommended);
                         }
                       }}

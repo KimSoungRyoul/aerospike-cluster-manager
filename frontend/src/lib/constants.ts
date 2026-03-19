@@ -135,5 +135,11 @@ export const LABEL_PRESETS = [
 ] as const;
 
 export const LABEL_COLORS = [
-  "#EF4444", "#F59E0B", "#22C55E", "#3B82F6", "#6B7280", "#8B5CF6", "#EC4899",
+  "#EF4444",
+  "#F59E0B",
+  "#22C55E",
+  "#3B82F6",
+  "#6B7280",
+  "#8B5CF6",
+  "#EC4899",
 ] as const;

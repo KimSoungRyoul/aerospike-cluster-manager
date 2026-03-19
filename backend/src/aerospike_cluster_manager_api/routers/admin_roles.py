@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+from typing import cast
 
+from aerospike_py.types import Privilege as AerospikePrivilege
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
 
@@ -63,7 +65,9 @@ async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> Aeros
     if not body.name or not body.privileges:
         raise HTTPException(status_code=400, detail="Missing required fields: name, privileges")
 
-    privileges = [{"code": p.code, "ns": p.namespace or "", "set": p.set or ""} for p in body.privileges]
+    privileges: list[AerospikePrivilege] = [
+        cast(AerospikePrivilege, {"code": p.code, "ns": p.namespace or "", "set": p.set or ""}) for p in body.privileges
+    ]
     await client.admin_create_role(
         body.name,
         privileges,

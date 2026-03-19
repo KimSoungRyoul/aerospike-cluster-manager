@@ -114,7 +114,7 @@ export function getClusterListColumns(
       header: "Nodes",
       size: 80,
       enableSorting: true,
-      meta: { hideOn: ["mobile", "tablet"]  },
+      meta: { hideOn: ["mobile", "tablet"] },
       cell: ({ row }) => {
         const { nodeCount } = row.original;
         return (
@@ -130,7 +130,7 @@ export function getClusterListColumns(
       header: "Host",
       size: 180,
       enableSorting: false,
-      meta: { hideOn: ["mobile"]  },
+      meta: { hideOn: ["mobile"] },
       cell: ({ row }) => {
         const { hosts } = row.original;
         return <span className="truncate font-mono text-xs">{hosts || "--"}</span>;
@@ -142,7 +142,7 @@ export function getClusterListColumns(
       header: "Total Ops",
       size: 100,
       enableSorting: true,
-      meta: { hideOn: ["mobile"]  },
+      meta: { hideOn: ["mobile"] },
       cell: ({ row }) => {
         const { totalOps } = row.original;
         return (
@@ -158,7 +158,7 @@ export function getClusterListColumns(
       header: "Memory",
       size: 160,
       enableSorting: true,
-      meta: { hideOn: ["mobile"]  },
+      meta: { hideOn: ["mobile"] },
       cell: ({ row }) => (
         <MemoryDiskCell
           used={row.original.memoryUsed}
@@ -173,13 +173,9 @@ export function getClusterListColumns(
       header: "Disk",
       size: 160,
       enableSorting: false,
-      meta: { hideOn: ["mobile"]  },
+      meta: { hideOn: ["mobile"] },
       cell: ({ row }) => (
-        <MemoryDiskCell
-          used={row.original.diskUsed}
-          total={row.original.diskTotal}
-          type="disk"
-        />
+        <MemoryDiskCell used={row.original.diskUsed} total={row.original.diskTotal} type="disk" />
       ),
     },
     {
@@ -192,9 +188,7 @@ export function getClusterListColumns(
         const { id, source } = row.original;
         return (
           <DropdownMenu>
-            <DropdownMenuTrigger
-              className="hover:bg-base-200 flex h-8 w-8 items-center justify-center rounded-md transition-colors"
-            >
+            <DropdownMenuTrigger className="hover:bg-base-200 flex h-8 w-8 items-center justify-center rounded-md transition-colors">
               <MoreHorizontal className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

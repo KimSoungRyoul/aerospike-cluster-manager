@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal, cast
 
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
@@ -33,9 +34,9 @@ async def get_indexes(client: AerospikeClient) -> list[SecondaryIndex]:
         sindex_raw = await client.info_random_node(info_sindex(ns))
         for rec in parse_records(sindex_raw):
             raw_type = rec.get("type", rec.get("bin_type", "string")).lower()
-            idx_type = _TYPE_MAP.get(raw_type, "string")
+            idx_type = cast(Literal["numeric", "string", "geo2dsphere"], _TYPE_MAP.get(raw_type, "string"))
             raw_state = rec.get("state", "RW")
-            state = _STATE_MAP.get(raw_state, "ready")
+            state = cast(Literal["ready", "building", "error"], _STATE_MAP.get(raw_state, "ready"))
 
             indexes.append(
                 SecondaryIndex(

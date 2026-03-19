@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import tempfile
 from pathlib import Path
+from typing import Literal, cast
 
 from fastapi import APIRouter, Query
 from starlette.responses import Response
@@ -25,7 +26,7 @@ async def _list_udfs(c) -> list[UDFModule]:
         modules.append(
             UDFModule(
                 filename=rec.get("filename", ""),
-                type=rec.get("type", "LUA").upper(),
+                type=cast(Literal["LUA"], rec.get("type", "LUA").upper()),
                 hash=rec.get("hash", rec.get("content_hash", "")),
             )
         )

@@ -85,9 +85,7 @@ export function EditPodSecuritySection({
 }) {
   return (
     <div className="space-y-3">
-      <p className="text-base-content/60 text-[10px]">
-        Configure the pod-level security context.
-      </p>
+      <p className="text-base-content/60 text-[10px]">Configure the pod-level security context.</p>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-1">
           <Label htmlFor="edit-run-as-user" className="text-[10px]">

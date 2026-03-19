@@ -115,9 +115,7 @@ const AEROSPIKE_MEMORY_OVERHEAD = 1.3;
  * Calculate minimum pod memory (bytes) required for the given namespaces.
  * Only in-memory namespaces contribute; device namespaces use disk.
  */
-export function calculateMinMemoryBytes(
-  namespaces: AerospikeNamespaceConfig[],
-): number {
+export function calculateMinMemoryBytes(namespaces: AerospikeNamespaceConfig[]): number {
   const totalDataBytes = namespaces.reduce((sum, ns) => {
     if (ns.storageEngine.type === "memory") {
       return sum + (ns.storageEngine.dataSize ?? 1073741824);
@@ -130,7 +128,7 @@ export function calculateMinMemoryBytes(
 
 /** Format bytes to a human-readable K8s memory string (e.g., "2Gi"). */
 export function formatMemoryGi(bytes: number): string {
-  const gi = Math.ceil(bytes / (1024 ** 3));
+  const gi = Math.ceil(bytes / 1024 ** 3);
   return `${Math.max(1, gi)}Gi`;
 }
 

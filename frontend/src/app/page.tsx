@@ -2,14 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Plus,
-  Boxes,
-  Loader2,
-  Wifi,
-  WifiOff,
-  Check,
-} from "lucide-react";
+import { Plus, Boxes, Loader2, Wifi, WifiOff, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -61,24 +54,10 @@ const emptyForm: ConnectionFormData = {
 
 export default function ConnectionsPage() {
   const router = useRouter();
-  const {
-    createConnection,
-    updateConnection,
-    deleteConnection,
-    testConnection,
-  } = useConnectionStore();
-  const {
-    rows,
-    loading,
-    error,
-    fetchAll,
-    fetchAllHealth,
-    updateMetadata,
-  } = useClusterListStore();
-  const {
-    k8sAvailable,
-    checkAvailability,
-  } = useK8sClusterStore();
+  const { createConnection, updateConnection, deleteConnection, testConnection } =
+    useConnectionStore();
+  const { rows, loading, error, fetchAll, fetchAllHealth, updateMetadata } = useClusterListStore();
+  const { k8sAvailable, checkAvailability } = useK8sClusterStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -402,9 +381,7 @@ export default function ConnectionsPage() {
               </div>
               <Input
                 placeholder="Custom label name"
-                value={
-                  LABEL_PRESETS.some((p) => p.name === form.label) ? "" : form.label
-                }
+                value={LABEL_PRESETS.some((p) => p.name === form.label) ? "" : form.label}
                 onChange={(e) => {
                   const val = e.target.value;
                   setForm({
@@ -424,7 +401,7 @@ export default function ConnectionsPage() {
                       className={cn(
                         "h-5 w-5 rounded-full transition-transform",
                         form.labelColor === color &&
-                          "ring-base-content/50 scale-110 ring-2 ring-offset-1 ring-offset-base-100",
+                          "ring-base-content/50 ring-offset-base-100 scale-110 ring-2 ring-offset-1",
                       )}
                       style={{ backgroundColor: color }}
                       onClick={() => setForm({ ...form, labelColor: color })}

@@ -238,10 +238,7 @@ def _build_acl_dict(acl: Any) -> dict[str, Any]:
             {"name": r.name, "privileges": r.privileges, **({"whitelist": r.whitelist} if r.whitelist else {})}
             for r in (acl.roles or [])
         ],
-        "users": [
-            {"name": u.name, "secretName": u.secret_name, "roles": u.roles}
-            for u in (acl.users or [])
-        ],
+        "users": [{"name": u.name, "secretName": u.secret_name, "roles": u.roles} for u in (acl.users or [])],
         "adminPolicy": {"timeout": acl.admin_policy_timeout},
     }
 
@@ -526,7 +523,7 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     if total_ns_bytes > 0:
         # Aerospike needs ~30% overhead for primary index, buffers, and internal structures
         min_memory_bytes = int(total_ns_bytes * 1.3)
-        min_memory_gi = max(1, -(-min_memory_bytes // (1024 ** 3)))  # ceil division to GiB
+        min_memory_gi = max(1, -(-min_memory_bytes // (1024**3)))  # ceil division to GiB
         new_limit_mem = f"{min_memory_gi}Gi"
 
         if req.resources:

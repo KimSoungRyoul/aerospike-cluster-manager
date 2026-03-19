@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 
 from aerospike_py import exp
 
@@ -47,7 +48,7 @@ def _val_accessor(value: object, bin_type: BinDataType) -> dict:
 
 
 # Mapping from simple comparison operators to exp helpers
-_CMP_OPS: dict[FilterOperator, object] = {
+_CMP_OPS: dict[FilterOperator, Callable[..., dict]] = {
     FilterOperator.EQ: exp.eq,
     FilterOperator.NE: exp.ne,
     FilterOperator.GT: exp.gt,

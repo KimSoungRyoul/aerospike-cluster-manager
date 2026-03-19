@@ -335,7 +335,10 @@ export function WizardReviewStep({
                         limits: { ...form.resources.limits, memory: recommended },
                       };
                       // Also adjust requests if it exceeds the new limit
-                      if (parseMemoryBytes(form.resources.requests.memory) > parseMemoryBytes(recommended)) {
+                      if (
+                        parseMemoryBytes(form.resources.requests.memory) >
+                        parseMemoryBytes(recommended)
+                      ) {
                         updated.requests = { ...form.resources.requests, memory: recommended };
                       }
                       updateForm({ resources: updated });

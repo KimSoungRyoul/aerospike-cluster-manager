@@ -48,9 +48,7 @@ export function EditServiceMetadataSection({
             <Label className="text-[10px] font-semibold">Pod Service Annotations</Label>
             <KeyValueEditor
               value={podServiceConfig.annotations}
-              onChange={(v) =>
-                onPodServiceConfigChange({ ...podServiceConfig, annotations: v })
-              }
+              onChange={(v) => onPodServiceConfigChange({ ...podServiceConfig, annotations: v })}
               keyPlaceholder="annotation key"
               valuePlaceholder="value"
               disabled={disabled}
@@ -61,9 +59,7 @@ export function EditServiceMetadataSection({
             <Label className="text-[10px] font-semibold">Pod Service Labels</Label>
             <KeyValueEditor
               value={podServiceConfig.labels}
-              onChange={(v) =>
-                onPodServiceConfigChange({ ...podServiceConfig, labels: v })
-              }
+              onChange={(v) => onPodServiceConfigChange({ ...podServiceConfig, labels: v })}
               keyPlaceholder="label key"
               valuePlaceholder="value"
               disabled={disabled}

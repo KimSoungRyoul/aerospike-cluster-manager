@@ -32,7 +32,7 @@ export function LabelEditorPopover({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56 p-3">
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="text-muted-foreground mb-2 text-[11px] font-semibold tracking-wider uppercase">
           Presets
         </div>
         <div className="grid grid-cols-2 gap-1.5">
@@ -60,7 +60,7 @@ export function LabelEditorPopover({
 
         <DropdownMenuSeparator />
 
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="text-muted-foreground mb-2 text-[11px] font-semibold tracking-wider uppercase">
           Custom
         </div>
         <Input
@@ -83,7 +83,8 @@ export function LabelEditorPopover({
               key={color}
               className={cn(
                 "h-5 w-5 rounded-full transition-transform",
-                customColor === color && "ring-base-content/50 scale-110 ring-2 ring-offset-1 ring-offset-base-100",
+                customColor === color &&
+                  "ring-base-content/50 ring-offset-base-100 scale-110 ring-2 ring-offset-1",
               )}
               style={{ backgroundColor: color }}
               onClick={(e) => {

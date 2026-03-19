@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from aerospike_cluster_manager_api.models.query import QueryPredicate
 
 
-def build_predicate(pred: QueryPredicate) -> tuple[str, ...]:
+def build_predicate(pred: QueryPredicate) -> tuple[object, ...]:
     """Convert a QueryPredicate model into an Aerospike predicate tuple.
 
     Used by both routers/query.py and routers/records.py.
