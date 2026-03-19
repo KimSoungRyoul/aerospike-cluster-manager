@@ -12,7 +12,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Path, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
 
 from aerospike_cluster_manager_api import config, db
@@ -21,6 +21,7 @@ from aerospike_cluster_manager_api.k8s_client import K8sApiError, k8s_client
 from aerospike_cluster_manager_api.models.connection import ConnectionProfile
 from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
+    ConfigDriftResponse,
     CreateK8sClusterRequest,
     CreateK8sTemplateRequest,
     HPAConfig,
@@ -30,8 +31,11 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     K8sClusterSummary,
     K8sTemplateDetail,
     K8sTemplateSummary,
+    MigrationStatusResponse,
     NodeBlocklistRequest,
     OperationRequest,
+    ReconciliationHealthResponse,
+    ReconciliationStatus,
     ScaleK8sClusterRequest,
     UpdateK8sClusterRequest,
     UpdateK8sTemplateRequest,
@@ -44,6 +48,7 @@ from aerospike_cluster_manager_api.services.k8s_service import (
     calculate_age,
     categorize_event,
     clean_cr_for_export,
+    compute_config_drift,
     extract_detail,
     extract_health,
     extract_hpa_response,
@@ -57,11 +62,17 @@ from aerospike_cluster_manager_api.services.k8s_service import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/k8s", tags=["k8s-clusters"])
+
+def _require_k8s() -> None:
+    if not config.K8S_MANAGEMENT_ENABLED:
+        raise HTTPException(status_code=404, detail="Kubernetes management is not enabled")
+
+
+router = APIRouter(prefix="/k8s", tags=["k8s-clusters"], dependencies=[Depends(_require_k8s)])
 
 # Reusable K8s DNS-compatible name constraint for path parameters.
 _K8S_NAME = Path(..., min_length=1, max_length=63, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
-_K8S_NAMESPACE = Path(..., min_length=1, max_length=253, pattern=r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+_K8S_NAMESPACE = Path(..., min_length=1, max_length=253, pattern=r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
 
 
 class DeleteResponse(BaseModel):
@@ -73,11 +84,6 @@ def _map_k8s_error(e: K8sApiError) -> HTTPException:
     status_map = {404: 404, 409: 409, 422: 422, 403: 403, 401: 401}
     http_status = status_map.get(e.status, 500)
     return HTTPException(status_code=http_status, detail=e.message or e.reason)
-
-
-def _require_k8s() -> None:
-    if not config.K8S_MANAGEMENT_ENABLED:
-        raise HTTPException(status_code=404, detail="Kubernetes management is not enabled")
 
 
 def _k8s_endpoint(operation: str):
@@ -113,7 +119,7 @@ def _k8s_endpoint(operation: str):
 @router.get("/clusters", summary="List K8s Aerospike clusters")
 @_k8s_endpoint("list Kubernetes clusters")
 async def list_k8s_clusters(namespace: str | None = None) -> list[K8sClusterSummary]:
-    _require_k8s()
+
     items = await k8s_client.list_clusters(namespace)
 
     connections = await db.get_all_connections()
@@ -144,7 +150,7 @@ async def get_k8s_cluster(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> K8sClusterDetail:
-    _require_k8s()
+
     item = await k8s_client.get_cluster(namespace, name)
     pods_raw = await k8s_client.list_pods(
         namespace, f"app.kubernetes.io/name=aerospike-cluster,app.kubernetes.io/instance={name}"
@@ -159,10 +165,7 @@ async def get_cluster_config_drift(
     name: str = _K8S_NAME,
 ):
     """Compare desired spec vs applied spec and detect configuration drift."""
-    from ..models.k8s_cluster import ConfigDriftResponse
-    from ..services.k8s_service import compute_config_drift
 
-    _require_k8s()
     cr = await k8s_client.get_cluster(namespace, name)
     result = compute_config_drift(cr)
     return ConfigDriftResponse(**result)
@@ -174,7 +177,7 @@ async def get_k8s_cluster_health(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> ClusterHealthResponse:
-    _require_k8s()
+
     item = await k8s_client.get_cluster(namespace, name)
     return extract_health(item)
 
@@ -186,9 +189,7 @@ async def get_cluster_reconciliation_status(
     name: str = _K8S_NAME,
 ):
     """Get reconciliation health including circuit breaker state."""
-    from ..models.k8s_cluster import ReconciliationStatus
 
-    _require_k8s()
     cr = await k8s_client.get_cluster(namespace, name)
     result = extract_reconciliation_status(cr)
     return ReconciliationStatus(**result)
@@ -201,9 +202,7 @@ async def get_migration_status(
     name: str = _K8S_NAME,
 ):
     """Get migration status including per-pod migration info."""
-    from ..models.k8s_cluster import MigrationStatusResponse
 
-    _require_k8s()
     cr = await k8s_client.get_cluster(namespace, name)
     result = extract_migration_status(cr)
     return MigrationStatusResponse(**result)
@@ -219,9 +218,7 @@ async def get_cluster_reconciliation_health(
     name: str = _K8S_NAME,
 ):
     """Get reconciliation health including phase, error info, and health status."""
-    from ..models.k8s_cluster import ReconciliationHealthResponse
 
-    _require_k8s()
     cr = await k8s_client.get_cluster(namespace, name)
     result = extract_reconciliation_health(cr)
     return ReconciliationHealthResponse(**result)
@@ -236,7 +233,7 @@ async def get_k8s_pod_logs(
     tail: int = Query(default=500, ge=1, le=10000, description="Number of tail lines"),
     container: str | None = Query(default=None, description="Container name"),
 ) -> dict[str, Any]:
-    _require_k8s()
+
     cluster_pods = await k8s_client.list_pods(namespace, f"app.kubernetes.io/instance={name}")
     pod_names = {p["name"] for p in cluster_pods}
     if pod not in pod_names:
@@ -251,7 +248,7 @@ async def get_k8s_cluster_yaml(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> dict[str, Any]:
-    _require_k8s()
+
     item = await k8s_client.get_cluster(namespace, name)
     return {"yaml": clean_cr_for_export(item)}
 
@@ -259,7 +256,6 @@ async def get_k8s_cluster_yaml(
 @router.post("/clusters", status_code=201, summary="Create K8s Aerospike cluster")
 @_k8s_endpoint("create Kubernetes cluster")
 async def create_k8s_cluster(body: CreateK8sClusterRequest) -> K8sClusterSummary:
-    _require_k8s()
 
     existing_namespaces = await k8s_client.list_namespaces()
     if body.namespace not in existing_namespaces:
@@ -311,7 +307,6 @@ async def update_k8s_cluster(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> K8sClusterSummary:
-    _require_k8s()
 
     if not has_update_fields(body):
         raise HTTPException(status_code=400, detail="At least one field must be provided")
@@ -327,7 +322,7 @@ async def delete_k8s_cluster(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> DeleteResponse:
-    _require_k8s()
+
     await k8s_client.delete_cluster(namespace, name)
 
     try:
@@ -352,7 +347,7 @@ async def scale_k8s_cluster(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> K8sClusterSummary:
-    _require_k8s()
+
     patch = {"spec": {"size": body.size}}
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return extract_summary(result)
@@ -369,7 +364,7 @@ async def update_node_blocklist(
     name: str = _K8S_NAME,
 ) -> K8sClusterSummary:
     """Patch spec.k8sNodeBlockList on the AerospikeCluster CR."""
-    _require_k8s()
+
     patch: dict[str, Any] = {"spec": {"k8sNodeBlockList": body.node_names}}
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return extract_summary(result)
@@ -386,7 +381,7 @@ async def get_k8s_cluster_hpa(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> HPAResponse:
-    _require_k8s()
+
     raw = await k8s_client.get_hpa(namespace, name)
     return extract_hpa_response(raw)
 
@@ -400,7 +395,7 @@ async def create_or_update_k8s_cluster_hpa(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> HPAResponse:
-    _require_k8s()
+
     # Check if HPA already exists — update if so, create if not
     try:
         await k8s_client.get_hpa(namespace, name)
@@ -433,7 +428,7 @@ async def delete_k8s_cluster_hpa(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> DeleteResponse:
-    _require_k8s()
+
     await k8s_client.delete_hpa(namespace, name)
     return DeleteResponse(message=f"HPA for {namespace}/{name} deleted")
 
@@ -446,28 +441,28 @@ async def delete_k8s_cluster_hpa(
 @router.get("/namespaces", summary="List Kubernetes namespaces")
 @_k8s_endpoint("list Kubernetes namespaces")
 async def list_k8s_namespaces() -> list[str]:
-    _require_k8s()
+
     return await k8s_client.list_namespaces()
 
 
 @router.get("/nodes", summary="List Kubernetes nodes with zone info")
 @_k8s_endpoint("list Kubernetes nodes")
 async def list_k8s_nodes() -> list[dict[str, Any]]:
-    _require_k8s()
+
     return await k8s_client.list_nodes()
 
 
 @router.get("/storageclasses", summary="List Kubernetes storage classes")
 @_k8s_endpoint("list Kubernetes storage classes")
 async def list_k8s_storage_classes() -> list[str]:
-    _require_k8s()
+
     return await k8s_client.list_storage_classes()
 
 
 @router.get("/secrets", summary="List K8s Secrets in a namespace")
 @_k8s_endpoint("list Kubernetes secrets")
 async def list_k8s_secrets(namespace: str = "aerospike") -> list[str]:
-    _require_k8s()
+
     return await k8s_client.list_secrets(namespace)
 
 
@@ -479,7 +474,7 @@ async def list_k8s_secrets(namespace: str = "aerospike") -> list[str]:
 @router.get("/templates", summary="List K8s AerospikeClusterTemplates")
 @_k8s_endpoint("list Kubernetes templates")
 async def list_k8s_templates() -> list[K8sTemplateSummary]:
-    _require_k8s()
+
     items = await k8s_client.list_templates()
     return [extract_template_summary(item) for item in items]
 
@@ -489,7 +484,7 @@ async def list_k8s_templates() -> list[K8sTemplateSummary]:
 async def get_k8s_template(
     name: str = _K8S_NAME,
 ) -> K8sTemplateDetail:
-    _require_k8s()
+
     item = await k8s_client.get_template(name)
     metadata = item.get("metadata", {})
     return K8sTemplateDetail(
@@ -503,7 +498,7 @@ async def get_k8s_template(
 @router.post("/templates", status_code=201, summary="Create K8s AerospikeClusterTemplate")
 @_k8s_endpoint("create Kubernetes template")
 async def create_k8s_template(body: CreateK8sTemplateRequest) -> K8sTemplateSummary:
-    _require_k8s()
+
     cr = build_template_cr(body)
     result = await k8s_client.create_template(cr)
     return extract_template_summary(result)
@@ -515,7 +510,7 @@ async def update_k8s_template(
     body: UpdateK8sTemplateRequest,
     name: str = _K8S_NAME,
 ) -> K8sTemplateSummary:
-    _require_k8s()
+
     patch = build_template_update_patch(body)
     if not patch.get("spec"):
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -528,7 +523,7 @@ async def update_k8s_template(
 async def delete_k8s_template(
     name: str = _K8S_NAME,
 ) -> DeleteResponse:
-    _require_k8s()
+
     clusters = await k8s_client.list_clusters()
     referencing = [
         c.get("metadata", {}).get("name", "")
@@ -558,7 +553,7 @@ async def get_k8s_cluster_events(
     limit: int = Query(default=50, ge=1, le=500, description="Maximum number of events to return"),
     category: str | None = Query(default=None, description="Filter events by category"),
 ) -> list[K8sClusterEvent]:
-    _require_k8s()
+
     field_selector = f"involvedObject.name={name},involvedObject.kind=AerospikeCluster"
     events_raw = await k8s_client.list_events(namespace, field_selector)
     events = [K8sClusterEvent(**e) for e in events_raw]
@@ -578,7 +573,7 @@ async def resync_k8s_cluster_template(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> K8sClusterSummary:
-    _require_k8s()
+
     patch: dict[str, Any] = {"metadata": {"annotations": {"acko.io/resync-template": "true"}}}
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return extract_summary(result)
@@ -591,7 +586,7 @@ async def trigger_k8s_cluster_operation(
     namespace: str = _K8S_NAMESPACE,
     name: str = _K8S_NAME,
 ) -> K8sClusterSummary:
-    _require_k8s()
+
     op_id = body.id or f"ui-{uuid.uuid4().hex[:8]}"
     operation: dict[str, Any] = {"kind": body.kind, "id": op_id}
     if body.pod_list:

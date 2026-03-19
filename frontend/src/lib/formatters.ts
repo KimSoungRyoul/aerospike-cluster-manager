@@ -57,3 +57,29 @@ export function truncateMiddle(str: string, maxLen: number): string {
   const half = Math.floor((maxLen - 3) / 2);
   return `${str.slice(0, half)}...${str.slice(-half)}`;
 }
+
+/**
+ * Format an ISO-8601 date string as a human-readable relative time.
+ *
+ * Handles `null`/`undefined` gracefully (returns "N/A") and falls back to the
+ * raw string when the date cannot be parsed.
+ */
+export function formatRelativeTime(isoString: string | null | undefined): string {
+  if (!isoString) return "N/A";
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    if (diffMs < 0) return "just now";
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return `${diffSec}s ago`;
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+  } catch {
+    return isoString;
+  }
+}

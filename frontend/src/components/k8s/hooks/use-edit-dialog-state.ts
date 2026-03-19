@@ -19,59 +19,8 @@ import type {
 } from "@/lib/api/types";
 
 // ---------------------------------------------------------------------------
-// EditDialogState — consolidated state for K8sEditDialog
+// EditDialogInitials — shared fields for dialog state
 // ---------------------------------------------------------------------------
-
-export interface EditDialogState {
-  image: string;
-  size: number;
-  enableDynamicConfig: boolean;
-  aerospikeConfigText: string;
-  batchSize: number | undefined;
-  maxUnavailable: string;
-  disablePDB: boolean;
-  accessType: NetworkAccessType;
-  fabricType: NetworkAccessType | "";
-  alternateAccessType: NetworkAccessType | "";
-  customAccessNames: string;
-  customAltAccessNames: string;
-  customFabricNames: string;
-  networkPolicyConfig: NetworkPolicyAutoConfig | null;
-  nodeBlockList: string;
-  bandwidthIngress: string;
-  bandwidthEgress: string;
-  readinessGateEnabled: boolean;
-  podMetadataLabels: string;
-  podMetadataAnnotations: string;
-  podManagementPolicy: string;
-  dnsPolicy: string;
-  monitoringConfig: MonitoringConfig | null;
-  nodeSelector: Record<string, string>;
-  tolerations: TolerationConfig[];
-  multiPodPerHost: boolean;
-  hostNetwork: boolean;
-  serviceAccountName: string;
-  terminationGracePeriod: number | undefined;
-  imagePullSecrets: string[];
-  topologySpreadConstraints: TopologySpreadConstraintConfig[];
-  podSecurityRunAsUser: number | undefined;
-  podSecurityRunAsGroup: number | undefined;
-  podSecurityRunAsNonRoot: boolean;
-  podSecurityFsGroup: number | undefined;
-  podSecuritySupGroups: number[];
-  skipWorkDirValidate: boolean;
-  sidecars: SidecarConfig[];
-  initContainers: SidecarConfig[];
-  podServiceConfig: ServiceMetadataConfig | null;
-  headlessServiceConfig: ServiceMetadataConfig | null;
-  enableRackIDOverride: boolean;
-  storageVolumes: VolumeSpec[];
-  storageCleanupThreads: number | undefined;
-  storageDeleteLocalOnRestart: boolean;
-  seedsFinderServices: SeedsFinderServicesConfig | null;
-  loading: boolean;
-  error: string | null;
-}
 
 export interface EditDialogInitials {
   image: string;
@@ -122,23 +71,54 @@ export interface EditDialogInitials {
   seedsFinderServices: SeedsFinderServicesConfig | null;
 }
 
+// ---------------------------------------------------------------------------
+// EditDialogState — extends EditDialogInitials with transient UI fields
+// ---------------------------------------------------------------------------
+
+export type EditDialogState = EditDialogInitials & { loading: boolean; error: string | null };
+
+// ---------------------------------------------------------------------------
+// Targeted type aliases for narrowing loose spec fields (H7)
+// ---------------------------------------------------------------------------
+
+/** Narrowed shape of `cluster.spec.podSpec` for type-safe field access. */
+type PodSpecShape = {
+  metadata?: PodMetadataConfig;
+  readinessGateEnabled?: boolean;
+  podManagementPolicy?: string;
+  dnsPolicy?: string;
+  nodeSelector?: Record<string, string>;
+  tolerations?: TolerationConfig[];
+  multiPodPerHost?: boolean;
+  hostNetwork?: boolean;
+  serviceAccountName?: string;
+  terminationGracePeriodSeconds?: number;
+  imagePullSecrets?: string[];
+  topologySpreadConstraints?: TopologySpreadConstraintConfig[];
+  securityContext?: PodSecurityContextConfig;
+  sidecars?: SidecarConfig[];
+  initContainers?: SidecarConfig[];
+};
+
+/** Narrowed shape of `cluster.spec.storage` for type-safe field access. */
+type StorageShape = StorageSpec & {
+  cleanupThreads?: number;
+  deleteLocalStorageOnRestart?: boolean;
+};
+
+/** Narrowed shape for service-like spec fields (podService, headlessService). */
+type ServiceShape = { metadata?: ServiceMetadataConfig };
+
 /** Derive all initial values from a K8sClusterDetail. */
 function deriveInitials(cluster: K8sClusterDetail): EditDialogInitials {
   const networkPolicy = cluster.spec?.aerospikeNetworkPolicy;
-  const podSpec = cluster.spec?.podSpec as Record<string, unknown> | undefined;
-  const podMeta = podSpec?.metadata as PodMetadataConfig | undefined;
+  const podSpec = cluster.spec?.podSpec as PodSpecShape | undefined;
+  const podMeta = podSpec?.metadata;
   const specPodScheduling = cluster.spec?.podScheduling;
-  const specPodSpec = cluster.spec?.podSpec as Record<string, unknown> | undefined;
-  const specSecCtx =
-    specPodScheduling?.podSecurityContext ??
-    (specPodSpec?.securityContext as PodSecurityContextConfig | undefined);
-  const specStorage = cluster.spec?.storage as StorageSpec | undefined;
-  const specPodService = cluster.spec?.podService as
-    | { metadata?: ServiceMetadataConfig }
-    | undefined;
-  const specHeadlessService = cluster.spec?.headlessService as
-    | { metadata?: ServiceMetadataConfig }
-    | undefined;
+  const specSecCtx = specPodScheduling?.podSecurityContext ?? podSpec?.securityContext;
+  const specStorage = cluster.spec?.storage as StorageShape | undefined;
+  const specPodService = cluster.spec?.podService as ServiceShape | undefined;
+  const specHeadlessService = cluster.spec?.headlessService as ServiceShape | undefined;
 
   // Storage volumes
   const storageVolumes: VolumeSpec[] = (() => {
@@ -217,47 +197,29 @@ function deriveInitials(cluster: K8sClusterDetail): EditDialogInitials {
           .map(([k, v]) => `${k}=${v}`)
           .join(", ")
       : "",
-    podManagementPolicy: (podSpec?.podManagementPolicy as string) || "",
-    dnsPolicy: (podSpec?.dnsPolicy as string) || "",
+    podManagementPolicy: podSpec?.podManagementPolicy || "",
+    dnsPolicy: podSpec?.dnsPolicy || "",
     monitoringConfig: cluster.spec?.monitoring ?? null,
-    nodeSelector:
-      specPodScheduling?.nodeSelector ??
-      (specPodSpec?.nodeSelector as Record<string, string> | undefined) ??
-      {},
-    tolerations:
-      specPodScheduling?.tolerations ??
-      (specPodSpec?.tolerations as TolerationConfig[] | undefined) ??
-      [],
-    multiPodPerHost: Boolean(
-      specPodScheduling?.multiPodPerHost ?? (specPodSpec?.multiPodPerHost as boolean | undefined),
-    ),
-    hostNetwork: Boolean(
-      specPodScheduling?.hostNetwork ?? (specPodSpec?.hostNetwork as boolean | undefined),
-    ),
-    serviceAccountName:
-      specPodScheduling?.serviceAccountName ??
-      (specPodSpec?.serviceAccountName as string | undefined) ??
-      "",
+    nodeSelector: specPodScheduling?.nodeSelector ?? podSpec?.nodeSelector ?? {},
+    tolerations: specPodScheduling?.tolerations ?? podSpec?.tolerations ?? [],
+    multiPodPerHost: Boolean(specPodScheduling?.multiPodPerHost ?? podSpec?.multiPodPerHost),
+    hostNetwork: Boolean(specPodScheduling?.hostNetwork ?? podSpec?.hostNetwork),
+    serviceAccountName: specPodScheduling?.serviceAccountName ?? podSpec?.serviceAccountName ?? "",
     terminationGracePeriod:
       specPodScheduling?.terminationGracePeriodSeconds ??
-      (specPodSpec?.terminationGracePeriodSeconds as number | undefined) ??
+      podSpec?.terminationGracePeriodSeconds ??
       undefined,
-    imagePullSecrets:
-      specPodScheduling?.imagePullSecrets ??
-      (specPodSpec?.imagePullSecrets as string[] | undefined) ??
-      [],
+    imagePullSecrets: specPodScheduling?.imagePullSecrets ?? podSpec?.imagePullSecrets ?? [],
     topologySpreadConstraints:
-      specPodScheduling?.topologySpreadConstraints ??
-      (specPodSpec?.topologySpreadConstraints as TopologySpreadConstraintConfig[] | undefined) ??
-      [],
+      specPodScheduling?.topologySpreadConstraints ?? podSpec?.topologySpreadConstraints ?? [],
     podSecurityRunAsUser: specSecCtx?.runAsUser,
     podSecurityRunAsGroup: specSecCtx?.runAsGroup,
     podSecurityRunAsNonRoot: Boolean(specSecCtx?.runAsNonRoot),
     podSecurityFsGroup: specSecCtx?.fsGroup,
     podSecuritySupGroups: specSecCtx?.supplementalGroups ?? [],
     skipWorkDirValidate: Boolean(cluster.spec?.validationPolicy?.skipWorkDirValidate),
-    sidecars: (podSpec?.sidecars as SidecarConfig[] | undefined) ?? [],
-    initContainers: (podSpec?.initContainers as SidecarConfig[] | undefined) ?? [],
+    sidecars: podSpec?.sidecars ?? [],
+    initContainers: podSpec?.initContainers ?? [],
     podServiceConfig: specPodService?.metadata
       ? {
           annotations: specPodService.metadata.annotations,
@@ -274,12 +236,8 @@ function deriveInitials(cluster: K8sClusterDetail): EditDialogInitials {
       : null,
     enableRackIDOverride: Boolean(cluster.spec?.enableRackIDOverride),
     storageVolumes,
-    storageCleanupThreads: (specStorage as Record<string, unknown> | undefined)?.cleanupThreads as
-      | number
-      | undefined,
-    storageDeleteLocalOnRestart: Boolean(
-      (specStorage as Record<string, unknown> | undefined)?.deleteLocalStorageOnRestart,
-    ),
+    storageCleanupThreads: specStorage?.cleanupThreads,
+    storageDeleteLocalOnRestart: Boolean(specStorage?.deleteLocalStorageOnRestart),
     seedsFinderServices: cluster.spec?.seedsFinderServices ?? null,
   };
 }
@@ -329,7 +287,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
         headlessServiceConfig: snap.headlessServiceConfig
           ? { ...snap.headlessServiceConfig }
           : null,
-        storageVolumes: snap.storageVolumes.map((v) => JSON.parse(JSON.stringify(v))),
+        storageVolumes: snap.storageVolumes.map((v) => structuredClone(v)),
         seedsFinderServices: snap.seedsFinderServices
           ? {
               loadBalancer: snap.seedsFinderServices.loadBalancer
@@ -357,55 +315,58 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
 
   // Compare against the snapshot captured at dialog open time, not the live
   // initials (which update on every auto-poll cycle).
-  const snap = initialsSnapshotRef.current;
-  const hasChanges =
-    state.image !== snap.image ||
-    state.size !== snap.size ||
-    state.enableDynamicConfig !== snap.enableDynamicConfig ||
-    state.aerospikeConfigText !== snap.aerospikeConfigText ||
-    state.batchSize !== snap.batchSize ||
-    state.maxUnavailable !== snap.maxUnavailable ||
-    state.disablePDB !== snap.disablePDB ||
-    state.accessType !== snap.accessType ||
-    state.fabricType !== snap.fabricType ||
-    state.alternateAccessType !== snap.alternateAccessType ||
-    state.customAccessNames !== snap.customAccessNames ||
-    state.customAltAccessNames !== snap.customAltAccessNames ||
-    state.customFabricNames !== snap.customFabricNames ||
-    JSON.stringify(state.networkPolicyConfig) !== JSON.stringify(snap.networkPolicyConfig) ||
-    state.nodeBlockList !== snap.nodeBlockList ||
-    state.bandwidthIngress !== snap.bandwidthIngress ||
-    state.bandwidthEgress !== snap.bandwidthEgress ||
-    state.readinessGateEnabled !== snap.readinessGateEnabled ||
-    state.podMetadataLabels !== snap.podMetadataLabels ||
-    state.podMetadataAnnotations !== snap.podMetadataAnnotations ||
-    state.podManagementPolicy !== snap.podManagementPolicy ||
-    state.dnsPolicy !== snap.dnsPolicy ||
-    JSON.stringify(state.monitoringConfig) !== JSON.stringify(snap.monitoringConfig) ||
-    JSON.stringify(state.nodeSelector) !== JSON.stringify(snap.nodeSelector) ||
-    JSON.stringify(state.tolerations) !== JSON.stringify(snap.tolerations) ||
-    state.multiPodPerHost !== snap.multiPodPerHost ||
-    state.hostNetwork !== snap.hostNetwork ||
-    state.serviceAccountName !== snap.serviceAccountName ||
-    state.terminationGracePeriod !== snap.terminationGracePeriod ||
-    JSON.stringify(state.imagePullSecrets) !== JSON.stringify(snap.imagePullSecrets) ||
-    JSON.stringify(state.topologySpreadConstraints) !==
-      JSON.stringify(snap.topologySpreadConstraints) ||
-    state.podSecurityRunAsUser !== snap.podSecurityRunAsUser ||
-    state.podSecurityRunAsGroup !== snap.podSecurityRunAsGroup ||
-    state.podSecurityRunAsNonRoot !== snap.podSecurityRunAsNonRoot ||
-    state.podSecurityFsGroup !== snap.podSecurityFsGroup ||
-    JSON.stringify(state.podSecuritySupGroups) !== JSON.stringify(snap.podSecuritySupGroups) ||
-    state.skipWorkDirValidate !== snap.skipWorkDirValidate ||
-    JSON.stringify(state.sidecars) !== JSON.stringify(snap.sidecars) ||
-    JSON.stringify(state.initContainers) !== JSON.stringify(snap.initContainers) ||
-    JSON.stringify(state.podServiceConfig) !== JSON.stringify(snap.podServiceConfig) ||
-    JSON.stringify(state.headlessServiceConfig) !== JSON.stringify(snap.headlessServiceConfig) ||
-    state.enableRackIDOverride !== snap.enableRackIDOverride ||
-    JSON.stringify(state.storageVolumes) !== JSON.stringify(snap.storageVolumes) ||
-    state.storageCleanupThreads !== snap.storageCleanupThreads ||
-    state.storageDeleteLocalOnRestart !== snap.storageDeleteLocalOnRestart ||
-    JSON.stringify(state.seedsFinderServices) !== JSON.stringify(snap.seedsFinderServices);
+  const hasChanges = useMemo(() => {
+    const snap = initialsSnapshotRef.current;
+    return (
+      state.image !== snap.image ||
+      state.size !== snap.size ||
+      state.enableDynamicConfig !== snap.enableDynamicConfig ||
+      state.aerospikeConfigText !== snap.aerospikeConfigText ||
+      state.batchSize !== snap.batchSize ||
+      state.maxUnavailable !== snap.maxUnavailable ||
+      state.disablePDB !== snap.disablePDB ||
+      state.accessType !== snap.accessType ||
+      state.fabricType !== snap.fabricType ||
+      state.alternateAccessType !== snap.alternateAccessType ||
+      state.customAccessNames !== snap.customAccessNames ||
+      state.customAltAccessNames !== snap.customAltAccessNames ||
+      state.customFabricNames !== snap.customFabricNames ||
+      JSON.stringify(state.networkPolicyConfig) !== JSON.stringify(snap.networkPolicyConfig) ||
+      state.nodeBlockList !== snap.nodeBlockList ||
+      state.bandwidthIngress !== snap.bandwidthIngress ||
+      state.bandwidthEgress !== snap.bandwidthEgress ||
+      state.readinessGateEnabled !== snap.readinessGateEnabled ||
+      state.podMetadataLabels !== snap.podMetadataLabels ||
+      state.podMetadataAnnotations !== snap.podMetadataAnnotations ||
+      state.podManagementPolicy !== snap.podManagementPolicy ||
+      state.dnsPolicy !== snap.dnsPolicy ||
+      JSON.stringify(state.monitoringConfig) !== JSON.stringify(snap.monitoringConfig) ||
+      JSON.stringify(state.nodeSelector) !== JSON.stringify(snap.nodeSelector) ||
+      JSON.stringify(state.tolerations) !== JSON.stringify(snap.tolerations) ||
+      state.multiPodPerHost !== snap.multiPodPerHost ||
+      state.hostNetwork !== snap.hostNetwork ||
+      state.serviceAccountName !== snap.serviceAccountName ||
+      state.terminationGracePeriod !== snap.terminationGracePeriod ||
+      JSON.stringify(state.imagePullSecrets) !== JSON.stringify(snap.imagePullSecrets) ||
+      JSON.stringify(state.topologySpreadConstraints) !==
+        JSON.stringify(snap.topologySpreadConstraints) ||
+      state.podSecurityRunAsUser !== snap.podSecurityRunAsUser ||
+      state.podSecurityRunAsGroup !== snap.podSecurityRunAsGroup ||
+      state.podSecurityRunAsNonRoot !== snap.podSecurityRunAsNonRoot ||
+      state.podSecurityFsGroup !== snap.podSecurityFsGroup ||
+      JSON.stringify(state.podSecuritySupGroups) !== JSON.stringify(snap.podSecuritySupGroups) ||
+      state.skipWorkDirValidate !== snap.skipWorkDirValidate ||
+      JSON.stringify(state.sidecars) !== JSON.stringify(snap.sidecars) ||
+      JSON.stringify(state.initContainers) !== JSON.stringify(snap.initContainers) ||
+      JSON.stringify(state.podServiceConfig) !== JSON.stringify(snap.podServiceConfig) ||
+      JSON.stringify(state.headlessServiceConfig) !== JSON.stringify(snap.headlessServiceConfig) ||
+      state.enableRackIDOverride !== snap.enableRackIDOverride ||
+      JSON.stringify(state.storageVolumes) !== JSON.stringify(snap.storageVolumes) ||
+      state.storageCleanupThreads !== snap.storageCleanupThreads ||
+      state.storageDeleteLocalOnRestart !== snap.storageDeleteLocalOnRestart ||
+      JSON.stringify(state.seedsFinderServices) !== JSON.stringify(snap.seedsFinderServices)
+    );
+  }, [state]);
 
   return { state, patchState, initials, hasChanges, configError };
 }

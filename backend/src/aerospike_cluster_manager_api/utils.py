@@ -43,3 +43,20 @@ def parse_host_port(host_str: str, default_port: int) -> tuple[str, int]:
         except ValueError:
             return (host_str, default_port)
     return (host_str, default_port)
+
+
+def auto_detect_pk(pk: str) -> str | int:
+    """Convert PK to int only when the round-trip is lossless (no leading zeros).
+
+    "1"     -> 1    (integer key)
+    "00001" -> "00001"  (string key -- leading zeros preserved)
+    "-5"    -> -5   (negative integer key)
+    "abc"   -> "abc"  (string key)
+    """
+    try:
+        as_int = int(pk)
+        if str(as_int) == pk:
+            return as_int
+    except ValueError:
+        pass
+    return pk

@@ -19,31 +19,13 @@ import { EmptyState } from "@/components/common/empty-state";
 import { K8sClusterStatusBadge } from "@/components/k8s/k8s-cluster-status-badge";
 import { K8sPodTable } from "@/components/k8s/k8s-pod-table";
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/formatters";
 import type {
   ClusterHealthSummary,
   K8sClusterDetail,
   K8sClusterEvent,
   K8sClusterPhase,
 } from "@/lib/api/types";
-
-function formatRelativeTime(isoString: string): string {
-  try {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    if (diffMs < 0) return "just now";
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return `${diffSec}s ago`;
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin} minute${diffMin !== 1 ? "s" : ""} ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr} hour${diffHr !== 1 ? "s" : ""} ago`;
-    const diffDay = Math.floor(diffHr / 24);
-    return `${diffDay} day${diffDay !== 1 ? "s" : ""} ago`;
-  } catch {
-    return isoString;
-  }
-}
 
 function getPhaseBorderClass(phase: K8sClusterPhase | string): string {
   switch (phase) {
@@ -514,9 +496,9 @@ export function ClusterAckoInfoTab({
           />
         ) : (
           <div className="space-y-2">
-            {k8sDetail.conditions.map((cond, i) => (
+            {k8sDetail.conditions.map((cond) => (
               <div
-                key={i}
+                key={cond.type}
                 className="flex items-center justify-between rounded-lg border p-3 text-sm"
               >
                 <div className="flex items-center gap-3">
@@ -556,8 +538,11 @@ export function ClusterAckoInfoTab({
           />
         ) : (
           <div className="space-y-2">
-            {events.map((event, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+            {events.map((event) => (
+              <div
+                key={`${event.reason}-${event.firstTimestamp}`}
+                className="flex items-start gap-3 rounded-lg border p-3 text-sm"
+              >
                 <span
                   className={cn(
                     "mt-0.5 h-2 w-2 shrink-0 rounded-full",

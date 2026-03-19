@@ -10,14 +10,14 @@ import { EmptyState } from "@/components/common/empty-state";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { PageHeader } from "@/components/common/page-header";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
-import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
+import { useK8sTemplateStore } from "@/stores/k8s-template-store";
 import { useToastStore } from "@/stores/toast-store";
 import { getErrorMessage } from "@/lib/utils";
 import type { K8sTemplateSummary } from "@/lib/api/types";
 
 export default function K8sTemplatesPage() {
   const router = useRouter();
-  const { templates, loading, error, fetchTemplates, deleteTemplate } = useK8sClusterStore();
+  const { templates, loading, error, fetchTemplates, deleteTemplate } = useK8sTemplateStore();
   const [deleteTarget, setDeleteTarget] = useState<K8sTemplateSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
 

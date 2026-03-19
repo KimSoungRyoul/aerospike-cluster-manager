@@ -14,7 +14,7 @@ from starlette.responses import Response
 from aerospike_cluster_manager_api import db
 from aerospike_cluster_manager_api.client_manager import client_manager
 from aerospike_cluster_manager_api.constants import INFO_BUILD, INFO_EDITION, INFO_NAMESPACES
-from aerospike_cluster_manager_api.dependencies import _get_verified_connection
+from aerospike_cluster_manager_api.dependencies import VerifiedConnectionProfile, _get_verified_connection
 from aerospike_cluster_manager_api.info_parser import parse_kv_pairs, parse_list, safe_int
 from aerospike_cluster_manager_api.models.connection import (
     ConnectionProfile,
@@ -64,11 +64,8 @@ async def create_connection(request: Request, body: CreateConnectionRequest) -> 
 
 
 @router.get("/{conn_id}", summary="Get connection", description="Retrieve a single connection profile by its ID.")
-async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfileResponse:
+async def get_connection(conn: VerifiedConnectionProfile) -> ConnectionProfileResponse:
     """Retrieve a single connection profile by its ID."""
-    conn = await db.get_connection(conn_id)
-    if not conn:
-        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
     return ConnectionProfileResponse.from_profile(conn)
 
 

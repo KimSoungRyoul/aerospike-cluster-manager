@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/common/loading-button";
 import { InlineAlert } from "@/components/common/inline-alert";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
+import { useK8sTemplateStore } from "@/stores/k8s-template-store";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 import {
@@ -25,7 +26,6 @@ import type {
   MonitoringConfig,
   ACLConfig,
   RollingUpdateConfig,
-  K8sNodeInfo,
   K8sTemplateDetail,
   StorageVolumeConfig,
   StorageSpec,
@@ -50,17 +50,59 @@ const SCRATCH_STEPS = [
 
 const TEMPLATE_STEPS = ["Creation Mode", "Name & Namespace", "Namespace & Storage", "Review"];
 
+const DEFAULT_RESOURCES = {
+  requests: { cpu: "500m", memory: "1Gi" },
+  limits: { cpu: "2", memory: "4Gi" },
+};
+
+const DEFAULT_STORAGE: StorageVolumeConfig = {
+  storageClass: "standard",
+  size: "10Gi",
+  mountPath: "/opt/aerospike/data",
+};
+
+const DEFAULT_STORAGE_SPEC: StorageSpec = {
+  volumes: [
+    {
+      name: "data-vol",
+      source: "persistentVolume",
+      persistentVolume: {
+        storageClass: "standard",
+        size: "10Gi",
+        volumeMode: "Filesystem",
+        accessModes: ["ReadWriteOnce"],
+      },
+      aerospike: { path: "/opt/aerospike/data" },
+      cascadeDelete: true,
+    },
+    {
+      name: "workdir",
+      source: "emptyDir",
+      emptyDir: {},
+      aerospike: { path: "/opt/aerospike/work" },
+    },
+  ],
+};
+
 export function K8sClusterWizard() {
   const router = useRouter();
-  const { createCluster, templates, fetchTemplates } = useK8sClusterStore();
+  const {
+    createCluster,
+    k8sNamespaces,
+    k8sStorageClasses: storageClasses,
+    k8sSecrets,
+    k8sNodes: nodes,
+    fetchK8sNamespaces,
+    fetchK8sStorageClasses,
+    fetchK8sSecrets,
+    fetchK8sNodes,
+  } = useK8sClusterStore();
+  const { templates, fetchTemplates } = useK8sTemplateStore();
   const [step, setStep] = useState(0);
   const [creating, setCreating] = useState(false);
-  const [k8sNamespaces, setK8sNamespaces] = useState<string[]>([]);
-  const [storageClasses, setStorageClasses] = useState<string[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [fetchingOptions, setFetchingOptions] = useState(true);
   const [creationError, setCreationError] = useState<string | null>(null);
-  const [k8sSecrets, setK8sSecrets] = useState<string[]>([]);
 
   // Template mode state
   const [creationMode, setCreationMode] = useState<"scratch" | "template">("scratch");
@@ -70,40 +112,6 @@ export function K8sClusterWizard() {
 
   const isTemplateMode = creationMode === "template";
   const STEPS = isTemplateMode ? TEMPLATE_STEPS : SCRATCH_STEPS;
-
-  const DEFAULT_RESOURCES = {
-    requests: { cpu: "500m", memory: "1Gi" },
-    limits: { cpu: "2", memory: "4Gi" },
-  };
-
-  const DEFAULT_STORAGE: StorageVolumeConfig = {
-    storageClass: "standard",
-    size: "10Gi",
-    mountPath: "/opt/aerospike/data",
-  };
-
-  const DEFAULT_STORAGE_SPEC: StorageSpec = {
-    volumes: [
-      {
-        name: "data-vol",
-        source: "persistentVolume",
-        persistentVolume: {
-          storageClass: "standard",
-          size: "10Gi",
-          volumeMode: "Filesystem",
-          accessModes: ["ReadWriteOnce"],
-        },
-        aerospike: { path: "/opt/aerospike/data" },
-        cascadeDelete: true,
-      },
-      {
-        name: "workdir",
-        source: "emptyDir",
-        emptyDir: {},
-        aerospike: { path: "/opt/aerospike/work" },
-      },
-    ],
-  };
 
   const [form, setForm] = useState<CreateK8sClusterRequest>({
     name: "",
@@ -127,16 +135,13 @@ export function K8sClusterWizard() {
     rackConfig: { racks: [] },
   });
 
-  const [nodes, setNodes] = useState<K8sNodeInfo[]>([]);
-
   useEffect(() => {
     setFetchingOptions(true);
     const errors: string[] = [];
     Promise.allSettled([
-      api
-        .getK8sNamespaces()
-        .then((ns) => {
-          setK8sNamespaces(ns);
+      fetchK8sNamespaces()
+        .then(() => {
+          const ns = useK8sClusterStore.getState().k8sNamespaces;
           if (ns.length > 0) {
             const preferred = ns.includes("default") ? "default" : ns[0];
             setForm((prev) => ({ ...prev, namespace: preferred }));
@@ -145,12 +150,9 @@ export function K8sClusterWizard() {
         .catch((err) => {
           errors.push(`Failed to fetch K8s namespaces: ${getErrorMessage(err)}`);
         }),
-      api
-        .getK8sStorageClasses()
-        .then((sc) => setStorageClasses(sc))
-        .catch((err) => {
-          errors.push(`Failed to fetch storage classes: ${getErrorMessage(err)}`);
-        }),
+      fetchK8sStorageClasses().catch((err) => {
+        errors.push(`Failed to fetch storage classes: ${getErrorMessage(err)}`);
+      }),
       fetchTemplates().catch(() => {
         // Templates are optional, silently ignore fetch failures
       }),
@@ -158,32 +160,28 @@ export function K8sClusterWizard() {
       setFetchError(errors.length > 0 ? `${errors.join(". ")}. Using defaults.` : null);
       setFetchingOptions(false);
     });
-  }, [fetchTemplates]);
+  }, [fetchTemplates, fetchK8sNamespaces, fetchK8sStorageClasses]);
 
   // Fetch K8s secrets when on Advanced step and ACL is enabled (scratch mode only)
   useEffect(() => {
     if (!isTemplateMode && step === 3 && form.acl?.enabled && form.namespace) {
-      api
-        .getK8sSecrets(form.namespace)
-        .then(setK8sSecrets)
-        .catch(() => setK8sSecrets([]));
+      fetchK8sSecrets(form.namespace).catch(() => {
+        // Silently handle — store will have empty array
+      });
     }
-  }, [step, form.acl?.enabled, form.namespace, isTemplateMode]);
+  }, [step, form.acl?.enabled, form.namespace, isTemplateMode, fetchK8sSecrets]);
 
   // Fetch K8s nodes when on Advanced step (scratch mode only)
   useEffect(() => {
     if (!isTemplateMode && step === 3) {
-      api
-        .getK8sNodes()
-        .then(setNodes)
-        .catch((err) => {
-          console.error("Failed to fetch K8s nodes:", err);
-          useToastStore
-            .getState()
-            .addToast("error", "Failed to load node information for zone selection");
-        });
+      fetchK8sNodes().catch((err) => {
+        console.error("Failed to fetch K8s nodes:", err);
+        useToastStore
+          .getState()
+          .addToast("error", "Failed to load node information for zone selection");
+      });
     }
-  }, [step, isTemplateMode]);
+  }, [step, isTemplateMode, fetchK8sNodes]);
 
   const updateForm = (updates: Partial<CreateK8sClusterRequest>) => {
     setForm((prev) => ({ ...prev, ...updates }));

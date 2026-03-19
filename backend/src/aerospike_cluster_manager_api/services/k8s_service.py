@@ -9,7 +9,24 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from aerospike_cluster_manager_api.models.k8s.scheduling import ResourceConfig, ResourceSpec, parse_memory_bytes
+from aerospike_cluster_manager_api.models.k8s.monitoring import MonitoringConfig
+from aerospike_cluster_manager_api.models.k8s.network import (
+    BandwidthConfig,
+    ServiceMetadataConfig,
+    TemplateNetworkConfig,
+)
+from aerospike_cluster_manager_api.models.k8s.scheduling import (
+    PodMetadataConfig,
+    RackAwareConfig,
+    ResourceConfig,
+    ResourceSpec,
+    SidecarConfig,
+    TemplateSchedulingConfig,
+    TolerationConfig,
+    parse_memory_bytes,
+)
+from aerospike_cluster_manager_api.models.k8s.security import ACLConfig
+from aerospike_cluster_manager_api.models.k8s.storage import TemplateStorageConfig
 from aerospike_cluster_manager_api.models.k8s_cluster import (
     ClusterHealthResponse,
     CreateK8sClusterRequest,
@@ -24,6 +41,7 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     K8sPodStatus,
     K8sTemplateSummary,
     OperationStatusResponse,
+    PodSchedulingConfig,
     RackConfig,
     RackDistribution,
     StorageSpec,
@@ -50,7 +68,7 @@ def calculate_age(creation_timestamp: str | None) -> str | None:
             return f"{hours}h"
         minutes = delta.seconds // 60
         return f"{minutes}m"
-    except Exception:
+    except (ValueError, AttributeError):
         return None
 
 
@@ -100,7 +118,7 @@ def build_rack_list(racks: list[RackConfig]) -> list[dict[str, Any]]:
     return result
 
 
-def build_pod_scheduling(sched: Any) -> dict[str, Any]:
+def build_pod_scheduling(sched: PodSchedulingConfig) -> dict[str, Any]:
     """Convert PodSchedulingConfig to CR-compatible podSpec fields."""
     result: dict[str, Any] = {}
     if sched.node_selector:
@@ -140,7 +158,7 @@ def build_pod_scheduling(sched: Any) -> dict[str, Any]:
     return result
 
 
-def build_monitoring(mon: Any) -> dict[str, Any]:
+def build_monitoring(mon: MonitoringConfig) -> dict[str, Any]:
     """Convert MonitoringConfig to CR-compatible monitoring dict."""
     result: dict[str, Any] = {
         "enabled": mon.enabled,
@@ -149,13 +167,7 @@ def build_monitoring(mon: Any) -> dict[str, Any]:
     if mon.exporter_image:
         result["exporterImage"] = mon.exporter_image
     if mon.resources:
-        resources: dict[str, Any] = {}
-        if mon.resources.requests:
-            resources["requests"] = {"cpu": mon.resources.requests.cpu, "memory": mon.resources.requests.memory}
-        if mon.resources.limits:
-            resources["limits"] = {"cpu": mon.resources.limits.cpu, "memory": mon.resources.limits.memory}
-        if resources:
-            result["resources"] = resources
+        result["resources"] = _build_resources_dict(mon.resources)
     if mon.metric_labels:
         result["metricLabels"] = mon.metric_labels
     if mon.service_monitor:
@@ -213,7 +225,17 @@ def build_seeds_finder_services(sfs) -> dict[str, Any]:
     return result
 
 
-def _build_toleration_list(tolerations: list) -> list[dict[str, Any]]:
+def _build_resources_dict(resources: ResourceConfig) -> dict[str, Any]:
+    """Convert a ResourceConfig to a CR-compatible resources dict."""
+    result: dict[str, Any] = {}
+    if resources.requests:
+        result["requests"] = {"cpu": resources.requests.cpu, "memory": resources.requests.memory}
+    if resources.limits:
+        result["limits"] = {"cpu": resources.limits.cpu, "memory": resources.limits.memory}
+    return result
+
+
+def _build_toleration_list(tolerations: list[TolerationConfig]) -> list[dict[str, Any]]:
     """Convert toleration models to CR-compatible dicts."""
     result = []
     for t in tolerations:
@@ -231,7 +253,7 @@ def _build_toleration_list(tolerations: list) -> list[dict[str, Any]]:
     return result
 
 
-def _build_acl_dict(acl: Any) -> dict[str, Any]:
+def _build_acl_dict(acl: ACLConfig) -> dict[str, Any]:
     """Convert an ACL config model to a CR-compatible aerospikeAccessControl dict."""
     return {
         "roles": [
@@ -243,7 +265,7 @@ def _build_acl_dict(acl: Any) -> dict[str, Any]:
     }
 
 
-def _build_bandwidth_dict(bw_config: Any) -> dict[str, str]:
+def _build_bandwidth_dict(bw_config: BandwidthConfig) -> dict[str, str]:
     """Convert a bandwidth config model to a CR-compatible dict."""
     bw: dict[str, str] = {}
     if bw_config.ingress:
@@ -253,7 +275,7 @@ def _build_bandwidth_dict(bw_config: Any) -> dict[str, str]:
     return bw
 
 
-def _build_rack_config_dict(rack_config: Any) -> dict[str, Any]:
+def _build_rack_config_dict(rack_config: RackAwareConfig) -> dict[str, Any]:
     """Convert a rack config model to a CR-compatible rackConfig dict."""
     rc: dict[str, Any] = {"racks": build_rack_list(rack_config.racks)}
     if rack_config.namespaces:
@@ -267,7 +289,7 @@ def _build_rack_config_dict(rack_config: Any) -> dict[str, Any]:
     return rc
 
 
-def _build_service_metadata_dict(service_meta: Any) -> dict[str, Any]:
+def _build_service_metadata_dict(service_meta: ServiceMetadataConfig) -> dict[str, Any]:
     """Convert a service metadata config to a CR-compatible dict with metadata sub-key."""
     meta: dict[str, Any] = {}
     if service_meta.annotations:
@@ -277,7 +299,7 @@ def _build_service_metadata_dict(service_meta: Any) -> dict[str, Any]:
     return {"metadata": meta}
 
 
-def _build_template_scheduling_dict(scheduling: Any) -> dict[str, Any]:
+def _build_template_scheduling_dict(scheduling: TemplateSchedulingConfig) -> dict[str, Any]:
     """Convert a template scheduling config to a CR-compatible dict."""
     result: dict[str, Any] = {}
     if scheduling.pod_anti_affinity_level:
@@ -293,7 +315,7 @@ def _build_template_scheduling_dict(scheduling: Any) -> dict[str, Any]:
     return result
 
 
-def _build_template_storage_dict(storage: Any) -> dict[str, Any]:
+def _build_template_storage_dict(storage: TemplateStorageConfig) -> dict[str, Any]:
     """Convert a template storage config to a CR-compatible dict."""
     result: dict[str, Any] = {}
     if storage.storage_class_name:
@@ -309,7 +331,7 @@ def _build_template_storage_dict(storage: Any) -> dict[str, Any]:
     return result
 
 
-def _build_template_network_config_dict(network_config: Any) -> dict[str, Any]:
+def _build_template_network_config_dict(network_config: TemplateNetworkConfig) -> dict[str, Any]:
     """Convert a template network config to a CR-compatible dict."""
     result: dict[str, Any] = {}
     if network_config.heartbeat_mode:
@@ -321,6 +343,25 @@ def _build_template_network_config_dict(network_config: Any) -> dict[str, Any]:
     if network_config.heartbeat_timeout is not None:
         result["heartbeatTimeout"] = network_config.heartbeat_timeout
     return result
+
+
+def _build_pod_metadata_dict(pod_metadata: PodMetadataConfig) -> dict[str, Any]:
+    """Convert a PodMetadataConfig to a CR-compatible metadata dict.
+
+    Returns a dict with labels/annotations keys (only those that are set).
+    Returns an empty dict if neither labels nor annotations are provided.
+    """
+    meta: dict[str, Any] = {}
+    if pod_metadata.labels:
+        meta["labels"] = pod_metadata.labels
+    if pod_metadata.annotations:
+        meta["annotations"] = pod_metadata.annotations
+    return meta
+
+
+def _build_sidecar_list(sidecars: list[SidecarConfig]) -> list[dict]:
+    """Convert a list of SidecarConfig models to CR-compatible dicts."""
+    return [s.model_dump(exclude_none=True) for s in sidecars]
 
 
 def _build_volume_cr(vol: VolumeSpec) -> dict[str, Any]:
@@ -544,20 +585,7 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             )
 
     if req.resources:
-        cr["spec"]["podSpec"] = {
-            "aerospikeContainer": {
-                "resources": {
-                    "requests": {
-                        "cpu": req.resources.requests.cpu,
-                        "memory": req.resources.requests.memory,
-                    },
-                    "limits": {
-                        "cpu": req.resources.limits.cpu,
-                        "memory": req.resources.limits.memory,
-                    },
-                }
-            }
-        }
+        cr["spec"]["podSpec"] = {"aerospikeContainer": {"resources": _build_resources_dict(req.resources)}}
 
     # Monitoring
     if req.monitoring:
@@ -580,18 +608,7 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
                 overrides["size"] = req.template_overrides.size
             if req.template_overrides.resources:
                 overrides["podSpec"] = {
-                    "aerospikeContainer": {
-                        "resources": {
-                            "requests": {
-                                "cpu": req.template_overrides.resources.requests.cpu,
-                                "memory": req.template_overrides.resources.requests.memory,
-                            },
-                            "limits": {
-                                "cpu": req.template_overrides.resources.limits.cpu,
-                                "memory": req.template_overrides.resources.limits.memory,
-                            },
-                        }
-                    }
+                    "aerospikeContainer": {"resources": _build_resources_dict(req.template_overrides.resources)}
                 }
             if req.template_overrides.monitoring:
                 overrides["monitoring"] = {
@@ -603,33 +620,11 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
             if req.template_overrides.enable_dynamic_config is not None:
                 overrides["enableDynamicConfigUpdate"] = req.template_overrides.enable_dynamic_config
             if req.template_overrides.scheduling:
-                sched = req.template_overrides.scheduling
-                sched_dict: dict[str, Any] = {}
-                if sched.pod_anti_affinity_level is not None:
-                    sched_dict["podAntiAffinityLevel"] = sched.pod_anti_affinity_level
-                if sched.pod_management_policy is not None:
-                    sched_dict["podManagementPolicy"] = sched.pod_management_policy
-                if sched.tolerations is not None:
-                    sched_dict["tolerations"] = sched.tolerations
-                if sched.node_affinity is not None:
-                    sched_dict["nodeAffinity"] = sched.node_affinity
-                if sched.topology_spread_constraints is not None:
-                    sched_dict["topologySpreadConstraints"] = sched.topology_spread_constraints
+                sched_dict = _build_template_scheduling_dict(req.template_overrides.scheduling)
                 if sched_dict:
                     overrides["scheduling"] = sched_dict
             if req.template_overrides.storage:
-                stor = req.template_overrides.storage
-                stor_dict: dict[str, Any] = {}
-                if stor.storage_class_name is not None:
-                    stor_dict["storageClassName"] = stor.storage_class_name
-                if stor.volume_mode is not None:
-                    stor_dict["volumeMode"] = stor.volume_mode
-                if stor.access_modes is not None:
-                    stor_dict["accessModes"] = stor.access_modes
-                if stor.size is not None:
-                    stor_dict["size"] = stor.size
-                if stor.local_pv_required is not None:
-                    stor_dict["localPVRequired"] = stor.local_pv_required
+                stor_dict = _build_template_storage_dict(req.template_overrides.storage)
                 if stor_dict:
                     overrides["storage"] = stor_dict
             if req.template_overrides.rack_config:
@@ -716,11 +711,7 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     # Pod metadata (extra labels/annotations on pods)
     if req.pod_metadata:
         pod_spec = cr["spec"].get("podSpec", {})
-        meta: dict[str, Any] = {}
-        if req.pod_metadata.labels:
-            meta["labels"] = req.pod_metadata.labels
-        if req.pod_metadata.annotations:
-            meta["annotations"] = req.pod_metadata.annotations
+        meta = _build_pod_metadata_dict(req.pod_metadata)
         if meta:
             pod_spec["metadata"] = meta
             cr["spec"]["podSpec"] = pod_spec
@@ -728,11 +719,11 @@ def build_cr(req: CreateK8sClusterRequest) -> dict[str, Any]:
     # Sidecars and init containers
     if req.sidecars:
         pod_spec = cr["spec"].get("podSpec", {})
-        pod_spec["sidecars"] = [s.model_dump(exclude_none=True) for s in req.sidecars]
+        pod_spec["sidecars"] = _build_sidecar_list(req.sidecars)
         cr["spec"]["podSpec"] = pod_spec
     if req.init_containers:
         pod_spec = cr["spec"].get("podSpec", {})
-        pod_spec["initContainers"] = [c.model_dump(exclude_none=True) for c in req.init_containers]
+        pod_spec["initContainers"] = _build_sidecar_list(req.init_containers)
         cr["spec"]["podSpec"] = pod_spec
 
     return cr
@@ -803,10 +794,7 @@ def build_template_cr(req: CreateK8sTemplateRequest) -> dict[str, Any]:
     if req.size is not None:
         cr["spec"]["size"] = req.size
     if req.resources:
-        cr["spec"]["resources"] = {
-            "requests": {"cpu": req.resources.requests.cpu, "memory": req.resources.requests.memory},
-            "limits": {"cpu": req.resources.limits.cpu, "memory": req.resources.limits.memory},
-        }
+        cr["spec"]["resources"] = _build_resources_dict(req.resources)
     if req.monitoring:
         cr["spec"]["monitoring"] = build_monitoring(req.monitoring)
     if req.scheduling:
@@ -847,10 +835,7 @@ def build_template_update_patch(body: UpdateK8sTemplateRequest) -> dict[str, Any
     if body.size is not None:
         patch["spec"]["size"] = body.size
     if body.resources is not None:
-        patch["spec"]["resources"] = {
-            "requests": {"cpu": body.resources.requests.cpu, "memory": body.resources.requests.memory},
-            "limits": {"cpu": body.resources.limits.cpu, "memory": body.resources.limits.memory},
-        }
+        patch["spec"]["resources"] = _build_resources_dict(body.resources)
     if body.monitoring is not None:
         patch["spec"]["monitoring"] = build_monitoring(body.monitoring)
     if body.scheduling is not None:
@@ -1067,14 +1052,7 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
     if body.storage is not None:
         patch["spec"]["storage"] = _build_storage_spec_cr(body.storage)
     if body.resources is not None:
-        patch["spec"]["podSpec"] = {
-            "aerospikeContainer": {
-                "resources": {
-                    "requests": {"cpu": body.resources.requests.cpu, "memory": body.resources.requests.memory},
-                    "limits": {"cpu": body.resources.limits.cpu, "memory": body.resources.limits.memory},
-                }
-            }
-        }
+        patch["spec"]["podSpec"] = {"aerospikeContainer": {"resources": _build_resources_dict(body.resources)}}
     if body.monitoring is not None:
         patch["spec"]["monitoring"] = build_monitoring(body.monitoring)
     if body.paused is not None:
@@ -1130,20 +1108,16 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
         patch["spec"]["enableRackIDOverride"] = body.enable_rack_id_override
     if body.pod_metadata is not None:
         pod_spec = patch["spec"].get("podSpec", {})
-        pod_meta: dict[str, Any] = {}
-        if body.pod_metadata.labels:
-            pod_meta["labels"] = body.pod_metadata.labels
-        if body.pod_metadata.annotations:
-            pod_meta["annotations"] = body.pod_metadata.annotations
+        pod_meta = _build_pod_metadata_dict(body.pod_metadata)
         pod_spec["metadata"] = pod_meta if pod_meta else None
         patch["spec"]["podSpec"] = pod_spec
     if body.sidecars is not None:
         pod_spec = patch["spec"].get("podSpec", {})
-        pod_spec["sidecars"] = [s.model_dump(exclude_none=True) for s in body.sidecars]
+        pod_spec["sidecars"] = _build_sidecar_list(body.sidecars)
         patch["spec"]["podSpec"] = pod_spec
     if body.init_containers is not None:
         pod_spec = patch["spec"].get("podSpec", {})
-        pod_spec["initContainers"] = [c.model_dump(exclude_none=True) for c in body.init_containers]
+        pod_spec["initContainers"] = _build_sidecar_list(body.init_containers)
         patch["spec"]["podSpec"] = pod_spec
     return patch
 
@@ -1308,6 +1282,7 @@ def extract_migration_status(cluster_cr: dict) -> dict:
     last_checked = migration_status.get("lastChecked")
 
     # Extract per-pod migration info from status.pods[].migratingPartitions
+    # The operator always stores pods as a dict (keyed by pod name).
     pods_status = status.get("pods", {}) or {}
     pod_migration_list = []
     total_migrating = 0
@@ -1315,19 +1290,6 @@ def extract_migration_status(cluster_cr: dict) -> dict:
     if isinstance(pods_status, dict):
         for pod_name, pod_info in pods_status.items():
             if isinstance(pod_info, dict):
-                migrating_partitions = pod_info.get("migratingPartitions", 0) or 0
-                total_migrating += migrating_partitions
-                if migrating_partitions > 0:
-                    pod_migration_list.append(
-                        {
-                            "podName": pod_name,
-                            "migratingPartitions": migrating_partitions,
-                        }
-                    )
-    elif isinstance(pods_status, list):
-        for pod_info in pods_status:
-            if isinstance(pod_info, dict):
-                pod_name = pod_info.get("name", pod_info.get("podName", "unknown"))
                 migrating_partitions = pod_info.get("migratingPartitions", 0) or 0
                 total_migrating += migrating_partitions
                 if migrating_partitions > 0:

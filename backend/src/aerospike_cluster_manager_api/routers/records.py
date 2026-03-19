@@ -19,27 +19,12 @@ from aerospike_cluster_manager_api.models.record import (
     RecordListResponse,
     RecordWriteRequest,
 )
-from aerospike_cluster_manager_api.utils import build_predicate
+from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
 
 logger = logging.getLogger(__name__)
 
-
-def _auto_detect_pk(pk: str) -> str | int:
-    """Convert PK to int only when the round-trip is lossless (no leading zeros).
-
-    "1"     → 1    (integer key)
-    "00001" → "00001"  (string key — leading zeros preserved)
-    "-5"    → -5   (negative integer key)
-    "abc"   → "abc"  (string key)
-    """
-    try:
-        as_int = int(pk)
-        if str(as_int) == pk:
-            return as_int
-    except ValueError:
-        pass
-    return pk
-
+# Backward-compatible alias for the moved utility function.
+_auto_detect_pk = auto_detect_pk
 
 router = APIRouter(prefix="/records", tags=["records"])
 

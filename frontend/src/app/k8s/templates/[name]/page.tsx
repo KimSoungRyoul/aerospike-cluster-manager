@@ -9,7 +9,7 @@ import { InlineAlert } from "@/components/common/inline-alert";
 import { PageHeader } from "@/components/common/page-header";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { K8sTemplateEditDialog } from "@/components/k8s/k8s-template-edit-dialog";
-import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
+import { useK8sTemplateStore } from "@/stores/k8s-template-store";
 import { useToastStore } from "@/stores/toast-store";
 import { getErrorMessage } from "@/lib/utils";
 import type { UpdateK8sTemplateRequest } from "@/lib/api/types";
@@ -18,7 +18,7 @@ export default function TemplateDetailPage() {
   const router = useRouter();
   const params = useParams<{ name: string }>();
   const { selectedTemplate, loading, error, fetchTemplate, updateTemplate, deleteTemplate } =
-    useK8sClusterStore();
+    useK8sTemplateStore();
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);

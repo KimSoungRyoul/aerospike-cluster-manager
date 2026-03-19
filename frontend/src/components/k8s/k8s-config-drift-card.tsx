@@ -202,9 +202,9 @@ export function K8sConfigDriftCard({
           <div>
             <p className="text-base-content/60 mb-1.5 text-xs">Pod config versions:</p>
             <div className="space-y-1">
-              {drift.podHashGroups.map((group, i) => (
+              {drift.podHashGroups.map((group) => (
                 <div
-                  key={i}
+                  key={`${group.configHash ?? "unknown"}-${group.isCurrent}`}
                   className={cn(
                     "flex items-center justify-between rounded px-2 py-1 text-xs",
                     group.isCurrent ? "bg-green-500/10" : "bg-amber-500/10",

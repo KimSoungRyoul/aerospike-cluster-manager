@@ -17,7 +17,7 @@ import type {
   VolumeInitMethod,
   VolumeWipeMethod,
 } from "@/lib/api/types";
-import { SOURCE_TYPE_LABELS } from "./storage-utils";
+import { SOURCE_TYPE_LABELS, resetVolumeSource } from "./storage-utils";
 
 interface VolumeEditorProps {
   vol: VolumeSpec;
@@ -74,45 +74,7 @@ export function VolumeEditor({
                 value={vol.source}
                 onValueChange={(v) => {
                   const src = v as VolumeSourceType;
-                  const updated: VolumeSpec = { ...vol, source: src };
-                  // Reset source-specific fields
-                  if (src === "persistentVolume") {
-                    updated.persistentVolume = {
-                      storageClass: storageClasses[0] || "standard",
-                      size: "10Gi",
-                      volumeMode: "Filesystem",
-                      accessModes: ["ReadWriteOnce"],
-                    };
-                    updated.emptyDir = undefined;
-                    updated.secret = undefined;
-                    updated.configMap = undefined;
-                    updated.hostPath = undefined;
-                  } else if (src === "emptyDir") {
-                    updated.emptyDir = {};
-                    updated.persistentVolume = undefined;
-                    updated.secret = undefined;
-                    updated.configMap = undefined;
-                    updated.hostPath = undefined;
-                  } else if (src === "secret") {
-                    updated.secret = { secretName: "" };
-                    updated.persistentVolume = undefined;
-                    updated.emptyDir = undefined;
-                    updated.configMap = undefined;
-                    updated.hostPath = undefined;
-                  } else if (src === "configMap") {
-                    updated.configMap = { name: "" };
-                    updated.persistentVolume = undefined;
-                    updated.emptyDir = undefined;
-                    updated.secret = undefined;
-                    updated.hostPath = undefined;
-                  } else if (src === "hostPath") {
-                    updated.hostPath = { path: "", type: "DirectoryOrCreate" };
-                    updated.persistentVolume = undefined;
-                    updated.emptyDir = undefined;
-                    updated.secret = undefined;
-                    updated.configMap = undefined;
-                  }
-                  onChange(updated);
+                  onChange(resetVolumeSource(vol, src, storageClasses[0] || "standard"));
                 }}
               >
                 <SelectTrigger id={`vol-source-${index}`}>

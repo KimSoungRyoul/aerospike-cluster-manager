@@ -7,9 +7,30 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from aerospike_cluster_manager_api.models.connection import ConnectionProfile
+
+
+@runtime_checkable
+class DatabaseBackend(Protocol):
+    """Contract that every database backend (SQLite, PostgreSQL) must satisfy."""
+
+    async def init_db(self) -> None: ...
+
+    async def close_db(self) -> None: ...
+
+    async def check_health(self) -> bool: ...
+
+    async def get_all_connections(self) -> list[ConnectionProfile]: ...
+
+    async def get_connection(self, conn_id: str) -> ConnectionProfile | None: ...
+
+    async def create_connection(self, conn: ConnectionProfile) -> None: ...
+
+    async def update_connection(self, conn_id: str, data: dict) -> ConnectionProfile | None: ...
+
+    async def delete_connection(self, conn_id: str) -> bool: ...
 
 
 def row_to_profile(row: Any) -> ConnectionProfile:

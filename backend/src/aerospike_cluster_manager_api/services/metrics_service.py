@@ -29,6 +29,26 @@ _STATS_MIN_KEYS = frozenset({"uptime"})
 
 
 def _generate_time_series(points: int, base_val: float, jitter_pct: float = 0.05) -> list[MetricPoint]:
+    """Synthesize a fake time-series from a single snapshot value.
+
+    WARNING: This does NOT return real historical data.  It takes one
+    instantaneous ``base_val`` (e.g. current TPS or connection count)
+    and generates *simulated* past data points by applying random jitter
+    around that value.  The resulting series is useful for populating
+    dashboard charts when no real time-series store is available, but it
+    should never be presented to the user as actual historical metrics.
+
+    Args:
+        points: Number of data points to generate.
+        base_val: The current (real) snapshot value used as the starting
+            baseline for the random walk.
+        jitter_pct: Maximum per-step drift as a fraction of ``base_val``
+            (default 5 %).
+
+    Returns:
+        A list of ``MetricPoint`` objects with synthetic timestamps
+        spaced 10 s apart, ending at "now".
+    """
     now = int(time.time() * 1000)
     interval_ms = 10_000
     series: list[MetricPoint] = []
@@ -51,6 +71,14 @@ async def build_cluster_metrics(client, conn_id: str) -> ClusterMetrics:
 
     On any connection/parsing failure the function returns a disconnected
     placeholder so the endpoint never raises.
+
+    Note on time-series fields (``readTps``, ``writeTps``,
+    ``connectionHistory``, ``memoryUsageByNs``, ``deviceUsageByNs``):
+    These are **synthetically generated** from a single real-time
+    snapshot value using ``_generate_time_series()``.  They are NOT
+    backed by a time-series database and do NOT represent actual
+    historical measurements.  The random jitter produces plausible-
+    looking charts but the data is simulated.
     """
     try:
         # Cluster-level statistics (aggregated across all nodes)
@@ -134,7 +162,9 @@ async def build_cluster_metrics(client, conn_id: str) -> ClusterMetrics:
                 )
             )
 
-        # TPS: simulate from current stats
+        # TPS: derive an average rate from cumulative counters, then feed it
+        # to _generate_time_series() which fabricates a synthetic history
+        # using random jitter.  These are NOT real per-second samples.
         read_tps_base = max(total_read_success / max(uptime, 1), 1)
         write_tps_base = max(total_write_success / max(uptime, 1), 1)
 

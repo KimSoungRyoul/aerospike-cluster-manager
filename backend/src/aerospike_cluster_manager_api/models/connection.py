@@ -31,6 +31,13 @@ class ConnectionProfile(BaseModel):
     createdAt: str
     updatedAt: str
 
+    def __repr__(self) -> str:
+        masked = self.model_dump()
+        if masked.get("password") is not None:
+            masked["password"] = "***"
+        fields = ", ".join(f"{k}={v!r}" for k, v in masked.items())
+        return f"ConnectionProfile({fields})"
+
 
 class CreateConnectionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)

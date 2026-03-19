@@ -8,9 +8,10 @@ config before initialization.
 from __future__ import annotations
 
 import types
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from aerospike_cluster_manager_api import config
+from aerospike_cluster_manager_api.db._base import DatabaseBackend
 
 if TYPE_CHECKING:
     from aerospike_cluster_manager_api.models.connection import ConnectionProfile
@@ -18,10 +19,11 @@ if TYPE_CHECKING:
 _backend: types.ModuleType | None = None
 
 
-def _get_backend():
+def _get_backend() -> DatabaseBackend:
+    """Return the active database backend, typed as *DatabaseBackend*."""
     if _backend is None:
         raise RuntimeError("Database not initialized. Call init_db() first.")
-    return _backend
+    return cast(DatabaseBackend, _backend)
 
 
 async def init_db() -> None:

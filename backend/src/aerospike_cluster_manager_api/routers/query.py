@@ -11,8 +11,7 @@ from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QU
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.models.query import QueryRequest, QueryResponse
-from aerospike_cluster_manager_api.routers.records import _auto_detect_pk
-from aerospike_cluster_manager_api.utils import build_predicate
+from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +31,7 @@ async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryRes
         if not body.set:
             raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
 
-        pk = _auto_detect_pk(body.primaryKey)
+        pk = auto_detect_pk(body.primaryKey)
 
         try:
             raw_result = await client.get((body.namespace, body.set, pk), policy=POLICY_READ)
