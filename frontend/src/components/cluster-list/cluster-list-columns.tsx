@@ -31,7 +31,7 @@ export function getClusterListColumns(
       header: "Cluster Name",
       size: 280,
       enableSorting: true,
-      meta: { mobileSlot: "title" as const, cellClassName: "!overflow-visible" },
+      meta: { mobileSlot: "title" as const },
       cell: ({ row }) => {
         const { name, isAckoManaged } = row.original;
         return (
@@ -167,7 +167,7 @@ export function getClusterListColumns(
       header: "",
       size: 60,
       enableSorting: false,
-      meta: { mobileSlot: "actions" as const, cellClassName: "!overflow-visible" },
+      meta: { mobileSlot: "actions" as const },
       cell: ({ row }) => {
         const { id, source } = row.original;
         return (
