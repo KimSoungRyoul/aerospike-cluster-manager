@@ -10,8 +10,6 @@ export interface ConnectionProfile {
   color: string;
   createdAt: string;
   updatedAt: string;
-  label?: string;
-  labelColor?: string;
   description?: string;
 }
 

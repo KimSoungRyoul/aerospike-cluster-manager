@@ -1,10 +1,9 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, ExternalLink } from "lucide-react";
 import type { UnifiedClusterRow } from "@/lib/api/types";
 import { formatNumber } from "@/lib/formatters";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +12,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/common/status-badge";
 import { AckoBadge } from "@/components/cluster-list/acko-badge";
-import { LabelEditorPopover } from "@/components/cluster-list/label-editor-popover";
 
 interface ClusterListColumnOptions {
   onEdit: (id: string) => void;
   onDelete: (row: UnifiedClusterRow) => void;
-  onLabelChange: (id: string, label?: string, color?: string) => void;
 }
 
 export function getClusterListColumns(
@@ -44,48 +41,6 @@ export function getClusterListColumns(
               </div>
             </div>
           </div>
-        );
-      },
-    },
-    {
-      id: "label",
-      accessorKey: "label",
-      header: "Label",
-      size: 140,
-      enableSorting: false,
-      meta: { hideOn: ["mobile"] },
-      cell: ({ row }) => {
-        const { id, label, labelColor } = row.original;
-        if (label) {
-          return (
-            <LabelEditorPopover
-              currentLabel={label}
-              currentColor={labelColor}
-              onSave={(newLabel, newColor) => opts.onLabelChange(id, newLabel, newColor)}
-            >
-              <button className="cursor-pointer">
-                <Badge
-                  className="text-[11px]"
-                  style={{
-                    backgroundColor: labelColor || "#6B7280",
-                    color: "#fff",
-                    borderColor: "transparent",
-                  }}
-                >
-                  {label}
-                </Badge>
-              </button>
-            </LabelEditorPopover>
-          );
-        }
-        return (
-          <LabelEditorPopover
-            onSave={(newLabel, newColor) => opts.onLabelChange(id, newLabel, newColor)}
-          >
-            <button className="text-muted-foreground/50 hover:text-muted-foreground hover:bg-base-200 flex h-6 w-6 items-center justify-center rounded-md transition-colors">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </LabelEditorPopover>
         );
       },
     },

@@ -14,7 +14,6 @@ interface ClusterListTableProps {
   onRowClick: (row: UnifiedClusterRow) => void;
   onEdit: (id: string) => void;
   onDelete: (row: UnifiedClusterRow) => void;
-  onLabelChange: (id: string, label?: string, color?: string) => void;
 }
 
 export function ClusterListTable({
@@ -23,13 +22,12 @@ export function ClusterListTable({
   onRowClick,
   onEdit,
   onDelete,
-  onLabelChange,
 }: ClusterListTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   const columns = React.useMemo(
-    () => getClusterListColumns({ onEdit, onDelete, onLabelChange }),
-    [onEdit, onDelete, onLabelChange],
+    () => getClusterListColumns({ onEdit, onDelete }),
+    [onEdit, onDelete],
   );
 
   const sortedRows = React.useMemo(() => {

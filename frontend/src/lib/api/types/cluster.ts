@@ -65,10 +65,6 @@ export interface UnifiedClusterRow {
   name: string;
   /** Optional description text */
   description?: string;
-  /** Label text (e.g., "Production") */
-  label?: string;
-  /** Label color hex */
-  labelColor?: string;
   /** Where this row comes from */
   source: ClusterSource;
   /** Connection status */

@@ -25,8 +25,6 @@ class ConnectionProfile(BaseModel):
     username: str | None = None
     password: str | None = None
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
-    label: str | None = None
-    label_color: str | None = None
     description: str | None = None
     createdAt: str
     updatedAt: str
@@ -49,8 +47,6 @@ class CreateConnectionRequest(BaseModel):
     username: str | None = None
     password: str | None = None
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$", default="#0097D3")
-    label: str | None = None
-    label_color: str | None = Field(None, alias="labelColor", pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = None
 
 
@@ -64,8 +60,6 @@ class UpdateConnectionRequest(BaseModel):
     username: str | None = None
     password: str | None = None
     color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
-    label: str | None = None
-    label_color: str | None = Field(None, alias="labelColor", pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = None
 
 
@@ -86,16 +80,13 @@ class ConnectionProfileResponse(BaseModel):
     clusterName: str | None = None
     username: str | None = None
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
-    label: str | None = None
-    labelColor: str | None = None
     description: str | None = None
     createdAt: str
     updatedAt: str
 
     @classmethod
     def from_profile(cls, profile: ConnectionProfile) -> ConnectionProfileResponse:
-        data = profile.model_dump(exclude={"password", "label_color"})
-        data["labelColor"] = profile.label_color
+        data = profile.model_dump(exclude={"password"})
         return cls(**data)
 
 

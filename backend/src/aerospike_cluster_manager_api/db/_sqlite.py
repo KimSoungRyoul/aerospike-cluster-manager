@@ -131,8 +131,8 @@ async def create_connection(conn: ConnectionProfile) -> None:
     db_conn = _get_conn()
     try:
         await db_conn.execute(
-            """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, label, label_color, description, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, description, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 conn.id,
                 conn.name,
@@ -142,8 +142,6 @@ async def create_connection(conn: ConnectionProfile) -> None:
                 conn.username,
                 conn.password,
                 conn.color,
-                conn.label,
-                conn.label_color,
                 conn.description,
                 conn.createdAt,
                 conn.updatedAt,
@@ -170,7 +168,7 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
             """UPDATE connections
                    SET name = ?, hosts = ?, port = ?, cluster_name = ?,
                        username = ?, password = ?, color = ?,
-                       label = ?, label_color = ?, description = ?,
+                       description = ?,
                        updated_at = ?
                    WHERE id = ?""",
             (
@@ -181,8 +179,6 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
                 updated.username,
                 updated.password,
                 updated.color,
-                updated.label,
-                updated.label_color,
                 updated.description,
                 updated.updatedAt,
                 conn_id,

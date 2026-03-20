@@ -16,10 +16,7 @@ interface ClusterListState {
   fetchAll: () => Promise<void>;
   fetchHealth: (connectionId: string) => Promise<void>;
   fetchAllHealth: () => void;
-  updateMetadata: (
-    connectionId: string,
-    data: { label?: string | null; labelColor?: string | null; description?: string | null },
-  ) => Promise<void>;
+  updateMetadata: (connectionId: string, data: { description?: string | null }) => Promise<void>;
 }
 
 function buildHostString(conn: ConnectionProfile): string {
@@ -89,8 +86,6 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
           id: conn.id,
           name: conn.name,
           description: conn.description,
-          label: conn.label,
-          labelColor: conn.labelColor,
           source,
           status: "unknown",
           nodeCount: 0,
@@ -182,9 +177,6 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
           if (row.connectionId !== connectionId) return row;
           return {
             ...row,
-            // Convert null → undefined for the local row type
-            ...(data.label !== undefined && { label: data.label ?? undefined }),
-            ...(data.labelColor !== undefined && { labelColor: data.labelColor ?? undefined }),
             ...(data.description !== undefined && { description: data.description ?? undefined }),
           };
         }),
