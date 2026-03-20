@@ -1,10 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Plus, Pencil, Trash2, ExternalLink } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, ExternalLink } from "lucide-react";
 import type { UnifiedClusterRow } from "@/lib/api/types";
-import { formatNumber } from "@/lib/formatters";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,13 +11,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatusBadge } from "@/components/common/status-badge";
 import { AckoBadge } from "@/components/cluster-list/acko-badge";
-import { MemoryDiskCell } from "@/components/cluster-list/memory-disk-cell";
-import { LabelEditorPopover } from "@/components/cluster-list/label-editor-popover";
 
 interface ClusterListColumnOptions {
   onEdit: (id: string) => void;
   onDelete: (row: UnifiedClusterRow) => void;
-  onLabelChange: (id: string, label?: string, color?: string) => void;
 }
 
 export function getClusterListColumns(
@@ -32,61 +27,33 @@ export function getClusterListColumns(
       header: "Cluster Name",
       size: 280,
       enableSorting: true,
-      meta: { mobileSlot: "title" as const, cellClassName: "!overflow-visible" },
+      meta: { mobileSlot: "title" as const },
       cell: ({ row }) => {
-        const { name, description, isAckoManaged } = row.original;
+        const { name, isAckoManaged, color } = row.original;
         return (
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="truncate font-semibold">{name}</span>
-              {isAckoManaged && <AckoBadge />}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="h-8 w-1 shrink-0 rounded-full" style={{ backgroundColor: color }} />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="truncate font-semibold">{name}</span>
+                {isAckoManaged && <AckoBadge />}
+              </div>
             </div>
-            {description && (
-              <div className="text-muted-foreground mt-0.5 truncate text-xs">{description}</div>
-            )}
           </div>
         );
       },
     },
     {
-      id: "label",
-      accessorKey: "label",
-      header: "Label",
-      size: 140,
+      id: "description",
+      accessorKey: "description",
+      header: "Description",
+      size: 200,
       enableSorting: false,
       meta: { hideOn: ["mobile"] },
       cell: ({ row }) => {
-        const { id, label, labelColor } = row.original;
-        if (label) {
-          return (
-            <LabelEditorPopover
-              currentLabel={label}
-              currentColor={labelColor}
-              onSave={(newLabel, newColor) => opts.onLabelChange(id, newLabel, newColor)}
-            >
-              <button className="cursor-pointer">
-                <Badge
-                  className="text-[11px]"
-                  style={{
-                    backgroundColor: labelColor || "#6B7280",
-                    color: "#fff",
-                    borderColor: "transparent",
-                  }}
-                >
-                  {label}
-                </Badge>
-              </button>
-            </LabelEditorPopover>
-          );
-        }
+        const { description } = row.original;
         return (
-          <LabelEditorPopover
-            onSave={(newLabel, newColor) => opts.onLabelChange(id, newLabel, newColor)}
-          >
-            <button className="text-muted-foreground/50 hover:text-muted-foreground hover:bg-base-200 flex h-6 w-6 items-center justify-center rounded-md transition-colors">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </LabelEditorPopover>
+          <span className="text-muted-foreground truncate text-sm">{description || "--"}</span>
         );
       },
     },
@@ -137,53 +104,11 @@ export function getClusterListColumns(
       },
     },
     {
-      id: "totalOps",
-      accessorKey: "totalOps",
-      header: "Total Ops",
-      size: 100,
-      enableSorting: true,
-      meta: { hideOn: ["mobile"] },
-      cell: ({ row }) => {
-        const { totalOps } = row.original;
-        return (
-          <span className={totalOps === undefined ? "text-muted-foreground" : ""}>
-            {totalOps !== undefined ? formatNumber(totalOps) : "--"}
-          </span>
-        );
-      },
-    },
-    {
-      id: "memoryUsed",
-      accessorKey: "memoryUsed",
-      header: "Memory",
-      size: 160,
-      enableSorting: true,
-      meta: { hideOn: ["mobile"] },
-      cell: ({ row }) => (
-        <MemoryDiskCell
-          used={row.original.memoryUsed}
-          total={row.original.memoryTotal}
-          type="memory"
-        />
-      ),
-    },
-    {
-      id: "diskUsed",
-      accessorKey: "diskUsed",
-      header: "Disk",
-      size: 160,
-      enableSorting: false,
-      meta: { hideOn: ["mobile"] },
-      cell: ({ row }) => (
-        <MemoryDiskCell used={row.original.diskUsed} total={row.original.diskTotal} type="disk" />
-      ),
-    },
-    {
       id: "actions",
       header: "",
       size: 60,
       enableSorting: false,
-      meta: { mobileSlot: "actions" as const, cellClassName: "!overflow-visible" },
+      meta: { mobileSlot: "actions" as const },
       cell: ({ row }) => {
         const { id, source } = row.original;
         return (

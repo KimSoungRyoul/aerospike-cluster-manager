@@ -27,8 +27,6 @@ CREATE TABLE IF NOT EXISTS connections (
     username     TEXT,
     password     TEXT,
     color        TEXT NOT NULL DEFAULT '#0097D3',
-    label        TEXT,
-    label_color  TEXT,
     description  TEXT,
     created_at   TEXT NOT NULL,
     updated_at   TEXT NOT NULL
@@ -46,12 +44,10 @@ async def _apply_migrations(conn: asyncpg.Connection | asyncpg.pool.PoolConnecti
     """Add columns introduced after the initial schema."""
     row = await conn.fetchrow(
         """SELECT column_name FROM information_schema.columns
-           WHERE table_name = 'connections' AND column_name = 'label'"""
+           WHERE table_name = 'connections' AND column_name = 'description'"""
     )
     if row is None:
-        logger.info("Migrating PostgreSQL: adding label, label_color, description columns")
-        await conn.execute("ALTER TABLE connections ADD COLUMN label TEXT")
-        await conn.execute("ALTER TABLE connections ADD COLUMN label_color TEXT")
+        logger.info("Migrating PostgreSQL: adding description column")
         await conn.execute("ALTER TABLE connections ADD COLUMN description TEXT")
 
 
@@ -121,8 +117,8 @@ async def get_connection(conn_id: str) -> ConnectionProfile | None:
 async def create_connection(conn: ConnectionProfile) -> None:
     pool = _get_pool()
     await pool.execute(
-        """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, label, label_color, description, created_at, updated_at)
-           VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)""",
+        """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, description, created_at, updated_at)
+           VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, $8, $9, $10, $11)""",
         conn.id,
         conn.name,
         json.dumps(conn.hosts),
@@ -131,8 +127,6 @@ async def create_connection(conn: ConnectionProfile) -> None:
         conn.username,
         conn.password,
         conn.color,
-        conn.label,
-        conn.label_color,
         conn.description,
         conn.createdAt,
         conn.updatedAt,
@@ -153,9 +147,9 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
             """UPDATE connections
                    SET name = $1, hosts = $2::jsonb, port = $3, cluster_name = $4,
                        username = $5, password = $6, color = $7,
-                       label = $8, label_color = $9, description = $10,
-                       updated_at = $11
-                   WHERE id = $12""",
+                       description = $8,
+                       updated_at = $9
+                   WHERE id = $10""",
             updated.name,
             json.dumps(updated.hosts),
             updated.port,
@@ -163,8 +157,6 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
             updated.username,
             updated.password,
             updated.color,
-            updated.label,
-            updated.label_color,
             updated.description,
             updated.updatedAt,
             conn_id,

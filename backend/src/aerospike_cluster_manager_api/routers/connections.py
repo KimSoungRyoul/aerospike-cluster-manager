@@ -53,8 +53,6 @@ async def create_connection(request: Request, body: CreateConnectionRequest) -> 
         username=body.username,
         password=body.password,
         color=body.color,
-        label=body.label,
-        label_color=body.label_color,
         description=body.description,
         createdAt=now,
         updatedAt=now,
@@ -105,7 +103,6 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
         node_count = len(node_names)
 
         # Collect namespace-level summary metrics
-        total_ops = 0
         memory_used = 0
         memory_total = 0
         disk_used = 0
@@ -132,9 +129,6 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
                 memory_total += ns_data_total * node_count
                 disk_used += safe_int(kv.get("device_used_bytes")) * node_count
                 disk_total += safe_int(kv.get("device-total-bytes")) * node_count
-                total_ops += (
-                    safe_int(kv.get("client_read_success")) + safe_int(kv.get("client_write_success"))
-                ) * node_count
         except Exception:
             logger.debug("Failed to collect namespace stats for connection '%s'", conn_id, exc_info=True)
 
@@ -144,7 +138,6 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
             namespaceCount=len(namespaces),
             build=build,
             edition=edition,
-            totalOps=total_ops,
             memoryUsed=memory_used,
             memoryTotal=memory_total,
             diskUsed=disk_used,

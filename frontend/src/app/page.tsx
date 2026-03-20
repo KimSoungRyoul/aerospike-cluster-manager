@@ -25,7 +25,7 @@ import { useClusterListStore } from "@/stores/cluster-list-store";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
 import type { ConnectionProfile, UnifiedClusterRow } from "@/lib/api/types";
 import { cn, getErrorMessage } from "@/lib/utils";
-import { PRESET_COLORS, LABEL_PRESETS, LABEL_COLORS } from "@/lib/constants";
+import { PRESET_COLORS } from "@/lib/constants";
 import { useToastStore } from "@/stores/toast-store";
 
 interface ConnectionFormData {
@@ -35,8 +35,6 @@ interface ConnectionFormData {
   username: string;
   password: string;
   color: string;
-  label: string;
-  labelColor: string;
   description: string;
 }
 
@@ -47,8 +45,6 @@ const emptyForm: ConnectionFormData = {
   username: "",
   password: "",
   color: PRESET_COLORS[0],
-  label: "",
-  labelColor: "",
   description: "",
 };
 
@@ -56,7 +52,7 @@ export default function ConnectionsPage() {
   const router = useRouter();
   const { createConnection, updateConnection, deleteConnection, testConnection } =
     useConnectionStore();
-  const { rows, loading, error, fetchAll, fetchAllHealth, updateMetadata } = useClusterListStore();
+  const { rows, loading, error, fetchAll, fetchAllHealth } = useClusterListStore();
   const { k8sAvailable, checkAvailability } = useK8sClusterStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -108,8 +104,6 @@ export default function ConnectionsPage() {
         username: conn.username ?? "",
         password: "",
         color: conn.color,
-        label: conn.label ?? "",
-        labelColor: conn.labelColor ?? "",
         description: conn.description ?? "",
       });
     } else {
@@ -122,8 +116,6 @@ export default function ConnectionsPage() {
         username: "",
         password: "",
         color: row.color,
-        label: row.label ?? "",
-        labelColor: row.labelColor ?? "",
         description: row.description ?? "",
       });
     }
@@ -145,8 +137,6 @@ export default function ConnectionsPage() {
         username: form.username || undefined,
         password: form.password || undefined,
         color: form.color,
-        label: form.label.trim() || undefined,
-        labelColor: form.labelColor || undefined,
         description: form.description.trim() || undefined,
       };
       if (editingId) {
@@ -221,16 +211,6 @@ export default function ConnectionsPage() {
     [router],
   );
 
-  const handleLabelChange = useCallback(
-    (id: string, label?: string, color?: string) => {
-      updateMetadata(id, {
-        label: label ?? null,
-        labelColor: color ?? null,
-      });
-    },
-    [updateMetadata],
-  );
-
   return (
     <div className="animate-fade-in space-y-6 p-6 lg:p-8">
       <PageHeader
@@ -260,7 +240,6 @@ export default function ConnectionsPage() {
         onRowClick={handleRowClick}
         onEdit={openEditDialog}
         onDelete={setDeleteTarget}
-        onLabelChange={handleLabelChange}
       />
 
       {/* Connection Dialog */}
@@ -352,63 +331,6 @@ export default function ConnectionsPage() {
                   />
                 ))}
               </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Label</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {LABEL_PRESETS.map((preset) => (
-                  <button
-                    key={preset.name}
-                    type="button"
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors",
-                      form.label === preset.name
-                        ? "border-accent bg-accent/10 text-accent"
-                        : "border-base-300 hover:border-accent/40 hover:bg-base-200",
-                    )}
-                    onClick={() =>
-                      setForm({ ...form, label: preset.name, labelColor: preset.color })
-                    }
-                  >
-                    <span
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: preset.color }}
-                    />
-                    {preset.name}
-                  </button>
-                ))}
-              </div>
-              <Input
-                placeholder="Custom label name"
-                value={LABEL_PRESETS.some((p) => p.name === form.label) ? "" : form.label}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setForm({
-                    ...form,
-                    label: val,
-                    labelColor: form.labelColor || LABEL_COLORS[0],
-                  });
-                }}
-                className="mt-1"
-              />
-              {form.label && !LABEL_PRESETS.some((p) => p.name === form.label) && (
-                <div className="flex items-center gap-1.5">
-                  {LABEL_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      className={cn(
-                        "h-5 w-5 rounded-full transition-transform",
-                        form.labelColor === color &&
-                          "ring-base-content/50 ring-offset-base-100 scale-110 ring-2 ring-offset-1",
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => setForm({ ...form, labelColor: color })}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="grid gap-2">

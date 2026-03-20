@@ -1,28 +1,40 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
 interface DropdownMenuContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
+  triggerRef: React.RefObject<HTMLElement | null>;
+  portalRef: React.RefObject<HTMLDivElement | null>;
 }
 
 const DropdownMenuContext = React.createContext<DropdownMenuContextValue>({
   open: false,
   setOpen: () => {},
+  triggerRef: { current: null },
+  portalRef: { current: null },
 });
 
 const DropdownMenu: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [open, setOpen] = React.useState(false);
   const ref = React.useRef<HTMLDivElement>(null);
+  const triggerRef = React.useRef<HTMLElement>(null);
+  const portalRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!open) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        ref.current &&
+        !ref.current.contains(target) &&
+        (!portalRef.current || !portalRef.current.contains(target))
+      ) {
         setOpen(false);
       }
     };
@@ -31,19 +43,23 @@ const DropdownMenu: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       if (e.key === "Escape") setOpen(false);
     };
 
+    const handleScroll = () => setOpen(false);
+
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEsc);
+    window.addEventListener("scroll", handleScroll, { capture: true });
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleEsc);
+      window.removeEventListener("scroll", handleScroll, { capture: true });
     };
   }, [open]);
 
   return (
-    <DropdownMenuContext.Provider value={{ open, setOpen }}>
+    <DropdownMenuContext.Provider value={{ open, setOpen, triggerRef, portalRef }}>
       <div
         ref={ref}
-        className="dropdown relative inline-block"
+        className="relative inline-block"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") e.stopPropagation();
@@ -61,11 +77,22 @@ interface DropdownMenuTriggerProps extends React.ButtonHTMLAttributes<HTMLButton
 
 const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTriggerProps>(
   ({ asChild, children, className, ...props }, ref) => {
-    const { open, setOpen } = React.useContext(DropdownMenuContext);
+    const { open, setOpen, triggerRef } = React.useContext(DropdownMenuContext);
+
+    const setRefs = React.useCallback(
+      (node: HTMLElement | null) => {
+        triggerRef.current = node;
+        if (typeof ref === "function") ref(node as HTMLButtonElement | null);
+        else if (ref) ref.current = node as HTMLButtonElement | null;
+      },
+      [ref, triggerRef],
+    );
 
     if (asChild && React.isValidElement(children)) {
       const childProps = children.props as Record<string, unknown>;
+      // eslint-disable-next-line react-hooks/refs -- callback ref is invoked by React during commit phase, not during render
       return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+        ref: setRefs,
         onClick: (e: React.MouseEvent) => {
           e.stopPropagation();
           if (typeof childProps.onClick === "function") childProps.onClick(e);
@@ -76,7 +103,7 @@ const DropdownMenuTrigger = React.forwardRef<HTMLButtonElement, DropdownMenuTrig
 
     return (
       <button
-        ref={ref}
+        ref={setRefs}
         className={cn(className)}
         {...props}
         onClick={(e) => {
@@ -98,19 +125,55 @@ interface DropdownMenuContentProps extends React.HTMLAttributes<HTMLDivElement> 
 }
 
 const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContentProps>(
-  ({ className, align = "start", children, ...props }, ref) => {
-    const { open } = React.useContext(DropdownMenuContext);
-    if (!open) return null;
+  ({ className, align = "start", sideOffset = 4, children, ...props }, ref) => {
+    const { open, triggerRef, portalRef } = React.useContext(DropdownMenuContext);
+    const [position, setPosition] = React.useState<React.CSSProperties | null>(null);
 
-    return (
+    const setRefs = React.useCallback(
+      (node: HTMLDivElement | null) => {
+        portalRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) ref.current = node;
+      },
+      [ref, portalRef],
+    );
+
+    React.useLayoutEffect(() => {
+      if (!open) {
+        setPosition(null);
+        return;
+      }
+
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+
+      const rect = trigger.getBoundingClientRect();
+      const style: React.CSSProperties = {
+        position: "fixed",
+        top: rect.bottom + sideOffset,
+        zIndex: 9999,
+      };
+
+      if (align === "end") {
+        style.right = window.innerWidth - rect.right;
+      } else {
+        style.left = rect.left;
+      }
+
+      setPosition(style);
+    }, [open, align, sideOffset, triggerRef]);
+
+    if (!open || !position) return null;
+
+    return createPortal(
       <div
-        ref={ref}
+        ref={setRefs}
         role="menu"
         className={cn(
-          "dropdown-content menu border-base-300 bg-base-100 text-base-content rounded-box absolute z-50 mt-1 min-w-[8rem] overflow-hidden border p-2 shadow-lg",
-          align === "end" ? "right-0" : "left-0",
+          "border-base-300 bg-base-100 text-base-content rounded-box min-w-[8rem] overflow-hidden border p-2 shadow-lg",
           className,
         )}
+        style={position}
         {...props}
         onClick={(e) => {
           e.stopPropagation();
@@ -118,7 +181,8 @@ const DropdownMenuContent = React.forwardRef<HTMLDivElement, DropdownMenuContent
         }}
       >
         {children}
-      </div>
+      </div>,
+      document.body,
     );
   },
 );

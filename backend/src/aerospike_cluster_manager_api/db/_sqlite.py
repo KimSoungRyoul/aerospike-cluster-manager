@@ -30,8 +30,6 @@ CREATE TABLE IF NOT EXISTS connections (
     username     TEXT,
     password     TEXT,
     color        TEXT NOT NULL DEFAULT '#0097D3',
-    label        TEXT,
-    label_color  TEXT,
     description  TEXT,
     created_at   TEXT NOT NULL,
     updated_at   TEXT NOT NULL
@@ -50,10 +48,8 @@ async def _apply_migrations(conn: aiosqlite.Connection) -> None:
     async with conn.execute("PRAGMA table_info(connections)") as cursor:
         columns = {row[1] for row in await cursor.fetchall()}
 
-    if "label" not in columns:
-        logger.info("Migrating SQLite: adding label, label_color, description columns")
-        await conn.execute("ALTER TABLE connections ADD COLUMN label TEXT")
-        await conn.execute("ALTER TABLE connections ADD COLUMN label_color TEXT")
+    if "description" not in columns:
+        logger.info("Migrating SQLite: adding description column")
         await conn.execute("ALTER TABLE connections ADD COLUMN description TEXT")
         await conn.commit()
 
@@ -131,8 +127,8 @@ async def create_connection(conn: ConnectionProfile) -> None:
     db_conn = _get_conn()
     try:
         await db_conn.execute(
-            """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, label, label_color, description, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            """INSERT INTO connections (id, name, hosts, port, cluster_name, username, password, color, description, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 conn.id,
                 conn.name,
@@ -142,8 +138,6 @@ async def create_connection(conn: ConnectionProfile) -> None:
                 conn.username,
                 conn.password,
                 conn.color,
-                conn.label,
-                conn.label_color,
                 conn.description,
                 conn.createdAt,
                 conn.updatedAt,
@@ -170,7 +164,7 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
             """UPDATE connections
                    SET name = ?, hosts = ?, port = ?, cluster_name = ?,
                        username = ?, password = ?, color = ?,
-                       label = ?, label_color = ?, description = ?,
+                       description = ?,
                        updated_at = ?
                    WHERE id = ?""",
             (
@@ -181,8 +175,6 @@ async def update_connection(conn_id: str, data: dict) -> ConnectionProfile | Non
                 updated.username,
                 updated.password,
                 updated.color,
-                updated.label,
-                updated.label_color,
                 updated.description,
                 updated.updatedAt,
                 conn_id,

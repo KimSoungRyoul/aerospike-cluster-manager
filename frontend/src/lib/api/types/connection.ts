@@ -10,8 +10,6 @@ export interface ConnectionProfile {
   color: string;
   createdAt: string;
   updatedAt: string;
-  label?: string;
-  labelColor?: string;
   description?: string;
 }
 
@@ -21,7 +19,6 @@ export interface ConnectionStatus {
   namespaceCount: number;
   build?: string;
   edition?: string;
-  totalOps?: number;
   memoryUsed?: number;
   memoryTotal?: number;
   diskUsed?: number;
