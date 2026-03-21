@@ -38,6 +38,8 @@ import {
   EditStorageSection,
   EditSeedsFinderLBSection,
   EditTopologySpreadSection,
+  EditRackConfigSection,
+  EditNodeBlocklistSection,
 } from "./edit-sections";
 
 interface K8sEditDialogProps {
@@ -246,6 +248,11 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
         JSON.stringify(initials.headlessServiceConfig)
       ) {
         data.headlessService = state.headlessServiceConfig ?? undefined;
+      }
+
+      // Rack Config
+      if (JSON.stringify(state.rackConfig) !== JSON.stringify(initials.rackConfig)) {
+        data.rackConfig = state.rackConfig ?? undefined;
       }
 
       // Rack ID Override
@@ -515,24 +522,14 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
           />
 
           {/* Node Block List */}
-          <div className="grid gap-1">
-            <Label htmlFor="edit-node-blocklist" className="text-xs">
-              Node Block List
-            </Label>
-            <Input
-              id="edit-node-blocklist"
-              value={state.nodeBlockList}
-              onChange={(e) => {
-                patchState({ nodeBlockList: e.target.value });
-                clearError();
-              }}
-              placeholder="node1, node2"
-              disabled={state.loading}
-            />
-            <p className="text-base-content/60 text-[10px]">
-              Comma-separated K8s node names to exclude from scheduling
-            </p>
-          </div>
+          <EditNodeBlocklistSection
+            value={state.nodeBlockList}
+            onChange={(v) => {
+              patchState({ nodeBlockList: v });
+              clearError();
+            }}
+            disabled={state.loading}
+          />
 
           {/* Bandwidth Limits */}
           <div className="grid gap-3">
@@ -851,6 +848,27 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 patchState({ headlessServiceConfig: v });
                 clearError();
               }}
+            />
+          </CollapsibleSection>
+
+          {/* Rack Config */}
+          <CollapsibleSection
+            title="Rack Configuration"
+            summary={
+              state.rackConfig?.racks?.length
+                ? `${state.rackConfig.racks.length} rack(s)`
+                : "Single rack (default)"
+            }
+            size="sm"
+          >
+            <EditRackConfigSection
+              rackConfig={state.rackConfig}
+              clusterSize={state.size}
+              onChange={(cfg) => {
+                patchState({ rackConfig: cfg });
+                clearError();
+              }}
+              disabled={state.loading}
             />
           </CollapsibleSection>
 
