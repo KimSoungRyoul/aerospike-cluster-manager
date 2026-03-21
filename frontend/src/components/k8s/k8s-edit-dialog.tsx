@@ -24,6 +24,7 @@ import type {
   NetworkAccessType,
   BandwidthConfig,
 } from "@/lib/api/types";
+import { validateACLConfig } from "@/lib/validations/k8s-acl";
 import { useEditDialogState } from "./hooks/use-edit-dialog-state";
 import {
   EditAclSection,
@@ -274,12 +275,24 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
 
       // ACL
       if (JSON.stringify(state.aclConfig) !== JSON.stringify(initials.aclConfig)) {
+        if (state.aclConfig) {
+          const aclError = validateACLConfig(state.aclConfig);
+          if (aclError) {
+            patchState({ error: aclError });
+            return;
+          }
+        }
         data.acl = state.aclConfig ?? undefined;
       }
 
-      // Resources
+      // Resources — strip empty strings to avoid backend validation errors
       if (JSON.stringify(state.resources) !== JSON.stringify(initials.resources)) {
-        data.resources = state.resources ?? undefined;
+        const r = state.resources;
+        if (r && (r.requests.cpu || r.requests.memory || r.limits.cpu || r.limits.memory)) {
+          data.resources = r;
+        } else {
+          data.resources = undefined;
+        }
       }
 
       await onSave(data);
