@@ -138,6 +138,8 @@ Change the cluster size (1-8 nodes for CE). The operator handles rolling scale-u
 ### Edit
 
 Modify running cluster settings with diff-based patching. The edit dialog supports all wizard fields plus:
+- **ACL (Access Control)** — Enable/disable ACL, manage roles with privileges and CIDR whitelists, manage users with K8s Secret-backed passwords
+- **Resources** — Configure CPU and memory requests/limits for Aerospike pods
 - Seeds Finder Services configuration
 - Sidecar and init container management
 - Security context configuration
