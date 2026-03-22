@@ -927,6 +927,19 @@ When running inside Kubernetes, set `K8S_MANAGEMENT_ENABLED=true` and ensure the
 
 The Aerospike Cluster Manager is designed to work alongside the [Aerospike CE Kubernetes Operator](https://github.com/aerospike-ce-ecosystem/aerospike-ce-kubernetes-operator) as the GUI management plane. See the [Architecture Guide](docs/architecture.md) for full details on how the components fit together.
 
+## Claude Code
+
+이 프로젝트는 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 자동화가 설정되어 있습니다.
+
+### Ecosystem Plugin 설치
+
+[aerospike-ce-ecosystem-plugins](https://github.com/aerospike-ce-ecosystem/aerospike-ce-ecosystem-plugins)를 설치하면 Aerospike CE 설정 레퍼런스, K8s 배포 가이드, aerospike-py API 가이드 등 ecosystem 전체 스킬을 사용할 수 있습니다.
+
+```bash
+claude plugin marketplace add aerospike-ce-ecosystem/aerospike-ce-ecosystem-plugins
+claude plugin install aerospike-ce-ecosystem
+```
+
 ## License
 
 This project is licensed under the [Apache License 2.0](LICENSE).
