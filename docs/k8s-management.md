@@ -386,6 +386,8 @@ Kubernetes events categorized into 11 categories:
 
 Events auto-refresh during transitional phases and support category filtering.
 
+**Export Events:** Click the **JSON** or **CSV** download buttons in the event timeline header to export filtered events. The export includes event type, reason, category, count, timestamps, and message. When a category filter is active, only the filtered events are exported.
+
 ### Configuration Drift Detection
 
 Compares the desired spec (what you declared) against the applied spec (what the operator last reconciled) and detects configuration drift. This is useful after editing a cluster to see whether the operator has fully applied the changes, or to identify partial rollout states where some pods are running the new config and others are still on the old one.
@@ -394,7 +396,9 @@ The UI presents:
 
 - **Sync status badge** -- "In Sync" (green) or "Drift Detected" (amber) at the top of the card.
 - **Changed fields list** -- Each field that differs is listed with its path.
-- **Visual diff view** -- For every changed field the card shows the desired value (marked with `+`) and the applied value (marked with `-`) side-by-side, using color-coded formatting (`added`, `removed`, `changed`).
+- **Visual diff view** -- Two view modes are available, toggled via buttons at the top of the diff section:
+  - **Fields view** (default) -- For every changed field the card shows the desired value (marked with `+`) and the applied value (marked with `-`), using color-coded formatting (`added`, `removed`, `changed`).
+  - **Side-by-side view** -- Shows the full applied config (left, red) vs desired config (right, green) as a line-by-line JSON diff with line numbers and color highlighting, similar to a Git diff viewer.
 - **Pod hash groups** -- Pods are grouped by their `configHash` and `podSpecHash`. Each pod reports its current config hash in the pod status table. The group matching the current desired hash is marked as "current"; pods in other groups have diverged and need a rolling restart to pick up the new configuration.
 - **Desired & applied config snapshots** -- The full desired and applied config objects are available for inspection when the backend returns them.
 
