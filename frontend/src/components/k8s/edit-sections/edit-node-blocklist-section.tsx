@@ -1,40 +1,26 @@
-import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { K8sNodeInfo } from "@/lib/api/types";
-import { api } from "@/lib/api/client";
 
 interface EditNodeBlocklistSectionProps {
   /** Comma-separated node names */
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  /** Pre-fetched K8s node list (fetched once by parent dialog) */
+  nodes?: K8sNodeInfo[];
+  /** Whether the node list is still loading */
+  nodesLoading?: boolean;
 }
 
 export function EditNodeBlocklistSection({
   value,
   onChange,
   disabled,
+  nodes = [],
+  nodesLoading = false,
 }: EditNodeBlocklistSectionProps) {
-  const [nodes, setNodes] = useState<K8sNodeInfo[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getK8sNodes()
-      .then((n) => {
-        if (!cancelled) setNodes(n);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const blocked = new Set(
     value
       .split(",")
@@ -52,7 +38,7 @@ export function EditNodeBlocklistSection({
     onChange(Array.from(next).join(", "));
   };
 
-  if (loading) {
+  if (nodesLoading) {
     return (
       <div className="space-y-2">
         <Label className="text-xs">Node Block List</Label>

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,6 @@ import { Select } from "@/components/ui/select";
 import { CollapsibleSection } from "@/components/common/collapsible-section";
 import { RackStorageVolumeEditor, RackTolerationsEditor } from "../wizard/rack-editors";
 import type { RackAwareConfig, RackConfig, K8sNodeInfo } from "@/lib/api/types";
-import { api } from "@/lib/api/client";
 
 // ---------------------------------------------------------------------------
 // Internal sub-components (mirrors wizard patterns)
@@ -23,6 +22,17 @@ function RackConfigJsonEditor({
 }) {
   const [rawText, setRawText] = useState(() => (config ? JSON.stringify(config, null, 2) : ""));
   const [parseError, setParseError] = useState<string | null>(null);
+
+  // Sync rawText when config prop changes externally (e.g. dialog reset).
+  // Uses the "adjusting state during render" pattern (no useEffect needed).
+  const [prevConfig, setPrevConfig] = useState(config);
+  const configJson = config ? JSON.stringify(config) : "";
+  const prevConfigJson = prevConfig ? JSON.stringify(prevConfig) : "";
+  if (configJson !== prevConfigJson) {
+    setPrevConfig(config);
+    setRawText(config ? JSON.stringify(config, null, 2) : "");
+    setParseError(null);
+  }
 
   const handleChange = useCallback(
     (text: string) => {
@@ -62,6 +72,15 @@ function RackConfigJsonEditor({
   );
 }
 
+let nextExprId = 0;
+
+interface AffinityExpression {
+  _id: number;
+  key: string;
+  operator: string;
+  values: string;
+}
+
 function RackAffinityEditor({
   affinity,
   onChange,
@@ -69,13 +88,14 @@ function RackAffinityEditor({
   affinity: Record<string, unknown> | undefined;
   onChange: (v: Record<string, unknown> | undefined) => void;
 }) {
-  const getExpressions = (): { key: string; operator: string; values: string }[] => {
+  const getExpressions = (): AffinityExpression[] => {
     try {
       const terms = (
         affinity as Record<string, Record<string, Record<string, Record<string, unknown>[]>>>
       )?.nodeAffinity?.requiredDuringSchedulingIgnoredDuringExecution?.nodeSelectorTerms?.[0]
         ?.matchExpressions as { key: string; operator: string; values?: string[] }[] | undefined;
       return (terms ?? []).map((expr) => ({
+        _id: ++nextExprId,
         key: expr.key ?? "",
         operator: expr.operator ?? "In",
         values: (expr.values ?? []).join(", "),
@@ -85,11 +105,9 @@ function RackAffinityEditor({
     }
   };
 
-  const [expressions, setExpressions] = useState<
-    { key: string; operator: string; values: string }[]
-  >(() => getExpressions());
+  const [expressions, setExpressions] = useState<AffinityExpression[]>(() => getExpressions());
 
-  const buildAffinity = (exprs: { key: string; operator: string; values: string }[]) => {
+  const buildAffinity = (exprs: AffinityExpression[]) => {
     const valid = exprs.filter((e) => e.key.trim());
     if (valid.length === 0) {
       onChange(undefined);
@@ -120,7 +138,7 @@ function RackAffinityEditor({
   };
 
   const addExpression = () => {
-    const next = [...expressions, { key: "", operator: "In", values: "" }];
+    const next = [...expressions, { _id: ++nextExprId, key: "", operator: "In", values: "" }];
     setExpressions(next);
   };
 
@@ -142,7 +160,7 @@ function RackAffinityEditor({
       <Label className="text-xs font-semibold">Node Affinity Expressions</Label>
       {expressions.map((expr, idx) => (
         <div
-          key={idx}
+          key={expr._id}
           className="grid grid-cols-[1fr_auto_1fr_auto] items-end gap-2 rounded border p-2"
         >
           <div className="grid gap-1">
@@ -276,6 +294,8 @@ interface EditRackConfigSectionProps {
   clusterSize: number;
   onChange: (config: RackAwareConfig | null) => void;
   disabled?: boolean;
+  /** Pre-fetched K8s node list (fetched once by parent dialog) */
+  nodes?: K8sNodeInfo[];
 }
 
 export function EditRackConfigSection({
@@ -283,21 +303,11 @@ export function EditRackConfigSection({
   clusterSize,
   onChange,
   disabled,
+  nodes = [],
 }: EditRackConfigSectionProps) {
-  const [nodes, setNodes] = useState<K8sNodeInfo[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    api.getK8sNodes().then((n) => {
-      if (!cancelled) setNodes(n);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const racks = rackConfig?.racks ?? [];
   const uniqueZones = [...new Set(nodes.map((n) => n.zone).filter(Boolean))];
+  const uniqueRegions = [...new Set(nodes.map((n) => n.region).filter(Boolean))];
 
   const updateConfig = (updates: Partial<RackAwareConfig>) => {
     onChange({ ...rackConfig, racks: rackConfig?.racks ?? [], ...updates });
@@ -373,7 +383,7 @@ export function EditRackConfigSection({
               Remove
             </Button>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1">
               <Label className="text-xs">Zone</Label>
               {uniqueZones.length > 0 ? (
@@ -402,6 +412,38 @@ export function EditRackConfigSection({
                     updateRacks(newRacks);
                   }}
                   placeholder="e.g. us-east-1a"
+                  disabled={disabled}
+                />
+              )}
+            </div>
+            <div className="grid gap-1">
+              <Label className="text-xs">Region</Label>
+              {uniqueRegions.length > 0 ? (
+                <Select
+                  value={rack.region || ""}
+                  onChange={(e) => {
+                    const newRacks = [...racks];
+                    newRacks[idx] = { ...rack, region: e.target.value || undefined };
+                    updateRacks(newRacks);
+                  }}
+                  disabled={disabled}
+                >
+                  <option value="">Select region</option>
+                  {uniqueRegions.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Input
+                  value={rack.region || ""}
+                  onChange={(e) => {
+                    const newRacks = [...racks];
+                    newRacks[idx] = { ...rack, region: e.target.value || undefined };
+                    updateRacks(newRacks);
+                  }}
+                  placeholder="e.g. us-east-1"
                   disabled={disabled}
                 />
               )}
@@ -486,8 +528,10 @@ export function EditRackConfigSection({
       </div>
       <p className="text-base-content/60 text-xs">
         {clusterSize} nodes across {racks.length} racks:{" "}
-        {`~${Math.floor(clusterSize / racks.length)}-${Math.ceil(clusterSize / racks.length)}`} pods
-        per rack.
+        {clusterSize % racks.length === 0
+          ? `${clusterSize / racks.length}`
+          : `~${Math.floor(clusterSize / racks.length)}-${Math.ceil(clusterSize / racks.length)}`}{" "}
+        pods per rack.
       </p>
     </div>
   );

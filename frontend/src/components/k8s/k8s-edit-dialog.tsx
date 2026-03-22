@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,9 @@ import type {
   UpdateK8sClusterRequest,
   NetworkAccessType,
   BandwidthConfig,
+  K8sNodeInfo,
 } from "@/lib/api/types";
+import { api } from "@/lib/api/client";
 import { validateACLConfig } from "@/lib/validations/k8s-acl";
 import { useEditDialogState } from "./hooks/use-edit-dialog-state";
 import {
@@ -54,6 +57,29 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
     open,
     cluster,
   );
+
+  // Fetch K8s nodes once when dialog opens (shared by RackConfig and NodeBlocklist)
+  const [k8sNodes, setK8sNodes] = useState<K8sNodeInfo[]>([]);
+  const [k8sNodesLoading, setK8sNodesLoading] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setK8sNodesLoading(true);
+    api
+      .getK8sNodes()
+      .then((n) => {
+        if (!cancelled) setK8sNodes(n);
+      })
+      .catch(() => {
+        if (!cancelled) setK8sNodes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setK8sNodesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const clearError = () => patchState({ error: null });
 
@@ -529,6 +555,8 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
               clearError();
             }}
             disabled={state.loading}
+            nodes={k8sNodes}
+            nodesLoading={k8sNodesLoading}
           />
 
           {/* Bandwidth Limits */}
@@ -869,6 +897,7 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
                 clearError();
               }}
               disabled={state.loading}
+              nodes={k8sNodes}
             />
           </CollapsibleSection>
 
