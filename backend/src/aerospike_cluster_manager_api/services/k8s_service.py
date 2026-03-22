@@ -977,6 +977,17 @@ def extract_detail(item: dict[str, Any], pods_raw: list[dict[str, Any]]) -> K8sC
             synced=ts_raw.get("synced"),
         )
 
+    # Detect split-brain: aerospikeClusterSize differs from spec size (or pod count)
+    aerospike_cluster_size = status.get("aerospikeClusterSize")
+    desired_size = status.get("size", spec.get("size", 0))
+    split_brain_detected = (
+        aerospike_cluster_size is not None
+        and desired_size is not None
+        and aerospike_cluster_size > 0
+        and desired_size > 0
+        and aerospike_cluster_size != desired_size
+    )
+
     return K8sClusterDetail(
         name=metadata.get("name", ""),
         namespace=metadata.get("namespace", ""),
@@ -992,11 +1003,12 @@ def extract_detail(item: dict[str, Any], pods_raw: list[dict[str, Any]]) -> K8sC
         operationStatus=operation_status,
         failedReconcileCount=status.get("failedReconcileCount", 0),
         lastReconcileError=status.get("lastReconcileError"),
-        aerospikeClusterSize=status.get("aerospikeClusterSize"),
+        aerospikeClusterSize=aerospike_cluster_size,
         pendingRestartPods=status.get("pendingRestartPods", []),
         lastReconcileTime=last_reconcile_time,
         operatorVersion=status.get("operatorVersion"),
         templateSnapshot=template_snapshot,
+        splitBrainDetected=split_brain_detected,
     )
 
 

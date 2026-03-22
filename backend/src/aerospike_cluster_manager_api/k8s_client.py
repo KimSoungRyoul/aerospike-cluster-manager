@@ -514,6 +514,19 @@ class K8sClient:
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
+    def _delete_pvc_sync(self, namespace: str, pvc_name: str) -> None:
+        """Delete a PVC by name."""
+        logger.debug("_delete_pvc_sync(namespace=%s, pvc_name=%s)", namespace, pvc_name)
+        self._ensure_initialized()
+        try:
+            self._get_core_api().delete_namespaced_persistent_volume_claim(
+                name=pvc_name,
+                namespace=namespace,
+                _request_timeout=_K8S_API_TIMEOUT,
+            )
+        except Exception as e:
+            raise self._wrap_api_exception(e) from e
+
     def _read_pod_log_sync(
         self, namespace: str, pod_name: str, container: str | None = None, tail_lines: int = 500
     ) -> str:
@@ -591,6 +604,9 @@ class K8sClient:
 
     async def list_pvcs(self, namespace: str, label_selector: str) -> list[dict[str, Any]]:
         return await asyncio.to_thread(self._list_pvcs_sync, namespace, label_selector)
+
+    async def delete_pvc(self, namespace: str, pvc_name: str) -> None:
+        return await asyncio.to_thread(self._delete_pvc_sync, namespace, pvc_name)
 
     async def read_pod_log(
         self, namespace: str, pod_name: str, container: str | None = None, tail_lines: int = 500
