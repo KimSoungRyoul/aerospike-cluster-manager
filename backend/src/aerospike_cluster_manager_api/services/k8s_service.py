@@ -1056,6 +1056,7 @@ def has_update_fields(body: UpdateK8sClusterRequest) -> bool:
             body.pod_metadata,
             body.sidecars,
             body.init_containers,
+            body.aerospike_container_security_context,
         )
     )
 

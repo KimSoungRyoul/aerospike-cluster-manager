@@ -738,3 +738,18 @@ async def trigger_k8s_cluster_operation(
     patch: dict[str, Any] = {"spec": {"operations": [operation]}}
     result = await k8s_client.patch_cluster(namespace, name, patch)
     return extract_summary(result)
+
+
+@router.delete(
+    "/clusters/{namespace}/{name}/operations",
+    summary="Clear operations on K8s cluster",
+)
+@_k8s_endpoint("clear operations on Kubernetes cluster")
+async def clear_k8s_cluster_operations(
+    namespace: str = _K8S_NAMESPACE,
+    name: str = _K8S_NAME,
+) -> K8sClusterSummary:
+    """Clear spec.operations to unblock a stuck cluster."""
+    patch: dict[str, Any] = {"spec": {"operations": []}}
+    result = await k8s_client.patch_cluster(namespace, name, patch)
+    return extract_summary(result)

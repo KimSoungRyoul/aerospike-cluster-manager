@@ -575,6 +575,10 @@ export default function K8sClusterDetailPage() {
         <K8sOperationStatus
           operationStatus={selectedCluster.operationStatus}
           totalPodCount={selectedCluster.pods.length}
+          onClear={async () => {
+            await api.clearK8sClusterOperations(namespace, name);
+            fetchCluster(namespace, name);
+          }}
         />
       )}
 
@@ -835,6 +839,7 @@ export default function K8sClusterDetailPage() {
         pods={selectedCluster.pods}
         initialSelectedPods={selectedPods}
         initialKind={operationDialogKind}
+        operationPhase={selectedCluster.operationStatus?.phase}
         onSuccess={() => {
           setSelectedPods([]);
           fetchCluster(namespace, name);

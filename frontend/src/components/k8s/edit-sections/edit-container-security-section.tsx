@@ -17,8 +17,23 @@ export function EditContainerSecuritySection({
 
   const update = (updates: Record<string, unknown>) => {
     const next = { ...ctx, ...updates };
+    // Keep false values (important for security fields like allowPrivilegeEscalation),
+    // only strip undefined entries (fields the user never touched)
     const cleaned = Object.fromEntries(Object.entries(next).filter(([, v]) => v !== undefined));
     onChange(Object.keys(cleaned).length > 0 ? cleaned : null);
+  };
+
+  const toggleBool = (field: string, checked: boolean | "indeterminate") => {
+    // If the field was never in the original value and user unchecks, remove it.
+    // If the field was present or user checks, keep the explicit boolean value.
+    const originalHadField = value != null && field in value;
+    if (checked === true) {
+      update({ [field]: true });
+    } else if (originalHadField) {
+      update({ [field]: false });
+    } else {
+      update({ [field]: undefined });
+    }
   };
 
   return (
@@ -63,7 +78,7 @@ export function EditContainerSecuritySection({
           <Checkbox
             id="edit-sc-privileged"
             checked={(ctx.privileged as boolean) ?? false}
-            onCheckedChange={(checked) => update({ privileged: checked === true ? true : false })}
+            onCheckedChange={(checked) => toggleBool("privileged", checked)}
             disabled={disabled}
           />
           <Label htmlFor="edit-sc-privileged" className="cursor-pointer text-xs">
@@ -74,9 +89,7 @@ export function EditContainerSecuritySection({
           <Checkbox
             id="edit-sc-readonly"
             checked={(ctx.readOnlyRootFilesystem as boolean) ?? false}
-            onCheckedChange={(checked) =>
-              update({ readOnlyRootFilesystem: checked === true ? true : false })
-            }
+            onCheckedChange={(checked) => toggleBool("readOnlyRootFilesystem", checked)}
             disabled={disabled}
           />
           <Label htmlFor="edit-sc-readonly" className="cursor-pointer text-xs">
@@ -87,9 +100,7 @@ export function EditContainerSecuritySection({
           <Checkbox
             id="edit-sc-priv-escalation"
             checked={(ctx.allowPrivilegeEscalation as boolean) ?? false}
-            onCheckedChange={(checked) =>
-              update({ allowPrivilegeEscalation: checked === true ? true : false })
-            }
+            onCheckedChange={(checked) => toggleBool("allowPrivilegeEscalation", checked)}
             disabled={disabled}
           />
           <Label htmlFor="edit-sc-priv-escalation" className="cursor-pointer text-xs">
@@ -100,7 +111,7 @@ export function EditContainerSecuritySection({
           <Checkbox
             id="edit-sc-run-as-nonroot"
             checked={(ctx.runAsNonRoot as boolean) ?? false}
-            onCheckedChange={(checked) => update({ runAsNonRoot: checked === true ? true : false })}
+            onCheckedChange={(checked) => toggleBool("runAsNonRoot", checked)}
             disabled={disabled}
           />
           <Label htmlFor="edit-sc-run-as-nonroot" className="cursor-pointer text-xs">

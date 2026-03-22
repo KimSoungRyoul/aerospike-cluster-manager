@@ -140,6 +140,7 @@ Change the cluster size (1-8 nodes for CE). The operator handles rolling scale-u
 Modify running cluster settings with diff-based patching. The edit dialog supports all wizard fields plus:
 - **ACL (Access Control)** -- Enable/disable ACL, manage roles with privileges and CIDR whitelists, manage users with K8s Secret-backed passwords
 - **Resources** -- Configure CPU and memory requests/limits for Aerospike pods
+- **Priority Class Name** -- Set the Kubernetes PriorityClass for Aerospike pods (new)
 - Seeds Finder Services configuration
 - Sidecar and init container management
 - Container security context (see [Container Security Context](#container-security-context-in-edit-dialog))
@@ -148,6 +149,16 @@ Modify running cluster settings with diff-based patching. The edit dialog suppor
 - Service metadata
 - Rack configuration editing with per-rack revision strings (see [Rack Config Edit](#rack-config-edit-in-edit-dialog))
 - Node blocklist picker (see [Node Blocklist Picker](#node-blocklist-picker))
+
+**Client-side validations (new):**
+
+The edit dialog now performs early validation before sending updates to the operator webhook:
+
+- **CE image version** -- Rejects images with Aerospike CE major version < 8.
+- **Forbidden config keys** -- Blocks `xdr` and `tls` sections in aerospikeConfig (Enterprise-only features).
+- **Rack add+remove conflict** -- Prevents simultaneously adding and removing racks in the same update.
+- **Replication factor vs size** -- Warns when reducing cluster size below any namespace's replication factor.
+- **Operation status check** -- Disables the operation trigger dialog when another operation is already in progress.
 
 #### Rack Config Edit in Edit Dialog
 
@@ -336,6 +347,13 @@ Request body:
 ```
 
 The `podList` field is optional. When omitted or empty, all pods are targeted. The backend patches the CR's `spec.operations` field and the operator picks up the operation during its next reconciliation loop.
+
+**Clear operations:**
+
+If an operation gets stuck in `InProgress` status, you can clear it using the **Clear** button on the operation status card. This patches `spec.operations` to an empty list, unblocking the cluster for future operations.
+
+- The operation trigger dialog is automatically disabled while another operation is in progress, with a warning banner explaining why.
+- API endpoint: `DELETE /api/k8s/clusters/{namespace}/{name}/operations`
 
 ### Pause / Resume
 

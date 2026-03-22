@@ -56,6 +56,7 @@ export interface EditDialogInitials {
   serviceAccountName: string;
   terminationGracePeriod: number | undefined;
   imagePullSecrets: string[];
+  priorityClassName: string;
   topologySpreadConstraints: TopologySpreadConstraintConfig[];
   podSecurityRunAsUser: number | undefined;
   podSecurityRunAsGroup: number | undefined;
@@ -103,6 +104,7 @@ type PodSpecShape = {
   imagePullSecrets?: string[];
   topologySpreadConstraints?: TopologySpreadConstraintConfig[];
   securityContext?: PodSecurityContextConfig;
+  priorityClassName?: string;
   sidecars?: SidecarConfig[];
   initContainers?: SidecarConfig[];
   aerospikeContainer?: { securityContext?: Record<string, unknown> };
@@ -218,6 +220,7 @@ function deriveInitials(cluster: K8sClusterDetail): EditDialogInitials {
       podSpec?.terminationGracePeriodSeconds ??
       undefined,
     imagePullSecrets: specPodScheduling?.imagePullSecrets ?? podSpec?.imagePullSecrets ?? [],
+    priorityClassName: specPodScheduling?.priorityClassName ?? podSpec?.priorityClassName ?? "",
     topologySpreadConstraints:
       specPodScheduling?.topologySpreadConstraints ?? podSpec?.topologySpreadConstraints ?? [],
     podSecurityRunAsUser: specSecCtx?.runAsUser,
@@ -366,6 +369,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
       state.serviceAccountName !== snap.serviceAccountName ||
       state.terminationGracePeriod !== snap.terminationGracePeriod ||
       JSON.stringify(state.imagePullSecrets) !== JSON.stringify(snap.imagePullSecrets) ||
+      state.priorityClassName !== snap.priorityClassName ||
       JSON.stringify(state.topologySpreadConstraints) !==
         JSON.stringify(snap.topologySpreadConstraints) ||
       state.podSecurityRunAsUser !== snap.podSecurityRunAsUser ||
