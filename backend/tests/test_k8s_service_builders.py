@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from aerospike_cluster_manager_api.models.k8s.cluster import UpdateK8sClusterRequest
 from aerospike_cluster_manager_api.services.k8s_service import (
     _build_acl_dict,
     _build_bandwidth_dict,
@@ -13,6 +14,7 @@ from aerospike_cluster_manager_api.services.k8s_service import (
     _build_template_scheduling_dict,
     _build_template_storage_dict,
     _build_toleration_list,
+    build_update_patch,
 )
 
 
@@ -272,3 +274,29 @@ class TestBuildTemplateNetworkConfigDict:
         )
         result = _build_template_network_config_dict(net)
         assert result == {}
+
+
+class TestBuildUpdatePatchContainerSecurityContext:
+    def test_security_context_only(self):
+        body = UpdateK8sClusterRequest(aerospikeContainerSecurityContext={"runAsUser": 1000, "privileged": False})
+        result = build_update_patch(body)
+        assert result["spec"]["podSpec"]["aerospikeContainer"]["securityContext"] == {
+            "runAsUser": 1000,
+            "privileged": False,
+        }
+
+    def test_security_context_with_resources(self):
+        """Verify security context and resources coexist in aerospikeContainer."""
+        body = UpdateK8sClusterRequest(
+            resources={"requests": {"cpu": "100m", "memory": "256Mi"}},
+            aerospikeContainerSecurityContext={"runAsNonRoot": True},
+        )
+        result = build_update_patch(body)
+        aero = result["spec"]["podSpec"]["aerospikeContainer"]
+        assert "resources" in aero
+        assert aero["securityContext"] == {"runAsNonRoot": True}
+
+    def test_no_security_context(self):
+        body = UpdateK8sClusterRequest(size=3)
+        result = build_update_patch(body)
+        assert "aerospikeContainer" not in result["spec"].get("podSpec", {})

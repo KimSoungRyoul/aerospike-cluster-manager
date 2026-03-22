@@ -106,7 +106,7 @@ def build_rack_list(racks: list[RackConfig]) -> list[dict[str, Any]]:
             r["rackLabel"] = rack.rack_label
         if rack.node_name:
             r["nodeName"] = rack.node_name
-        if rack.revision is not None:
+        if rack.revision:
             r["revision"] = rack.revision
         if rack.aerospike_config:
             r["aerospikeConfig"] = rack.aerospike_config

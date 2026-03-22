@@ -63,9 +63,7 @@ export function EditContainerSecuritySection({
           <Checkbox
             id="edit-sc-privileged"
             checked={(ctx.privileged as boolean) ?? false}
-            onCheckedChange={(checked) =>
-              update({ privileged: checked === true ? true : undefined })
-            }
+            onCheckedChange={(checked) => update({ privileged: checked === true ? true : false })}
             disabled={disabled}
           />
           <Label htmlFor="edit-sc-privileged" className="cursor-pointer text-xs">
@@ -77,7 +75,7 @@ export function EditContainerSecuritySection({
             id="edit-sc-readonly"
             checked={(ctx.readOnlyRootFilesystem as boolean) ?? false}
             onCheckedChange={(checked) =>
-              update({ readOnlyRootFilesystem: checked === true ? true : undefined })
+              update({ readOnlyRootFilesystem: checked === true ? true : false })
             }
             disabled={disabled}
           />
@@ -90,7 +88,7 @@ export function EditContainerSecuritySection({
             id="edit-sc-priv-escalation"
             checked={(ctx.allowPrivilegeEscalation as boolean) ?? false}
             onCheckedChange={(checked) =>
-              update({ allowPrivilegeEscalation: checked === true ? true : undefined })
+              update({ allowPrivilegeEscalation: checked === true ? true : false })
             }
             disabled={disabled}
           />
@@ -102,9 +100,7 @@ export function EditContainerSecuritySection({
           <Checkbox
             id="edit-sc-run-as-nonroot"
             checked={(ctx.runAsNonRoot as boolean) ?? false}
-            onCheckedChange={(checked) =>
-              update({ runAsNonRoot: checked === true ? true : undefined })
-            }
+            onCheckedChange={(checked) => update({ runAsNonRoot: checked === true ? true : false })}
             disabled={disabled}
           />
           <Label htmlFor="edit-sc-run-as-nonroot" className="cursor-pointer text-xs">
