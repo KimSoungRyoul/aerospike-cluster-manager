@@ -1071,7 +1071,11 @@ def build_update_patch(body: UpdateK8sClusterRequest) -> dict[str, Any]:
     if body.storage is not None:
         patch["spec"]["storage"] = _build_storage_spec_cr(body.storage)
     if body.resources is not None:
-        patch["spec"]["podSpec"] = {"aerospikeContainer": {"resources": _build_resources_dict(body.resources)}}
+        pod_spec = patch["spec"].get("podSpec", {})
+        aero_container = pod_spec.get("aerospikeContainer", {})
+        aero_container["resources"] = _build_resources_dict(body.resources)
+        pod_spec["aerospikeContainer"] = aero_container
+        patch["spec"]["podSpec"] = pod_spec
     if body.monitoring is not None:
         patch["spec"]["monitoring"] = build_monitoring(body.monitoring)
     if body.paused is not None:

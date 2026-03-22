@@ -385,7 +385,9 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
         JSON.stringify(initials.aerospikeContainerSecurityContext)
       ) {
         data.aerospikeContainerSecurityContext =
-          state.aerospikeContainerSecurityContext ?? undefined;
+          state.aerospikeContainerSecurityContext !== null
+            ? state.aerospikeContainerSecurityContext
+            : {};
       }
 
       await onSave(data);

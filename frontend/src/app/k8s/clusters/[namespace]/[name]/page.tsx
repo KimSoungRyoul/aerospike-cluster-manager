@@ -576,8 +576,12 @@ export default function K8sClusterDetailPage() {
           operationStatus={selectedCluster.operationStatus}
           totalPodCount={selectedCluster.pods.length}
           onClear={async () => {
-            await api.clearK8sClusterOperations(namespace, name);
-            fetchCluster(namespace, name);
+            try {
+              await api.clearK8sClusterOperations(namespace, name);
+              fetchCluster(namespace, name);
+            } catch (err) {
+              useToastStore.getState().addToast("error", getErrorMessage(err));
+            }
           }}
         />
       )}

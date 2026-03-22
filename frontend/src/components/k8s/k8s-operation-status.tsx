@@ -104,6 +104,10 @@ export function K8sOperationStatus({
                 className="text-error hover:bg-error/10 h-6 gap-1 px-2 text-[11px]"
                 disabled={clearing}
                 onClick={async () => {
+                  const confirmed = window.confirm(
+                    "Clear the active operation? This will unblock the cluster for new operations.",
+                  );
+                  if (!confirmed) return;
                   setClearing(true);
                   try {
                     await onClear();
