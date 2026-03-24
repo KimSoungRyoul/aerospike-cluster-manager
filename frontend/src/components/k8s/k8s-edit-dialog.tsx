@@ -1103,7 +1103,12 @@ export function K8sEditDialog({ open, onOpenChange, cluster, onSave }: K8sEditDi
           <LoadingButton
             onClick={handleSave}
             loading={state.loading}
-            disabled={!hasChanges || state.loading || !!configError || !!validateImageNotEnterprise(state.image)}
+            disabled={
+              !hasChanges ||
+              state.loading ||
+              !!configError ||
+              !!validateImageNotEnterprise(state.image)
+            }
           >
             Save Changes
           </LoadingButton>
