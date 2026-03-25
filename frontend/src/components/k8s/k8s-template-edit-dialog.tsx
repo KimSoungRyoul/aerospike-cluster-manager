@@ -107,11 +107,8 @@ export function K8sTemplateEditDialog({
     networkConfig?.heartbeatTimeout != null ? Number(networkConfig.heartbeatTimeout) : undefined;
   const initialMaxRacksPerNode =
     rackConfigSpec?.maxRacksPerNode != null ? Number(rackConfigSpec.maxRacksPerNode) : undefined;
-  const initialTopologySpreadConstraints = useMemo<TopologySpreadConstraintConfig[]>(
-    () =>
-      (scheduling?.topologySpreadConstraints as TopologySpreadConstraintConfig[] | undefined) ?? [],
-    [scheduling?.topologySpreadConstraints],
-  );
+  const initialTopologySpreadConstraints: TopologySpreadConstraintConfig[] =
+    (scheduling?.topologySpreadConstraints as TopologySpreadConstraintConfig[] | undefined) ?? [];
   // Service config: read from spec.aerospikeConfig.service (CRD format) or spec.serviceConfig (API format)
   const aerospikeConfig = spec.aerospikeConfig as Record<string, unknown> | undefined;
   const serviceSection =
@@ -123,15 +120,11 @@ export function K8sTemplateEditDialog({
       : serviceSection?.protoFdMax != null
         ? Number(serviceSection.protoFdMax)
         : undefined;
-  const initialServiceExtraParams = useMemo<{ key: string; value: string }[]>(
-    () =>
-      serviceSection
-        ? Object.entries(serviceSection)
-            .filter(([k]) => !KNOWN_SERVICE_KEYS.has(k))
-            .map(([k, v]) => ({ key: k, value: String(v) }))
-        : [],
-    [serviceSection],
-  );
+  const initialServiceExtraParams: { key: string; value: string }[] = serviceSection
+    ? Object.entries(serviceSection)
+        .filter(([k]) => !KNOWN_SERVICE_KEYS.has(k))
+        .map(([k, v]) => ({ key: k, value: String(v) }))
+    : [];
 
   // Reset form on open
   useEffect(() => {
