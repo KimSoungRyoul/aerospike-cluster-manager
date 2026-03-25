@@ -64,6 +64,6 @@ NS_SUM_KEYS = frozenset(
 MAX_QUERY_RECORDS = 10_000
 
 # Client policies
-POLICY_READ = {"key": aerospike_py.POLICY_KEY_SEND}
-POLICY_WRITE = {"key": aerospike_py.POLICY_KEY_SEND}
+POLICY_READ = {"key": aerospike_py.POLICY_KEY_SEND, "total_timeout": 5000}
+POLICY_WRITE = {"key": aerospike_py.POLICY_KEY_SEND, "total_timeout": 5000}
 POLICY_QUERY = {"total_timeout": 30000, "key": aerospike_py.POLICY_KEY_SEND}

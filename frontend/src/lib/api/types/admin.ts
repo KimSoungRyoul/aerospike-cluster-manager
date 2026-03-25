@@ -26,7 +26,7 @@ export interface Privilege {
 export interface CreateUserRequest {
   username: string;
   password: string;
-  roles: string[];
+  roles?: string[];
 }
 
 export interface CreateRoleRequest {
