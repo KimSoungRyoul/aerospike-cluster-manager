@@ -7,7 +7,7 @@ export const createUserSchema = z.object({
     .max(63, "Username is too long")
     .regex(/^[a-zA-Z0-9_.-]+$/, "Username contains invalid characters"),
   password: z.string().min(1, "Password is required").max(256, "Password is too long"),
-  roles: z.array(z.string()),
+  roles: z.array(z.string()).optional(),
 });
 
 export const changePasswordSchema = z.object({
