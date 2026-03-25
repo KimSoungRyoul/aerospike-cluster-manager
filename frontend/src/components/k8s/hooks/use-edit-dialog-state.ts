@@ -272,11 +272,12 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
   }, []);
 
   // Capture a stable snapshot of initials when dialog opens, so auto-polling
-  // doesn't reset the form while the user is editing.
-  const initialsSnapshotRef = useRef(initials);
+  // doesn't reset the form while the user is editing. Using useState instead of
+  // useRef so that hasChanges useMemo re-evaluates when the snapshot changes.
+  const [initialsSnapshot, setInitialsSnapshot] = useState(initials);
   useEffect(() => {
     if (open) {
-      initialsSnapshotRef.current = initials;
+      setInitialsSnapshot(initials);
     }
     // Only update snapshot when dialog opens, not when initials change during editing
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -286,7 +287,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
   const prevOpenRef = useRef(false);
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      const snap = initialsSnapshotRef.current;
+      const snap = initialsSnapshot;
 
       setState({
         ...snap,
@@ -337,7 +338,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
   // Compare against the snapshot captured at dialog open time, not the live
   // initials (which update on every auto-poll cycle).
   const hasChanges = useMemo(() => {
-    const snap = initialsSnapshotRef.current;
+    const snap = initialsSnapshot;
     return (
       state.image !== snap.image ||
       state.size !== snap.size ||
@@ -393,7 +394,7 @@ export function useEditDialogState(open: boolean, cluster: K8sClusterDetail) {
       JSON.stringify(state.aerospikeContainerSecurityContext) !==
         JSON.stringify(snap.aerospikeContainerSecurityContext)
     );
-  }, [state]);
+  }, [state, initialsSnapshot]);
 
   return { state, patchState, initials, hasChanges, configError };
 }
