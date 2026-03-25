@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from aerospike_cluster_manager_api.models.query import QueryPredicate
 
 
-def build_predicate(pred: QueryPredicate) -> tuple[object, ...]:
+def build_predicate(pred: QueryPredicate) -> tuple[Any, ...]:
     """Convert a QueryPredicate model into an Aerospike predicate tuple.
 
     Used by both routers/query.py and routers/records.py.
