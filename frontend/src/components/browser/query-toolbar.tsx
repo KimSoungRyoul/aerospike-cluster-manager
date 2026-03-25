@@ -13,6 +13,7 @@ import { InlineAlert } from "@/components/common/inline-alert";
 import { FormField } from "@/components/common/form-field";
 import { LazyCodeEditor as CodeEditor } from "@/components/common/code-editor-lazy";
 import { useQueryStore } from "@/stores/query-store";
+import { MAX_QUERY_RECORDS } from "@/lib/constants";
 import type { PredicateOperator } from "@/lib/api/types";
 import { useToastStore } from "@/stores/toast-store";
 
@@ -280,8 +281,14 @@ export function QueryToolbar({
             <Input
               id="max-records"
               type="number"
+              min={1}
+              max={MAX_QUERY_RECORDS}
               value={store.maxRecords}
-              onChange={(e) => store.setMaxRecords(parseInt(e.target.value, 10) || 100)}
+              onChange={(e) =>
+                store.setMaxRecords(
+                  Math.max(1, Math.min(parseInt(e.target.value, 10) || 100, MAX_QUERY_RECORDS)),
+                )
+              }
             />
           </FormField>
 

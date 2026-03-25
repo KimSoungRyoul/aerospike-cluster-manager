@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 from aerospike_py.exception import RecordNotFound
 from aerospike_py.types import WriteMeta
@@ -22,9 +22,6 @@ from aerospike_cluster_manager_api.models.record import (
 from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
 
 logger = logging.getLogger(__name__)
-
-# Backward-compatible alias for the moved utility function.
-_auto_detect_pk = auto_detect_pk
 
 router = APIRouter(prefix="/records", tags=["records"])
 
@@ -74,7 +71,7 @@ async def get_record_detail(
     pk: str = Query(..., min_length=1),
 ) -> AerospikeRecord:
     """Retrieve a single record identified by namespace, set, and primary key."""
-    raw_result = await client.get((ns, set, _auto_detect_pk(pk)), policy=POLICY_READ)
+    raw_result = await client.get((ns, set, auto_detect_pk(pk)), policy=POLICY_READ)
     return record_to_model(raw_result)
 
 
@@ -90,7 +87,7 @@ async def put_record(body: RecordWriteRequest, client: AerospikeClient) -> Aeros
     if not k.namespace or not k.set or not k.pk:
         raise HTTPException(status_code=400, detail="Missing required key fields: namespace, set, pk")
 
-    key_tuple = (k.namespace, k.set, _auto_detect_pk(k.pk))
+    key_tuple = (k.namespace, k.set, auto_detect_pk(k.pk))
 
     meta: WriteMeta | None = None
     if body.ttl is not None:
@@ -114,7 +111,7 @@ async def delete_record(
     pk: str = Query(..., min_length=1),
 ) -> Response:
     """Delete a record identified by namespace, set, and primary key."""
-    await client.remove((ns, set, _auto_detect_pk(pk)))
+    await client.remove((ns, set, auto_detect_pk(pk)))
     return Response(status_code=204)
 
 
@@ -135,7 +132,7 @@ async def get_filtered_records(
         if not body.set:
             raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
 
-        pk = _auto_detect_pk(body.primary_key)
+        pk = auto_detect_pk(body.primary_key)
         try:
             raw_result = await client.get((body.namespace, body.set, pk), policy=POLICY_READ)
             raw_results = [raw_result]
@@ -159,7 +156,7 @@ async def get_filtered_records(
     q = client.query(body.namespace, body.set or "")
 
     if body.predicate:
-        q.where(cast(tuple[str, ...], build_predicate(body.predicate)))
+        q.where(build_predicate(body.predicate))
 
     if body.select_bins:
         q.select(*body.select_bins)

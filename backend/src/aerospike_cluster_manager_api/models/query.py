@@ -96,7 +96,7 @@ class FilteredQueryRequest(BaseModel):
 
 
 class FilteredQueryResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)
 
     records: list[AerospikeRecord]
     total: int = Field(ge=0)

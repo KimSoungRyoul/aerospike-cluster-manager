@@ -19,6 +19,8 @@ export const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 export const DEFAULT_PAGE_SIZE = 25;
 
+export const MAX_QUERY_RECORDS = 10_000;
+
 export const METRIC_HISTORY_POINTS = 60;
 export const METRIC_INTERVAL_MS = 2000;
 

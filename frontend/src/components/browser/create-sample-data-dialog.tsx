@@ -19,6 +19,7 @@ import { LoadingButton } from "@/components/common/loading-button";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 import { useToastStore } from "@/stores/toast-store";
+import { MAX_QUERY_RECORDS } from "@/lib/constants";
 
 interface CreateSampleDataDialogProps {
   open: boolean;
@@ -58,8 +59,13 @@ export function CreateSampleDataDialog({
       return;
     }
     const count = parseInt(recordCount, 10);
-    if (isNaN(count) || count < 1 || count > 10000) {
-      useToastStore.getState().addToast("error", "Record count must be between 1 and 10,000");
+    if (isNaN(count) || count < 1 || count > MAX_QUERY_RECORDS) {
+      useToastStore
+        .getState()
+        .addToast(
+          "error",
+          `Record count must be between 1 and ${MAX_QUERY_RECORDS.toLocaleString()}`,
+        );
       return;
     }
 
@@ -119,12 +125,16 @@ export function CreateSampleDataDialog({
               onChange={(e) => setSetName(e.target.value)}
             />
           </FormField>
-          <FormField id="sample-record-count" label="Record Count" hint="1 ~ 10,000 records">
+          <FormField
+            id="sample-record-count"
+            label="Record Count"
+            hint={`1 ~ ${MAX_QUERY_RECORDS.toLocaleString()} records`}
+          >
             <Input
               type="number"
               placeholder="1234"
               min={1}
-              max={10000}
+              max={MAX_QUERY_RECORDS}
               value={recordCount}
               onChange={(e) => setRecordCount(e.target.value)}
             />

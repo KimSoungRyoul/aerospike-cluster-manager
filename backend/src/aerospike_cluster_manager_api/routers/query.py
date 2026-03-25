@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import cast
 
 from aerospike_py.exception import RecordNotFound
 from fastapi import APIRouter, HTTPException
@@ -50,7 +49,7 @@ async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryRes
 
     q = client.query(body.namespace, body.set or "")
     if body.predicate:
-        q.where(cast(tuple[str, ...], build_predicate(body.predicate)))
+        q.where(build_predicate(body.predicate))
     if body.selectBins:
         q.select(*body.selectBins)
     raw_results = await q.results(POLICY_QUERY)
