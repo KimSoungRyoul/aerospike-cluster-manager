@@ -496,7 +496,6 @@ asyncio.run(main())`;
     useToastStore.getState().addToast("success", "Exported as CSV");
   }, [records]);
 
-  const padLength = String(displayRecords.length).length;
   const { isMobile, isTablet } = useBreakpoint();
 
   /* ─── DataTable column definitions ─────────────────── */
@@ -568,13 +567,9 @@ asyncio.run(main())`;
       // Row number (pinned left)
       {
         id: "rowNumber",
-        size: 56,
+        size: 44,
         header: () => <span className="grid-row-num font-mono">#</span>,
-        cell: ({ row }) => (
-          <span className="grid-row-num font-mono">
-            {String(row.index + 1).padStart(padLength, "0")}
-          </span>
-        ),
+        cell: ({ row }) => <span className="grid-row-num font-mono">{row.index + 1}</span>,
         meta: {
           headerClassName: "px-4 text-right",
           cellClassName: "px-4 text-right",
@@ -585,7 +580,7 @@ asyncio.run(main())`;
       // PK
       {
         id: "pk",
-        size: 180,
+        size: 200,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             PK
@@ -611,7 +606,7 @@ asyncio.run(main())`;
       // Generation
       {
         id: "gen",
-        size: 70,
+        size: 56,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             Gen
@@ -631,7 +626,7 @@ asyncio.run(main())`;
       // TTL → Expiry
       {
         id: "ttl",
-        size: 170,
+        size: 120,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             Expiry
@@ -655,13 +650,13 @@ asyncio.run(main())`;
       ...binColumns.map(
         (col): ColumnDef<AerospikeRecord, unknown> => ({
           id: `bin_${col}`,
-          size: 160,
+          size: 140,
           header: () => (
             <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em]">
               {col}
             </span>
           ),
-          cell: ({ row }) => renderCellValue(row.original.bins[col]),
+          cell: ({ row }) => renderCellValue(row.original.bins[col], col),
           meta: {
             cellClassName: "overflow-hidden",
             hideOn: ["mobile"],
@@ -673,7 +668,7 @@ asyncio.run(main())`;
       // Actions (pinned right)
       {
         id: "actions",
-        size: 130,
+        size: 110,
         header: () => null,
         cell: ({ row }) => (
           <div className="row-actions-group flex items-center justify-end gap-0.5">
@@ -767,7 +762,6 @@ asyncio.run(main())`;
       openRecordDetail,
       toggleAllPKs,
       togglePK,
-      padLength,
     ],
   );
 
@@ -864,7 +858,7 @@ asyncio.run(main())`;
                     {col}
                   </span>
                   <span className="min-w-0 flex-1 truncate">
-                    {renderCellValue(record.bins[col])}
+                    {renderCellValue(record.bins[col], col)}
                   </span>
                 </div>
               ))}
@@ -1084,56 +1078,62 @@ asyncio.run(main())`;
 
       {/* ── Bottom Bar (Limit + Reload) ─────────────── */}
       {(displayRecords.length > 0 || total > 0) && (
-        <div
-          className={cn(
-            "border-base-300/50 bg-base-100/80 safe-bottom flex w-full min-w-0 shrink-0 flex-col gap-3 border-t px-3 py-2 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between sm:px-6",
-          )}
-        >
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
-              Showing {formatNumber(displayRecords.length)}
-              <span className="text-muted-foreground/60 mx-1.5">of</span>
-              {totalEstimated ? "~" : ""}
-              {formatNumber(total)}
-              <span className="text-muted-foreground/60 ml-1.5">records</span>
-            </span>
-            <Select
-              value={String(pageSize)}
-              onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
-              className="border-base-300/40 text-muted-foreground h-6 w-[62px] bg-transparent px-2 font-mono text-[11px]"
-              disabled={loading}
-              aria-label="Records limit"
-            >
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={String(size)}>
-                  {size}
-                </option>
-              ))}
-            </Select>
-            <span className="text-muted-foreground/60 hidden text-[10px] tracking-wider uppercase sm:inline">
-              per page
-            </span>
-          </div>
-
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            {executionTimeMs > 0 && (
-              <span className="text-muted-foreground/50 font-mono text-[10px] tabular-nums">
+        <div className="gradient-border-top safe-bottom bg-base-100/90 flex w-full min-w-0 shrink-0 items-center gap-4 px-4 py-2 backdrop-blur-md sm:px-6">
+          {/* Execution time */}
+          {executionTimeMs > 0 && (
+            <>
+              <span className="text-muted-foreground font-mono text-[11px] font-medium tabular-nums">
                 {executionTimeMs}ms
               </span>
-            )}
-            <Button
-              onClick={refreshCurrentView}
-              disabled={loading}
-              size="sm"
-              variant="outline"
-              className="border-base-300/40 text-muted-foreground hover:text-base-content h-7 gap-1.5 font-mono text-[11px] transition-colors"
-              data-compact
-              aria-label="Reload records"
-            >
-              <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
-              <span className="hidden sm:inline">Reload</span>
-            </Button>
-          </div>
+              <span className="text-base-300 text-xs">|</span>
+            </>
+          )}
+
+          {/* Record count */}
+          <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+            <span className="text-base-content/80 font-medium">
+              {formatNumber(displayRecords.length)}
+            </span>
+            <span className="mx-1 opacity-50">of</span>
+            <span className="text-base-content/80 font-medium">
+              {totalEstimated ? "~" : ""}
+              {formatNumber(total)}
+            </span>
+          </span>
+
+          <span className="text-base-300 hidden text-xs sm:inline">|</span>
+
+          {/* Limit selector */}
+          <Select
+            value={String(pageSize)}
+            onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
+            className="border-base-300/50 text-base-content/70 h-6 w-[58px] bg-transparent px-1.5 font-mono text-[11px]"
+            disabled={loading}
+            aria-label="Records limit"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={String(size)}>
+                {size}
+              </option>
+            ))}
+          </Select>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Reload button */}
+          <Button
+            onClick={refreshCurrentView}
+            disabled={loading}
+            size="sm"
+            variant="outline"
+            className="border-accent/25 text-accent hover:border-accent/50 hover:bg-accent/5 h-7 gap-1.5 font-mono text-[11px] transition-colors"
+            data-compact
+            aria-label="Reload records"
+          >
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+            <span className="hidden sm:inline">Reload</span>
+          </Button>
         </div>
       )}
 

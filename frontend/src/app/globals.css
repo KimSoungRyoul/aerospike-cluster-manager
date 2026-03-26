@@ -379,15 +379,27 @@ kbd {
 
 .record-grid-row {
   animation: grid-row-enter 0.25s ease-out both;
-  transition: background-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.record-grid-row:nth-child(even) {
+  background: color-mix(in oklch, var(--color-base-200) 30%, transparent);
 }
 
 .record-grid-row:hover {
-  background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
+  background: color-mix(in oklch, var(--color-accent) 5%, var(--color-base-100));
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+[data-theme="bumblebee-dark"] .record-grid-row:nth-child(even) {
+  background: color-mix(in oklch, var(--color-base-200) 15%, transparent);
 }
 
 [data-theme="bumblebee-dark"] .record-grid-row:hover {
-  background: color-mix(in oklch, var(--color-base-200) 30%, transparent);
+  background: color-mix(in oklch, var(--color-accent) 8%, var(--color-base-100));
+  box-shadow: inset 2px 0 0 var(--color-accent);
 }
 
 .record-grid-row .row-actions-group {
@@ -414,11 +426,14 @@ kbd {
 }
 
 .grid-header th {
-  box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--color-base-300) 50%, transparent);
+  background: color-mix(in oklch, var(--color-base-200) 50%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in oklch, var(--color-base-300) 60%, transparent);
+  font-weight: 600;
 }
 
 [data-theme="bumblebee-dark"] .grid-header th {
-  box-shadow: inset 0 -1px 0 color-mix(in oklch, var(--color-base-300) 30%, transparent);
+  background: color-mix(in oklch, var(--color-base-200) 30%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in oklch, var(--color-base-300) 40%, transparent);
 }
 
 /* Row number styling */
@@ -430,39 +445,67 @@ kbd {
   user-select: none;
 }
 
-/* Cell value type treatments */
+/* Cell value type treatments — high contrast for readability */
 .cell-val-number {
   font-variant-numeric: tabular-nums;
-  color: var(--color-accent);
+  color: oklch(45% 0.18 250);
+  font-weight: 500;
+}
+
+.cell-val-string {
+  color: var(--color-base-content);
 }
 
 .cell-val-null {
   font-style: italic;
-  color: color-mix(in oklch, var(--color-muted-foreground) 65%, transparent);
+  color: color-mix(in oklch, var(--color-muted-foreground) 50%, transparent);
 }
 
 .cell-val-complex {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  border-radius: 3px;
-  padding: 1px 6px;
+  gap: 2px;
+  border-radius: 4px;
+  padding: 2px 7px;
   font-size: 11px;
-  background: color-mix(in oklch, var(--color-accent) 5%, transparent);
-  color: var(--color-muted-foreground);
-  border: 1px solid color-mix(in oklch, var(--color-accent) 15%, transparent);
+  font-weight: 500;
+  background: oklch(94% 0.03 250);
+  color: oklch(45% 0.14 250);
+  border: 1px solid oklch(87% 0.05 250);
 }
 
 .cell-val-geo {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border-radius: 3px;
-  padding: 1px 6px;
+  gap: 3px;
+  border-radius: 4px;
+  padding: 2px 7px;
   font-size: 11px;
-  background: color-mix(in oklch, var(--color-chart-4) 10%, transparent);
-  color: var(--color-chart-4);
-  border: 1px solid color-mix(in oklch, var(--color-chart-4) 15%, transparent);
+  font-weight: 500;
+  background: oklch(93% 0.04 155);
+  color: oklch(40% 0.14 155);
+  border: 1px solid oklch(84% 0.06 155);
+}
+
+/* Dark theme overrides for cell values */
+[data-theme="bumblebee-dark"] .cell-val-number {
+  color: oklch(75% 0.14 250);
+}
+
+[data-theme="bumblebee-dark"] .cell-val-string {
+  color: var(--color-base-content);
+}
+
+[data-theme="bumblebee-dark"] .cell-val-complex {
+  background: oklch(28% 0.04 250);
+  color: oklch(75% 0.12 250);
+  border-color: oklch(35% 0.05 250);
+}
+
+[data-theme="bumblebee-dark"] .cell-val-geo {
+  background: oklch(28% 0.04 155);
+  color: oklch(75% 0.12 155);
+  border-color: oklch(35% 0.05 155);
 }
 
 /* ─── Pagination ─────────────────────────────────────── */
