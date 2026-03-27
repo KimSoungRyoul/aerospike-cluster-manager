@@ -46,7 +46,7 @@ jobs:
                - Frontend: `cd frontend && npm ci && npm run type-check && npm run lint && npm run build`
             5. Commit with Conventional Commits format
             6. Create PR: `gh pr create --title "..." --body "Closes #${{ github.event.issue.number }}"`
-            7. Add `needs-review` label to the issue
+            7. Add `needs-review` label to the **PR** (not the issue): `gh pr edit <pr-number> --add-label "needs-review"`
 
             ## Constraints
             - Follow Conventional Commits for all commits and PR title
@@ -54,5 +54,6 @@ jobs:
             - If verification fails, comment the error and stop
           claude_args: |
             --max-turns 300
+            --model claude-opus-4-6
             --dangerously-skip-permissions
-          settings: '{"git":{"includeCoAuthor":false}}'
+          settings: '{"git":{"includeCoAuthor":false},"env":{"CLAUDE_CODE_EFFORT":"high"}}'
