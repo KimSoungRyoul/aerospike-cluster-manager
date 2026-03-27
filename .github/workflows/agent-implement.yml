@@ -53,6 +53,6 @@ jobs:
             - Ensure type consistency between backend API and frontend types
             - If verification fails, comment the error and stop
           claude_args: |
-            --max-turns 30
+            --max-turns 300
             --dangerously-skip-permissions
           settings: '{"git":{"includeCoAuthor":false}}'
