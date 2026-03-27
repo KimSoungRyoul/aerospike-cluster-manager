@@ -92,10 +92,7 @@ describe("record route state helpers", () => {
 
   it("builds the current list returnTo and rejects external targets", () => {
     expect(
-      buildCurrentListReturnTo(
-        "/browser/conn-1/test/demo",
-        new URLSearchParams("pageSize=50"),
-      ),
+      buildCurrentListReturnTo("/browser/conn-1/test/demo", new URLSearchParams("pageSize=50")),
     ).toBe("/browser/conn-1/test/demo?pageSize=50");
     expect(resolveReturnTo("https://evil.example.com", "/browser/conn-1/test/demo")).toBe(
       "/browser/conn-1/test/demo",
