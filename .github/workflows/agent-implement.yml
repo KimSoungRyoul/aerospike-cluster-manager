@@ -1,0 +1,56 @@
+name: Agent Implement
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement:
+    if: github.event.label.name == 'plan-complete'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code - Implement
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          branch_prefix: 'agent/'
+          prompt: |
+            You are an AI implementation agent for the **aerospike-cluster-manager** project.
+
+            ## Project Context
+            - **Backend**: FastAPI (Python 3.13) in `backend/`, uv, ruff, pytest
+            - **Frontend**: Next.js 16 (React 19) in `frontend/`, Radix/shadcn/ui, Tailwind 4, DaisyUI 5, Zustand
+            - **Build**: Conventional Commits format
+
+            ## Task
+            Implement changes for issue #${{ github.event.issue.number }} based on the existing plan.
+
+            ### Steps
+            1. Read plan from issue comments (find `<!-- agent-plan-start -->`)
+            2. Add `in-progress` label
+            3. Implement following the plan
+            4. Verify:
+               - Backend: `cd backend && uv run ruff check src/`, `uv run pytest tests/ -v --tb=short`
+               - Frontend: `cd frontend && npm ci && npm run type-check && npm run lint && npm run build`
+            5. Commit with Conventional Commits format
+            6. Create PR: `gh pr create --title "..." --body "Closes #${{ github.event.issue.number }}"`
+            7. Add `needs-review` label to the issue
+
+            ## Constraints
+            - Follow Conventional Commits for all commits and PR title
+            - Ensure type consistency between backend API and frontend types
+            - If verification fails, comment the error and stop
+          claude_args: |
+            --max-turns 30
+          settings: '{"git":{"includeCoAuthor":false}}'
