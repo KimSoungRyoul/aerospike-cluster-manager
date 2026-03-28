@@ -13,6 +13,7 @@ import { K8sScaleDialog } from "@/components/k8s/k8s-scale-dialog";
 import { K8sDeleteDialog } from "@/components/k8s/k8s-delete-dialog";
 import { K8sEditDialog } from "@/components/k8s/k8s-edit-dialog";
 import { ClusterOverviewTab } from "@/components/k8s/cluster-overview-tab";
+import { UnifiedOverview } from "@/components/cluster/unified-overview";
 import { ClusterAckoInfoTab } from "@/components/k8s/cluster-acko-info-tab";
 import { useAsyncData } from "@/hooks/use-async-data";
 import { useK8sClusterStore } from "@/stores/k8s-cluster-store";
@@ -298,7 +299,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
           </TabsList>
 
           <TabsContent value="overview" className="mt-6 space-y-6">
-            <ClusterOverviewTab cluster={cluster} />
+            <UnifiedOverview cluster={cluster} connId={connId} />
           </TabsContent>
 
           <TabsContent value="acko-info" className="mt-6">
@@ -318,7 +319,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
       {/* ══════════════════════════════════════════════
           Direct Connection 클러스터 레이아웃 (isK8s=false)
           ══════════════════════════════════════════════ */}
-      {!isK8s && <ClusterOverviewTab cluster={cluster} />}
+      {!isK8s && <UnifiedOverview cluster={cluster} connId={connId} />}
 
       {/* ── K8s Dialogs ── */}
       {isK8s && k8sDetail && (

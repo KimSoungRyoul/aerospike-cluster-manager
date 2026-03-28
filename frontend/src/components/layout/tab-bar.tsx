@@ -1,12 +1,11 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Table2, Server, Database, Shield, Code2 } from "lucide-react";
+import { Server, Database, Shield, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { label: "Overview", icon: Server, path: "cluster" },
-  { label: "Namespaces", icon: Table2, path: "browser" },
+  { label: "Overview", icon: Server, path: "cluster", alsoActive: ["browser"] },
   { label: "Indexes", icon: Database, path: "indexes" },
   { label: "Admin", icon: Shield, path: "admin" },
   { label: "UDFs", icon: Code2, path: "udfs" },
@@ -29,7 +28,10 @@ export function TabBar({ connId }: TabBarProps) {
       <div className="w-full overflow-x-auto">
         <div className="flex h-10 items-center gap-0 px-1">
           {tabs.map((tab) => {
-            const isActive = pathname?.startsWith(`/${tab.path}/`);
+            const alsoActive = (tab as { alsoActive?: string[] }).alsoActive ?? [];
+            const isActive =
+              pathname?.startsWith(`/${tab.path}/`) ||
+              alsoActive.some((p) => pathname?.startsWith(`/${p}/`));
             return (
               <button
                 key={tab.path}

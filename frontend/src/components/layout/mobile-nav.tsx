@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Table2, Server, MoreHorizontal, Database, Shield, Code2 } from "lucide-react";
+import { Server, MoreHorizontal, Database, Shield, Code2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const primaryTabs = [
-  { label: "Namespaces", icon: Table2, path: "browser" },
-  { label: "Overview", icon: Server, path: "cluster" },
-];
+const primaryTabs = [{ label: "Overview", icon: Server, path: "cluster" }];
 
 const moreTabs = [
   { label: "Indexes", icon: Database, path: "indexes" },
