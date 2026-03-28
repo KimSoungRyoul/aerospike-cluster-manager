@@ -52,21 +52,22 @@ async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryRes
         q.where(build_predicate(body.predicate))
     if body.selectBins:
         q.select(*body.selectBins)
-    raw_results = await q.results(POLICY_QUERY)
+
+    # Apply server-side max_records limit to prevent OOM.
+    # Note: with max_records the server stops after returning this many matching
+    # records, so scannedRecords reflects the returned count (lower bound), not
+    # the true number of records examined by the server.
+    effective_limit = min(body.maxRecords or MAX_QUERY_RECORDS, MAX_QUERY_RECORDS)
+    policy = {**POLICY_QUERY, "max_records": effective_limit}
+    raw_results = await q.results(policy)
 
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
-    scanned = len(raw_results)
-
-    if body.maxRecords and body.maxRecords > 0:
-        raw_results = raw_results[: body.maxRecords]
-    if len(raw_results) > MAX_QUERY_RECORDS:
-        raw_results = raw_results[:MAX_QUERY_RECORDS]
 
     records = [record_to_model(r) for r in raw_results]
 
     return QueryResponse(
         records=records,
         executionTimeMs=elapsed_ms,
-        scannedRecords=scanned,
+        scannedRecords=len(records),
         returnedRecords=len(records),
     )

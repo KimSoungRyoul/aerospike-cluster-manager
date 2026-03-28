@@ -15,13 +15,14 @@ import {
   X,
   FileJson,
   FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 import type { ColumnDef, ColumnPinningState, Row } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ConfirmDialog } from "@/components/common/confirm-dialog";
 import { DataTable } from "@/components/common/data-table";
-import { TablePagination } from "@/components/common/table-pagination";
+import { Select } from "@/components/ui/select";
 import { renderCellValue } from "@/components/browser/record-cell-renderer";
 import {
   RecordEditorDialog,
@@ -35,7 +36,6 @@ import { FilterToolbar } from "@/components/browser/filter-toolbar";
 import { useBrowserStore } from "@/stores/browser-store";
 import { useFilterStore } from "@/stores/filter-store";
 import { useConnectionStore } from "@/stores/connection-store";
-import { usePagination } from "@/hooks/use-pagination";
 import { useAsyncData } from "@/hooks/use-async-data";
 import type {
   AerospikeRecord,
@@ -78,20 +78,18 @@ export default function BrowserPage({
   const {
     records,
     total,
-    page,
     pageSize,
     loading,
     error,
     executionTimeMs,
     scannedRecords,
+    totalEstimated,
     fetchFilteredRecords,
     putRecord,
     deleteRecord,
   } = useBrowserStore();
 
   const filterStore = useFilterStore();
-
-  const pagination = usePagination({ total, page, pageSize });
 
   const connections = useConnectionStore((s) => s.connections);
   const currentConnection = useMemo(
@@ -148,10 +146,9 @@ export default function BrowserPage({
       conditions: routeState.filters?.conditions ?? [],
     });
     useBrowserStore.setState({
-      page: routeState.page,
       pageSize: routeState.pageSize,
     });
-  }, [routeState.filters, routeState.page, routeState.pageSize, routeState.primaryKey]);
+  }, [routeState.filters, routeState.pageSize, routeState.primaryKey]);
 
   useEffect(() => {
     fetchFilteredRecords(
@@ -159,7 +156,6 @@ export default function BrowserPage({
       decodedNs,
       decodedSet,
       routeState.filters,
-      routeState.page,
       routeState.pageSize,
       routeState.primaryKey || undefined,
     );
@@ -169,7 +165,6 @@ export default function BrowserPage({
     decodedSet,
     fetchFilteredRecords,
     routeState.filters,
-    routeState.page,
     routeState.pageSize,
     routeState.primaryKey,
   ]);
@@ -222,13 +217,11 @@ export default function BrowserPage({
 
   const replaceRouteState = useCallback(
     (nextState: {
-      page: number;
       pageSize: number;
       primaryKey: string;
       filters?: { logic: "and" | "or"; conditions: typeof filterStore.conditions };
     }) => {
       const nextParams = buildRecordListSearchParams({
-        page: nextState.page,
         pageSize: nextState.pageSize,
         primaryKey: nextState.primaryKey,
         filters: nextState.filters,
@@ -242,14 +235,13 @@ export default function BrowserPage({
     [pathname, router],
   );
 
-  // Execute filtered query
+  // Execute filtered query / reload
   const refreshCurrentView = useCallback(async () => {
     await fetchFilteredRecords(
       connId,
       decodedNs,
       decodedSet,
       activeFilters,
-      routeState.page,
       routeState.pageSize,
       routeState.primaryKey || undefined,
     );
@@ -259,7 +251,6 @@ export default function BrowserPage({
     decodedNs,
     decodedSet,
     fetchFilteredRecords,
-    routeState.page,
     routeState.pageSize,
     routeState.primaryKey,
   ]);
@@ -267,7 +258,6 @@ export default function BrowserPage({
   const handleFilterExecute = useCallback(() => {
     setSelectedPKs(new Set());
     replaceRouteState({
-      page: 1,
       pageSize: routeState.pageSize,
       primaryKey: filterStore.primaryKey.trim(),
       filters:
@@ -291,7 +281,6 @@ export default function BrowserPage({
     (pk: string) => {
       setSelectedPKs(new Set());
       replaceRouteState({
-        page: 1,
         pageSize: routeState.pageSize,
         primaryKey: pk.trim(),
         filters:
@@ -394,22 +383,9 @@ export default function BrowserPage({
     }
   };
 
-  const handlePageChange = useCallback(
-    (newPage: number) => {
-      replaceRouteState({
-        page: newPage,
-        pageSize: routeState.pageSize,
-        primaryKey: routeState.primaryKey,
-        filters: routeState.filters,
-      });
-    },
-    [replaceRouteState, routeState.filters, routeState.pageSize, routeState.primaryKey],
-  );
-
-  const handlePageSizeChange = useCallback(
+  const handleLimitChange = useCallback(
     (newSize: number) => {
       replaceRouteState({
-        page: 1,
         pageSize: newSize,
         primaryKey: routeState.primaryKey,
         filters: routeState.filters,
@@ -520,7 +496,6 @@ asyncio.run(main())`;
     useToastStore.getState().addToast("success", "Exported as CSV");
   }, [records]);
 
-  const padLength = String(pagination.end).length;
   const { isMobile, isTablet } = useBreakpoint();
 
   /* ─── DataTable column definitions ─────────────────── */
@@ -592,13 +567,9 @@ asyncio.run(main())`;
       // Row number (pinned left)
       {
         id: "rowNumber",
-        size: 56,
+        size: 44,
         header: () => <span className="grid-row-num font-mono">#</span>,
-        cell: ({ row }) => (
-          <span className="grid-row-num font-mono">
-            {String(pagination.start + row.index).padStart(padLength, "0")}
-          </span>
-        ),
+        cell: ({ row }) => <span className="grid-row-num font-mono">{row.index + 1}</span>,
         meta: {
           headerClassName: "px-4 text-right",
           cellClassName: "px-4 text-right",
@@ -609,7 +580,7 @@ asyncio.run(main())`;
       // PK
       {
         id: "pk",
-        size: 180,
+        size: 200,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             PK
@@ -635,7 +606,7 @@ asyncio.run(main())`;
       // Generation
       {
         id: "gen",
-        size: 70,
+        size: 56,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             Gen
@@ -655,7 +626,7 @@ asyncio.run(main())`;
       // TTL → Expiry
       {
         id: "ttl",
-        size: 170,
+        size: 120,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             Expiry
@@ -679,13 +650,13 @@ asyncio.run(main())`;
       ...binColumns.map(
         (col): ColumnDef<AerospikeRecord, unknown> => ({
           id: `bin_${col}`,
-          size: 160,
+          size: 140,
           header: () => (
             <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em]">
               {col}
             </span>
           ),
-          cell: ({ row }) => renderCellValue(row.original.bins[col]),
+          cell: ({ row }) => renderCellValue(row.original.bins[col], col),
           meta: {
             cellClassName: "overflow-hidden",
             hideOn: ["mobile"],
@@ -697,7 +668,7 @@ asyncio.run(main())`;
       // Actions (pinned right)
       {
         id: "actions",
-        size: 130,
+        size: 110,
         header: () => null,
         cell: ({ row }) => (
           <div className="row-actions-group flex items-center justify-end gap-0.5">
@@ -791,8 +762,6 @@ asyncio.run(main())`;
       openRecordDetail,
       toggleAllPKs,
       togglePK,
-      pagination.start,
-      padLength,
     ],
   );
 
@@ -889,7 +858,7 @@ asyncio.run(main())`;
                     {col}
                   </span>
                   <span className="min-w-0 flex-1 truncate">
-                    {renderCellValue(record.bins[col])}
+                    {renderCellValue(record.bins[col], col)}
                   </span>
                 </div>
               ))}
@@ -941,6 +910,7 @@ asyncio.run(main())`;
                   <span className="bg-accent relative inline-flex h-1.5 w-1.5 rounded-full" />
                 </span>
                 <span className="text-accent font-mono text-[11px] font-medium tabular-nums">
+                  {totalEstimated ? "~" : ""}
                   {formatNumber(total)}
                 </span>
               </div>
@@ -1106,17 +1076,66 @@ asyncio.run(main())`;
         </div>
       )}
 
-      {/* ── Bottom Bar ───────────────────────────────── */}
-      <TablePagination
-        total={total}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={handlePageChange}
-        onPageSizeChange={handlePageSizeChange}
-        loading={loading}
-        pageSizeOptions={PAGE_SIZE_OPTIONS}
-        className="safe-bottom w-full"
-      />
+      {/* ── Bottom Bar (Limit + Reload) ─────────────── */}
+      {(displayRecords.length > 0 || total > 0) && (
+        <div className="gradient-border-top safe-bottom bg-base-100/90 flex w-full min-w-0 shrink-0 items-center gap-4 px-4 py-2 backdrop-blur-md sm:px-6">
+          {/* Execution time */}
+          {executionTimeMs > 0 && (
+            <>
+              <span className="text-muted-foreground font-mono text-[11px] font-medium tabular-nums">
+                {executionTimeMs}ms
+              </span>
+              <span className="text-base-300 text-xs">|</span>
+            </>
+          )}
+
+          {/* Record count */}
+          <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+            <span className="text-base-content/80 font-medium">
+              {formatNumber(displayRecords.length)}
+            </span>
+            <span className="mx-1 opacity-50">of</span>
+            <span className="text-base-content/80 font-medium">
+              {totalEstimated ? "~" : ""}
+              {formatNumber(total)}
+            </span>
+          </span>
+
+          <span className="text-base-300 hidden text-xs sm:inline">|</span>
+
+          {/* Limit selector */}
+          <Select
+            value={String(pageSize)}
+            onChange={(e) => handleLimitChange(parseInt(e.target.value, 10))}
+            className="border-base-300/50 text-base-content/70 h-6 w-[58px] bg-transparent px-1.5 font-mono text-[11px]"
+            disabled={loading}
+            aria-label="Records limit"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={String(size)}>
+                {size}
+              </option>
+            ))}
+          </Select>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Reload button */}
+          <Button
+            onClick={refreshCurrentView}
+            disabled={loading}
+            size="sm"
+            variant="outline"
+            className="border-accent/25 text-accent hover:border-accent/50 hover:bg-accent/5 h-7 gap-1.5 font-mono text-[11px] transition-colors"
+            data-compact
+            aria-label="Reload records"
+          >
+            <RefreshCw className={cn("h-3 w-3", loading && "animate-spin")} />
+            <span className="hidden sm:inline">Reload</span>
+          </Button>
+        </div>
+      )}
 
       <RecordEditorDialog
         open={editorOpen}
