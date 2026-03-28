@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Server, Database, Layers, HardDrive, ChevronRight, Clock } from "lucide-react";
+import { ChevronRight, Database, HardDrive, Layers, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatBytes, formatNumber, formatUptime } from "@/lib/formatters";
 import { StatusBadge } from "@/components/common/status-badge";
@@ -28,7 +28,7 @@ function MetricCard({
   iconColor: string;
 }) {
   return (
-    <div className="border-base-300 bg-base-100 flex flex-1 flex-col gap-2 rounded-xl border p-4 shadow-sm">
+    <div className="border-base-300 bg-base-100 flex flex-col gap-2 rounded-xl border p-4 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-base-content/40 text-[11px] font-medium">{label}</span>
         <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg", iconBg)}>
@@ -50,25 +50,33 @@ function NamespaceRow({ ns, connId }: { ns: NamespaceInfo; connId: string }) {
 
   return (
     <div className="border-base-300/60 bg-base-200/30 flex flex-col overflow-hidden rounded-xl border">
-      {/* Header row */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <div
-          className={cn(
-            "h-9 w-1 shrink-0 rounded-full",
-            isWarning
-              ? "from-error to-error/70 bg-gradient-to-b"
-              : "from-primary to-primary/70 bg-gradient-to-b",
-          )}
-        />
-        <div className="flex min-w-0 flex-col gap-0.5" style={{ width: "100px" }}>
-          <span className="text-base-content text-sm font-bold">{ns.name}</span>
-          <span className="text-base-content/40 text-[10px]">
-            {ns.sets.length} set{ns.sets.length !== 1 ? "s" : ""} · RF {ns.replicationFactor}
-          </span>
+      {/* Header — stacks on mobile */}
+      <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-3">
+          <div
+            className={cn(
+              "h-9 w-1 shrink-0 rounded-full",
+              isWarning
+                ? "from-error to-error/70 bg-gradient-to-b"
+                : "from-primary to-primary/70 bg-gradient-to-b",
+            )}
+          />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-base-content text-sm font-bold">{ns.name}</span>
+              <StatusBadge
+                status={ns.stopWrites ? "error" : ns.hwmBreached ? "warning" : "ready"}
+                label={ns.stopWrites ? "Stop Writes" : ns.hwmBreached ? "HWM Breached" : "Healthy"}
+              />
+            </div>
+            <span className="text-base-content/40 text-[10px]">
+              {ns.sets.length} set{ns.sets.length !== 1 ? "s" : ""} · RF {ns.replicationFactor}
+            </span>
+          </div>
         </div>
 
-        {/* Inline metrics */}
-        <div className="hidden flex-1 gap-5 sm:flex">
+        {/* Metrics — 2-col grid on mobile, inline on desktop */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 pl-4 sm:flex sm:flex-1 sm:gap-5 sm:pl-0">
           <div className="flex flex-col gap-0.5">
             <span className="text-base-content/30 text-[9px] font-medium tracking-wider">
               OBJECTS
@@ -104,7 +112,7 @@ function NamespaceRow({ ns, connId }: { ns: NamespaceInfo; connId: string }) {
           </div>
         </div>
 
-        {/* Memory bar */}
+        {/* Memory bar — desktop only */}
         <div className="hidden w-16 flex-col gap-1 sm:flex">
           <div className="bg-base-300 h-1 w-full overflow-hidden rounded-full">
             <div
@@ -114,17 +122,11 @@ function NamespaceRow({ ns, connId }: { ns: NamespaceInfo; connId: string }) {
           </div>
           <span className="text-base-content/30 text-right text-[9px]">{memPct}%</span>
         </div>
-
-        {/* Status */}
-        <StatusBadge
-          status={ns.stopWrites ? "error" : ns.hwmBreached ? "warning" : "ready"}
-          label={ns.stopWrites ? "Stop Writes" : ns.hwmBreached ? "HWM Breached" : "Healthy"}
-        />
       </div>
 
-      {/* Sets row */}
+      {/* Sets */}
       {ns.sets.length > 0 && (
-        <div className="border-base-300/40 flex flex-wrap gap-1.5 border-t px-5 py-2.5">
+        <div className="border-base-300/40 flex flex-wrap gap-1.5 border-t px-4 py-2.5 sm:px-5">
           {ns.sets.map((set) => (
             <button
               key={set.name}
@@ -152,8 +154,8 @@ export function UnifiedOverview({ cluster, connId }: UnifiedOverviewProps) {
 
   return (
     <div className="space-y-5">
-      {/* Metric Cards */}
-      <div className="flex gap-3">
+      {/* Metric Cards — 2x2 on mobile, 4-col on desktop */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <MetricCard
           label="Active Nodes"
           value={String(cluster.nodes.length)}
@@ -187,10 +189,10 @@ export function UnifiedOverview({ cluster, connId }: UnifiedOverviewProps) {
         />
       </div>
 
-      {/* Two-column: Namespaces + Nodes */}
-      <div className="flex gap-4">
-        {/* Namespaces (left, wider) */}
-        <div className="border-base-300 bg-base-100 flex min-w-0 flex-[3] flex-col gap-3 rounded-xl border p-5 shadow-sm">
+      {/* Namespaces + Nodes — stacks on mobile, side-by-side on lg */}
+      <div className="flex flex-col gap-4 lg:flex-row">
+        {/* Namespaces */}
+        <div className="border-base-300 bg-base-100 flex min-w-0 flex-col gap-3 rounded-xl border p-4 shadow-sm sm:p-5 lg:flex-[3]">
           <div className="flex items-center justify-between">
             <span className="text-base-content text-sm font-bold">Namespaces</span>
             <span className="text-base-content/30 text-xs">
@@ -202,50 +204,52 @@ export function UnifiedOverview({ cluster, connId }: UnifiedOverviewProps) {
           ))}
         </div>
 
-        {/* Nodes (right, narrower) */}
-        <div className="border-base-300 bg-base-100 flex flex-1 flex-col gap-3 rounded-xl border p-5 shadow-sm">
+        {/* Nodes */}
+        <div className="border-base-300 bg-base-100 flex flex-col gap-3 rounded-xl border p-4 shadow-sm sm:p-5 lg:flex-1">
           <span className="text-base-content text-sm font-bold">Nodes</span>
-          {cluster.nodes.map((node) => (
-            <div
-              key={node.name}
-              className="border-base-300/60 bg-base-200/30 flex flex-col gap-2 rounded-lg border p-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="bg-success shadow-success/15 h-1.5 w-1.5 rounded-full shadow-[0_0_0_2px]" />
-                  <span className="text-base-content truncate font-mono text-xs font-semibold">
-                    {node.name}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+            {cluster.nodes.map((node) => (
+              <div
+                key={node.name}
+                className="border-base-300/60 bg-base-200/30 flex flex-col gap-2 rounded-lg border p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-success shadow-success/15 h-1.5 w-1.5 rounded-full shadow-[0_0_0_2px]" />
+                    <span className="text-base-content truncate font-mono text-xs font-semibold">
+                      {node.name}
+                    </span>
+                  </div>
+                  <span className="bg-success/10 text-success rounded px-2 py-0.5 text-[9px] font-semibold">
+                    ONLINE
                   </span>
                 </div>
-                <span className="bg-success/10 text-success rounded px-2 py-0.5 text-[9px] font-semibold">
-                  ONLINE
+                <div className="flex gap-3">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-base-content/25 text-[9px]">UPTIME</span>
+                    <span className="text-base-content font-mono text-[11px] font-semibold">
+                      {formatUptime(node.uptime)}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-base-content/25 text-[9px]">CLIENTS</span>
+                    <span className="text-base-content font-mono text-[11px] font-semibold">
+                      {node.clientConnections}
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-base-content/25 text-[9px]">BUILD</span>
+                    <span className="text-base-content font-mono text-[11px] font-semibold">
+                      {node.build}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-base-content/30 truncate font-mono text-[9px]">
+                  {node.address}:{node.port}
                 </span>
               </div>
-              <div className="flex gap-3">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-base-content/25 text-[9px]">UPTIME</span>
-                  <span className="text-base-content font-mono text-[11px] font-semibold">
-                    {formatUptime(node.uptime)}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-base-content/25 text-[9px]">CLIENTS</span>
-                  <span className="text-base-content font-mono text-[11px] font-semibold">
-                    {node.clientConnections}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-base-content/25 text-[9px]">BUILD</span>
-                  <span className="text-base-content font-mono text-[11px] font-semibold">
-                    {node.build}
-                  </span>
-                </div>
-              </div>
-              <span className="text-base-content/30 truncate font-mono text-[9px]">
-                {node.address}:{node.port}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
