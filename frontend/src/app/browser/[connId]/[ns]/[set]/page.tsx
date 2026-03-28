@@ -1016,7 +1016,7 @@ asyncio.run(main())`;
                     This set appears to be empty. Create a new record to get started.
                   </p>
                   <button
-                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-content px-3 h-8 text-xs font-medium shadow-sm hover:bg-primary/90 transition-colors"
+                    className="bg-primary text-primary-content hover:bg-primary/90 inline-flex h-8 items-center justify-center gap-2 rounded-lg px-3 text-xs font-medium shadow-sm transition-colors"
                     onClick={() =>
                       router.push(
                         buildNewRecordHref({

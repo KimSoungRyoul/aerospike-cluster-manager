@@ -98,7 +98,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
       <div
         ref={ref}
         className={cn(
-          "relative w-full max-w-[calc(100vw-2rem)] rounded-2xl border border-base-300 bg-base-100 p-6 shadow-xl sm:max-w-lg",
+          "border-base-300 bg-base-100 relative w-full max-w-[calc(100vw-2rem)] rounded-2xl border p-6 shadow-xl sm:max-w-lg",
           className,
         )}
         {...props}
@@ -107,7 +107,7 @@ const DialogContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTML
         <button
           onClick={onClose}
           disabled={preventClose}
-          className="absolute top-4 right-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-base-200 hover:text-base-content transition-colors sm:h-7 sm:w-7"
+          className="text-muted-foreground hover:bg-base-200 hover:text-base-content absolute top-4 right-4 inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors sm:h-7 sm:w-7"
           aria-label="Close"
         >
           <X className="h-4 w-4" />

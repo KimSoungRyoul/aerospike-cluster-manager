@@ -49,10 +49,9 @@ const Tooltip = ({ children }: { children: React.ReactNode }) => {
 
   // When asChild is true, clone the child element to add the title attribute directly
   if (asChild && React.isValidElement(triggerContent)) {
-    return React.cloneElement(
-      triggerContent as React.ReactElement<{ title?: string }>,
-      { title: tipText },
-    );
+    return React.cloneElement(triggerContent as React.ReactElement<{ title?: string }>, {
+      title: tipText,
+    });
   }
 
   return (

@@ -20,7 +20,10 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
   const treeExpanded = useUIStore((s) => s.sidebarTreeExpanded);
   const toggleTree = useUIStore((s) => s.toggleSidebarTree);
   const [state, setState] = useReducer(
-    (prev: { namespaces: NamespaceInfo[]; loading: boolean; error: string | null }, action: Partial<typeof prev>) => ({
+    (
+      prev: { namespaces: NamespaceInfo[]; loading: boolean; error: string | null },
+      action: Partial<typeof prev>,
+    ) => ({
       ...prev,
       ...action,
     }),
@@ -54,12 +57,12 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
 
   return (
     <div className="flex flex-col px-2 pb-2">
-      <span className="px-2.5 pb-1.5 pt-3 text-[10px] font-semibold tracking-wider text-muted-foreground/70">
+      <span className="text-muted-foreground/70 px-2.5 pt-3 pb-1.5 text-[10px] font-semibold tracking-wider">
         BROWSER
       </span>
 
       {loading && (
-        <div className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
+        <div className="text-muted-foreground flex items-center gap-2 px-2.5 py-2 text-xs">
           <Loader2 className="h-3 w-3 animate-spin" />
           Loading...
         </div>
@@ -68,11 +71,11 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
       {error && (
         <button
           onClick={retry}
-          className="flex items-center gap-2 px-2.5 py-2 text-xs text-error hover:bg-base-200/40 rounded-md transition-colors"
+          className="text-error hover:bg-base-200/40 flex items-center gap-2 rounded-md px-2.5 py-2 text-xs transition-colors"
         >
           <AlertCircle className="h-3 w-3 shrink-0" />
           <span>{error}</span>
-          <span className="ml-auto text-[10px] text-muted-foreground">Retry</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">Retry</span>
         </button>
       )}
 
@@ -84,12 +87,12 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
             <div key={ns.name}>
               <button
                 onClick={() => toggleTree(ns.name)}
-                className="flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-base-content/80 hover:bg-base-200/60 transition-colors"
+                className="text-base-content/80 hover:bg-base-200/60 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
               >
                 {isExpanded ? (
-                  <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0" />
                 ) : (
-                  <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />
+                  <ChevronRight className="text-muted-foreground h-3 w-3 shrink-0" />
                 )}
                 <Folder
                   className={cn(
@@ -122,7 +125,7 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
                           )}
                         />
                         <span className="truncate">{set.name}</span>
-                        <span className="ml-auto font-mono text-[10px] text-muted-foreground/50">
+                        <span className="text-muted-foreground/50 ml-auto font-mono text-[10px]">
                           {set.objects.toLocaleString()}
                         </span>
                       </button>

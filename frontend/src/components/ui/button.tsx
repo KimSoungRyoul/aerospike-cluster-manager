@@ -3,23 +3,16 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const variantClasses: Record<string, string> = {
-  default:
-    "bg-primary text-primary-content hover:bg-primary/90 shadow-sm",
-  destructive:
-    "bg-error text-error-content hover:bg-error/90 shadow-sm",
-  outline:
-    "border border-base-300 bg-base-100 text-base-content hover:bg-base-200 shadow-sm",
-  secondary:
-    "bg-secondary text-secondary-content hover:bg-secondary/90 shadow-sm",
+  default: "bg-primary text-primary-content hover:bg-primary/90 shadow-sm",
+  destructive: "bg-error text-error-content hover:bg-error/90 shadow-sm",
+  outline: "border border-base-300 bg-base-100 text-base-content hover:bg-base-200 shadow-sm",
+  secondary: "bg-secondary text-secondary-content hover:bg-secondary/90 shadow-sm",
   ghost: "text-base-content hover:bg-base-200",
   link: "text-primary underline-offset-4 hover:underline",
   info: "bg-info text-info-content hover:bg-info/90 shadow-sm",
-  success:
-    "bg-success text-success-content hover:bg-success/90 shadow-sm",
-  warning:
-    "bg-warning text-warning-content hover:bg-warning/90 shadow-sm",
-  neutral:
-    "bg-neutral text-neutral-content hover:bg-neutral/90 shadow-sm",
+  success: "bg-success text-success-content hover:bg-success/90 shadow-sm",
+  warning: "bg-warning text-warning-content hover:bg-warning/90 shadow-sm",
+  neutral: "bg-neutral text-neutral-content hover:bg-neutral/90 shadow-sm",
 };
 
 const sizeClasses: Record<string, string> = {

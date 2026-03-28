@@ -5,28 +5,28 @@
 
 @theme {
   /* Base colors — Light (Paper design: cool gray palette) */
-  --color-base-100: #FFFFFF;
-  --color-base-200: #F8F9FB;
-  --color-base-300: #E8EAF0;
+  --color-base-100: #ffffff;
+  --color-base-200: #f8f9fb;
+  --color-base-300: #e8eaf0;
   --color-base-content: #111827;
 
   /* Semantic colors (Paper design: blue primary) */
-  --color-primary: #2563EB;
-  --color-primary-content: #FFFFFF;
-  --color-secondary: #6B7280;
-  --color-secondary-content: #FFFFFF;
-  --color-accent: #F59E0B;
-  --color-accent-content: #FFFFFF;
+  --color-primary: #2563eb;
+  --color-primary-content: #ffffff;
+  --color-secondary: #6b7280;
+  --color-secondary-content: #ffffff;
+  --color-accent: #f59e0b;
+  --color-accent-content: #ffffff;
   --color-neutral: #374151;
-  --color-neutral-content: #F9FAFB;
-  --color-info: #2563EB;
-  --color-info-content: #FFFFFF;
+  --color-neutral-content: #f9fafb;
+  --color-info: #2563eb;
+  --color-info-content: #ffffff;
   --color-success: #059669;
-  --color-success-content: #FFFFFF;
-  --color-warning: #D97706;
-  --color-warning-content: #FFFFFF;
-  --color-error: #DC2626;
-  --color-error-content: #FFFFFF;
+  --color-success-content: #ffffff;
+  --color-warning: #d97706;
+  --color-warning-content: #ffffff;
+  --color-error: #dc2626;
+  --color-error-content: #ffffff;
 
   /* Radius & sizing */
   --radius-selector: 0.625rem;
@@ -34,21 +34,21 @@
   --radius-box: 0.875rem;
 
   /* Muted foreground */
-  --color-muted-foreground: #9CA3AF;
+  --color-muted-foreground: #9ca3af;
 
   /* Sidebar colors */
-  --color-sidebar: #FFFFFF;
+  --color-sidebar: #ffffff;
   --color-sidebar-foreground: #111827;
-  --color-sidebar-border: #F0F1F3;
-  --color-sidebar-accent: #EFF6FF;
-  --color-sidebar-accent-foreground: #2563EB;
+  --color-sidebar-border: #f0f1f3;
+  --color-sidebar-accent: #eff6ff;
+  --color-sidebar-accent-foreground: #2563eb;
 
   /* Chart palette */
-  --color-chart-1: #2563EB;
-  --color-chart-2: #F59E0B;
+  --color-chart-1: #2563eb;
+  --color-chart-2: #f59e0b;
   --color-chart-3: #059669;
-  --color-chart-4: #7C3AED;
-  --color-chart-5: #DB2777;
+  --color-chart-4: #7c3aed;
+  --color-chart-5: #db2777;
 
   /* Fonts */
   --font-sans: var(--font-inter);
@@ -134,40 +134,40 @@
 [data-theme="bumblebee-dark"] {
   /* Base colors */
   --color-base-100: #111827;
-  --color-base-200: #0F1318;
-  --color-base-300: #1E2740;
-  --color-base-content: #E8ECF4;
+  --color-base-200: #0f1318;
+  --color-base-300: #1e2740;
+  --color-base-content: #e8ecf4;
 
   /* Semantic colors */
-  --color-primary: #3B82F6;
-  --color-primary-content: #FFFFFF;
-  --color-secondary: #8B95A9;
-  --color-secondary-content: #FFFFFF;
-  --color-accent: #F59E0B;
-  --color-accent-content: #0C1017;
+  --color-primary: #3b82f6;
+  --color-primary-content: #ffffff;
+  --color-secondary: #8b95a9;
+  --color-secondary-content: #ffffff;
+  --color-accent: #f59e0b;
+  --color-accent-content: #0c1017;
   --color-neutral: #374151;
-  --color-neutral-content: #E5E7EB;
-  --color-info: #3B82F6;
-  --color-info-content: #FFFFFF;
-  --color-success: #10B981;
-  --color-success-content: #FFFFFF;
-  --color-warning: #F59E0B;
+  --color-neutral-content: #e5e7eb;
+  --color-info: #3b82f6;
+  --color-info-content: #ffffff;
+  --color-success: #10b981;
+  --color-success-content: #ffffff;
+  --color-warning: #f59e0b;
   --color-warning-content: #111827;
-  --color-error: #EF4444;
-  --color-error-content: #FFFFFF;
+  --color-error: #ef4444;
+  --color-error-content: #ffffff;
 
   /* Custom tokens */
-  --color-muted-foreground: #5A6478;
-  --color-sidebar: #0F1318;
-  --color-sidebar-foreground: #E8ECF4;
-  --color-sidebar-border: #1E2740;
+  --color-muted-foreground: #5a6478;
+  --color-sidebar: #0f1318;
+  --color-sidebar-foreground: #e8ecf4;
+  --color-sidebar-border: #1e2740;
   --color-sidebar-accent: rgba(59, 130, 246, 0.12);
-  --color-sidebar-accent-foreground: #3B82F6;
-  --color-chart-1: #3B82F6;
-  --color-chart-2: #F59E0B;
-  --color-chart-3: #10B981;
-  --color-chart-4: #8B5CF6;
-  --color-chart-5: #EC4899;
+  --color-sidebar-accent-foreground: #3b82f6;
+  --color-chart-1: #3b82f6;
+  --color-chart-2: #f59e0b;
+  --color-chart-3: #10b981;
+  --color-chart-4: #8b5cf6;
+  --color-chart-5: #ec4899;
 }
 
 /* ─── Shadow Variables ───────────────────────────────── */

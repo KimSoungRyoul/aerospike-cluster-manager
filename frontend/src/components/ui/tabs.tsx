@@ -52,7 +52,7 @@ const TabsList = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEl
     <div
       ref={ref}
       role="tablist"
-      className={cn("flex border-b border-base-300", className)}
+      className={cn("border-base-300 flex border-b", className)}
       {...props}
     />
   ),
@@ -75,7 +75,7 @@ const TabsTrigger = React.forwardRef<HTMLButtonElement, TabsTriggerProps>(
         className={cn(
           "relative px-4 py-2.5 text-sm font-medium transition-colors",
           isActive
-            ? "text-primary after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary"
+            ? "text-primary after:bg-primary after:absolute after:right-0 after:bottom-0 after:left-0 after:h-0.5"
             : "text-muted-foreground hover:text-base-content",
           className,
         )}

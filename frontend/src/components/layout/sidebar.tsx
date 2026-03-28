@@ -184,11 +184,9 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
       </div>
 
       {/* Namespace Tree Browser */}
-      {activeConnId && (
-        <SidebarBrowser connId={activeConnId} isMobileOrTablet={isMobileOrTablet} />
-      )}
+      {activeConnId && <SidebarBrowser connId={activeConnId} isMobileOrTablet={isMobileOrTablet} />}
 
-      <div className="h-px bg-base-300 my-0 mx-2" />
+      <div className="bg-base-300 mx-2 my-0 h-px" />
 
       <div className="space-y-1 p-2.5">
         <Button
@@ -284,7 +282,7 @@ export function Sidebar() {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <div className="h-px bg-base-300 my-0 mx-2" />
+        <div className="bg-base-300 mx-2 my-0 h-px" />
         <SidebarContent isMobileOrTablet={true} />
       </aside>
     </>

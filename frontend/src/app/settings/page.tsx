@@ -192,32 +192,32 @@ export default function SettingsPage() {
               <span className="text-muted-foreground">Application</span>
               <span className="font-medium">Aerospike Cluster Manager</span>
             </div>
-            <div className="h-px bg-base-300/50 my-0" />
+            <div className="bg-base-300/50 my-0 h-px" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Version</span>
               <span className="font-mono text-xs">0.1.0</span>
             </div>
-            <div className="h-px bg-base-300/50 my-0" />
+            <div className="bg-base-300/50 my-0 h-px" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Framework</span>
               <span className="font-mono text-xs">Next.js 16</span>
             </div>
-            <div className="h-px bg-base-300/50 my-0" />
+            <div className="bg-base-300/50 my-0 h-px" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">UI Library</span>
               <span className="font-mono text-xs">shadcn/ui + Tailwind CSS</span>
             </div>
-            <div className="h-px bg-base-300/50 my-0" />
+            <div className="bg-base-300/50 my-0 h-px" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Backend Client</span>
               <span className="font-mono text-xs">aerospike-py</span>
             </div>
-            <div className="h-px bg-base-300/50 my-0" />
+            <div className="bg-base-300/50 my-0 h-px" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Observability</span>
               <span className="font-mono text-xs">OpenTelemetry / Prometheus</span>
             </div>
-            <div className="h-px bg-base-300/50 my-0" />
+            <div className="bg-base-300/50 my-0 h-px" />
             <div className="flex justify-between py-0.5">
               <span className="text-muted-foreground">Desktop</span>
               <span className="font-mono text-xs">Tauri 2 (planned)</span>

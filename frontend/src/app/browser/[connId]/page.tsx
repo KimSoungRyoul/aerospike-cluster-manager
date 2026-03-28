@@ -364,7 +364,7 @@ export default function BrowserSetListPage({ params }: { params: Promise<{ connI
                   </div>
 
                   {/* Sets */}
-                  <div className="h-px bg-base-300 my-0" />
+                  <div className="bg-base-300 my-0 h-px" />
                   <div>
                     <div className="mb-2.5 flex items-center justify-between">
                       <h4 className="text-muted-foreground text-xs font-medium tracking-wider uppercase">

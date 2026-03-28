@@ -106,7 +106,7 @@ export const SheetContent = React.forwardRef<HTMLDivElement, SheetContentProps>(
         {children}
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-base-300 hover:text-base-content transition-colors"
+          className="text-muted-foreground hover:bg-base-300 hover:text-base-content absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full transition-colors"
           aria-label="Close"
         >
           <X className="h-4 w-4" />

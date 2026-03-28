@@ -12,7 +12,7 @@ const SelectNative = React.forwardRef<HTMLSelectElement, React.ComponentProps<"s
       <select
         ref={ref}
         className={cn(
-          "flex h-10 w-full appearance-none rounded-lg border border-base-300 bg-base-100 px-3 py-2 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm",
+          "border-base-300 bg-base-100 focus-visible:ring-primary/50 flex h-10 w-full appearance-none rounded-lg border px-3 py-2 text-base shadow-sm transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm",
           className,
         )}
         {...props}
