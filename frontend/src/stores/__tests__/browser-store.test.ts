@@ -29,11 +29,6 @@ describe("useBrowserStore", () => {
     expect(state.loading).toBe(false);
   });
 
-  it("setPageSize updates pageSize", () => {
-    useBrowserStore.getState().setPageSize(50);
-    expect(useBrowserStore.getState().pageSize).toBe(50);
-  });
-
   it("setNamespace resets related state", () => {
     useBrowserStore.setState({ selectedSet: "test", records: [{ key: {} } as any] });
     useBrowserStore.getState().setNamespace("test-ns");

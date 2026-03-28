@@ -2,56 +2,43 @@ import type { BinValue } from "@/lib/api/types";
 import { cn } from "@/lib/utils";
 import { truncateMiddle } from "@/lib/formatters";
 
+/** Pattern matching bin names that strongly suggest boolean semantics. */
+const BOOL_BIN_PATTERN =
+  /(?:^bool|bool$|^is[_A-Z]|^has[_A-Z]|_bool_|_bool$|^enabled$|^disabled$|^active$|^flag)/i;
+
+function renderBooleanCell(boolVal: boolean): React.ReactNode {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 font-mono text-xs font-medium",
+        boolVal ? "text-success" : "text-error",
+      )}
+    >
+      <span
+        className={cn(
+          "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
+          boolVal ? "bg-success" : "bg-error",
+        )}
+      />
+      {boolVal.toString()}
+    </span>
+  );
+}
+
 export function renderCellValue(value: BinValue, binName?: string): React.ReactNode {
   if (value === null || value === undefined)
     return <span className="cell-val-null font-mono text-xs">—</span>;
 
-  if (typeof value === "boolean")
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 font-mono text-xs font-medium",
-          value ? "text-success" : "text-error",
-        )}
-      >
-        <span
-          className={cn(
-            "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-            value ? "bg-success" : "bg-error",
-          )}
-        />
-        {value.toString()}
-      </span>
-    );
+  if (typeof value === "boolean") return renderBooleanCell(value);
 
   // Detect boolean-like integers (0/1) when bin name strongly suggests boolean.
-  // Matches: bin_bool, is_active, has_flag, bool_field, enabled, disabled — but not "hyperbolic".
   if (
     typeof value === "number" &&
     binName &&
-    /(?:^bool|bool$|^is[_A-Z]|^has[_A-Z]|_bool_|_bool$|^enabled$|^disabled$|^active$|^flag)/i.test(
-      binName,
-    ) &&
+    BOOL_BIN_PATTERN.test(binName) &&
     (value === 0 || value === 1)
-  ) {
-    const boolVal = value === 1;
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 font-mono text-xs font-medium",
-          boolVal ? "text-success" : "text-error",
-        )}
-      >
-        <span
-          className={cn(
-            "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-            boolVal ? "bg-success" : "bg-error",
-          )}
-        />
-        {boolVal.toString()}
-      </span>
-    );
-  }
+  )
+    return renderBooleanCell(value === 1);
 
   if (typeof value === "number")
     return (

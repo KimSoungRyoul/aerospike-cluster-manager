@@ -508,39 +508,6 @@ kbd {
   border-color: oklch(35% 0.05 155);
 }
 
-/* ─── Pagination ─────────────────────────────────────── */
-.page-num-btn {
-  min-width: 26px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--color-muted-foreground);
-  transition: all 0.15s ease;
-  cursor: pointer;
-  border: none;
-  background: none;
-}
-
-.page-num-btn:hover:not(:disabled) {
-  background: color-mix(in oklch, var(--color-accent) 10%, transparent);
-  color: var(--color-accent);
-}
-
-.page-num-btn.current {
-  background: color-mix(in oklch, var(--color-accent) 12%, transparent);
-  color: var(--color-accent);
-  font-weight: 600;
-}
-
-.page-num-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 /* ─── Loading Bar ────────────────────────────────────── */
 .loading-bar {
   animation: loading-slide 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;

@@ -53,7 +53,6 @@ interface BrowserState {
     pk: string,
     options?: BrowserMutationOptions,
   ) => Promise<void>;
-  setPageSize: (size: number) => void;
   reset: () => void;
 }
 
@@ -139,7 +138,6 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
     }
   },
 
-  setPageSize: (pageSize) => set({ pageSize }),
   reset: () =>
     set({
       records: [],
