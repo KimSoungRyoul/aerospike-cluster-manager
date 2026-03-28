@@ -51,11 +51,9 @@ const Dialog: React.FC<DialogProps> = ({ open, onOpenChange, preventClose, child
         if (e.target === dialogRef.current && !preventClose) handleClose();
       }}
     >
-      {open && (
-        <DialogContext.Provider value={{ onClose: handleClose, preventClose }}>
-          {children}
-        </DialogContext.Provider>
-      )}
+      <DialogContext.Provider value={{ onClose: handleClose, preventClose }}>
+        {children}
+      </DialogContext.Provider>
     </dialog>
   );
 };
