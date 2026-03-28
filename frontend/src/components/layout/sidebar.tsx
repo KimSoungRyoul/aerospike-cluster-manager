@@ -170,7 +170,7 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-2">
+      <div className="overflow-auto px-2">
         <div className="space-y-0.5 py-1">
           {filteredConnections.length === 0 && search && (
             <p className="text-muted-foreground px-2 py-4 text-center text-xs">
@@ -185,11 +185,13 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
 
       {/* Namespace Tree Browser */}
       {activeConnId && (
-        <SidebarBrowser
-          key={activeConnId}
-          connId={activeConnId}
-          isMobileOrTablet={isMobileOrTablet}
-        />
+        <div className="flex-1 overflow-auto">
+          <SidebarBrowser
+            key={activeConnId}
+            connId={activeConnId}
+            isMobileOrTablet={isMobileOrTablet}
+          />
+        </div>
       )}
 
       <div className="bg-base-300 mx-2 my-0 h-px" />

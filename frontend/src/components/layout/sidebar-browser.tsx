@@ -91,7 +91,10 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
             <div key={ns.name}>
               <button
                 onClick={() => toggleTree(ns.name)}
-                className="text-base-content/80 hover:bg-base-200/60 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                className={cn(
+                  "text-base-content/80 hover:bg-base-200/60 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors",
+                  isExpanded && "bg-base-200/40",
+                )}
               >
                 {isExpanded ? (
                   <ChevronDown className="text-muted-foreground h-3 w-3 shrink-0" />
@@ -105,9 +108,17 @@ export function SidebarBrowser({ connId, isMobileOrTablet }: SidebarBrowserProps
                   )}
                 />
                 <span className="truncate">{ns.name}</span>
+                <span className="text-muted-foreground/40 ml-auto font-mono text-[9px]">
+                  {ns.sets.length} set{ns.sets.length !== 1 ? "s" : ""}
+                </span>
               </button>
-              {isExpanded && ns.sets.length > 0 && (
+              {isExpanded && (
                 <div className="ml-3 flex flex-col gap-0.5 py-0.5">
+                  {ns.sets.length === 0 && (
+                    <span className="text-muted-foreground/40 px-3 py-1.5 text-[10px] italic">
+                      No sets
+                    </span>
+                  )}
                   {ns.sets.map((set) => {
                     const setPath = `/browser/${connId}/${ns.name}/${set.name}`;
                     const isActive = pathname === setPath;
