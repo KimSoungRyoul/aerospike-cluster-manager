@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronRight, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { JsonViewer } from "@/components/common/json-viewer";
@@ -22,14 +22,56 @@ function BinTypeSelect({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (open) setHighlighted(BIN_TYPES.indexOf(value));
+  }, [open, value]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!open) {
+        if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setOpen(true);
+        }
+        return;
+      }
+      switch (e.key) {
+        case "Escape":
+          e.preventDefault();
+          setOpen(false);
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlighted((h) => (h + 1) % BIN_TYPES.length);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlighted((h) => (h - 1 + BIN_TYPES.length) % BIN_TYPES.length);
+          break;
+        case "Enter":
+        case " ":
+          e.preventDefault();
+          if (highlighted >= 0) {
+            onChange(BIN_TYPES[highlighted]);
+            setOpen(false);
+          }
+          break;
+      }
+    },
+    [open, highlighted, onChange],
+  );
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" onKeyDown={handleKeyDown}>
       <button
         type="button"
         disabled={disabled}
         onClick={() => setOpen((p) => !p)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         className={cn(
           "border-base-300/40 flex h-7 w-full items-center justify-between rounded-lg border px-2 text-xs transition-colors",
           "hover:border-primary/30 focus:ring-primary/50 focus:ring-2 focus:outline-none",
@@ -42,17 +84,21 @@ function BinTypeSelect({
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="bg-base-100 border-base-300 absolute left-0 z-50 mt-1 w-full overflow-hidden rounded-lg border py-1 shadow-lg">
-            {BIN_TYPES.map((t) => (
+          <div role="listbox" className="bg-base-100 border-base-300 absolute left-0 z-50 mt-1 w-full overflow-hidden rounded-lg border py-1 shadow-lg">
+            {BIN_TYPES.map((t, i) => (
               <button
                 key={t}
                 type="button"
+                role="option"
+                aria-selected={t === value}
                 onClick={() => { onChange(t); setOpen(false); }}
+                onMouseEnter={() => setHighlighted(i)}
                 className={cn(
                   "flex w-full items-center px-2 py-1.5 font-mono text-xs transition-colors",
                   t === value
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-base-content hover:bg-base-200",
+                  i === highlighted && t !== value && "bg-base-200",
                 )}
               >
                 {t}
