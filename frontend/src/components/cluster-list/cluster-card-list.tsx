@@ -138,7 +138,7 @@ function ClusterCard({
             </button>
           )}
           <DropdownMenu>
-            <DropdownMenuTrigger className="border-base-300 text-muted-foreground hover:bg-base-200 hover:text-base-content hidden h-9 w-9 items-center justify-center rounded-lg border transition-colors group-hover:inline-flex">
+            <DropdownMenuTrigger className="border-base-300 text-muted-foreground hover:bg-base-200 hover:text-base-content inline-flex h-9 w-9 items-center justify-center rounded-lg border transition-colors sm:hidden sm:group-hover:inline-flex">
               <svg
                 width="16"
                 height="16"
