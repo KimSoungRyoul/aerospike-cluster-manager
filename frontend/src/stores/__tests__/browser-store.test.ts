@@ -137,7 +137,7 @@ describe("useBrowserStore", () => {
     };
     mockApi.getFilteredRecords.mockResolvedValue(mockResult as any);
 
-    const filters = { operator: "AND" as const, conditions: [] };
+    const filters = { logic: "and" as const, conditions: [] };
     await useBrowserStore
       .getState()
       .fetchFilteredRecords("conn-1", "ns", "set", filters, 50, "key-1");

@@ -185,7 +185,11 @@ function SidebarContent({ isMobileOrTablet }: { isMobileOrTablet: boolean }) {
 
       {/* Namespace Tree Browser */}
       {activeConnId && (
-        <SidebarBrowser key={activeConnId} connId={activeConnId} isMobileOrTablet={isMobileOrTablet} />
+        <SidebarBrowser
+          key={activeConnId}
+          connId={activeConnId}
+          isMobileOrTablet={isMobileOrTablet}
+        />
       )}
 
       <div className="bg-base-300 mx-2 my-0 h-px" />
