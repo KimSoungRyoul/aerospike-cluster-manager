@@ -95,7 +95,7 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
     """
     try:
         client = await client_manager.get_client(conn_id)
-        node_names = await client.get_node_names()
+        node_names = await client.get_node_names()  # type: ignore[misc]  # async in runtime, sync in stubs
         ns_raw = await client.info_random_node(INFO_NAMESPACES)
         namespaces = parse_list(ns_raw)
         build = (await client.info_random_node(INFO_BUILD)).strip()
