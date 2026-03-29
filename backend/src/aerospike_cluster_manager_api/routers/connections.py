@@ -142,7 +142,7 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
             memoryTotal=memory_total,
             diskUsed=disk_used,
             diskTotal=disk_total,
-            tendHealthy=client.is_connected(),
+            tendHealthy=await client.ping(),
         )
     except (AerospikeError, ClusterError, ConnectionRefusedError, OSError):
         logger.warning("Health check failed for connection '%s'", conn_id, exc_info=True)
