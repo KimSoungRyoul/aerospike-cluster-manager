@@ -13,7 +13,7 @@ from typing import Any
 import aerospike_py
 from aerospike_py.exception import AerospikeError
 
-from aerospike_cluster_manager_api import db
+from aerospike_cluster_manager_api import config, db
 from aerospike_cluster_manager_api.utils import parse_host_port
 
 
@@ -33,7 +33,7 @@ class ClientManager:
             raise ValueError(f"Connection profile '{conn_id}' not found")
 
         hosts = [parse_host_port(h, profile.port) for h in profile.hosts]
-        as_config: dict[str, Any] = {"hosts": hosts}
+        as_config: dict[str, Any] = {"hosts": hosts, "tend_interval": config.AS_TEND_INTERVAL}
         if profile.username and profile.password:
             as_config["user"] = profile.username
             as_config["password"] = profile.password
