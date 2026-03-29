@@ -23,6 +23,7 @@ export interface ConnectionStatus {
   memoryTotal?: number;
   diskUsed?: number;
   diskTotal?: number;
+  tendHealthy?: boolean;
 }
 
 export interface ConnectionWithStatus extends ConnectionProfile {

@@ -36,6 +36,9 @@ DB_POOL_MIN_SIZE: int = _get_int("DB_POOL_MIN_SIZE", 2)
 DB_POOL_MAX_SIZE: int = _get_int("DB_POOL_MAX_SIZE", 10)
 DB_COMMAND_TIMEOUT: int = _get_int("DB_COMMAND_TIMEOUT", 30)  # SQL command execution timeout in seconds
 
+# Aerospike client
+AS_TEND_INTERVAL: int = _get_int("AS_TEND_INTERVAL", 1000)  # Cluster tend interval in milliseconds
+
 # Kubernetes API
 K8S_API_TIMEOUT: int = _get_int("K8S_API_TIMEOUT", 10)
 K8S_LOG_TIMEOUT: int = _get_int("K8S_LOG_TIMEOUT", 30)

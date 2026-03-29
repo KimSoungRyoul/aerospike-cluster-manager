@@ -1,6 +1,6 @@
 "use client";
 
-import { Server, Pencil, Trash2, Database } from "lucide-react";
+import { Server, Pencil, Trash2, Database, HeartPulse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -114,6 +114,15 @@ export function ConnectionCard({
                 <Database className="h-3 w-3" />
                 {status.namespaceCount} ns
               </Badge>
+              {status.tendHealthy != null && (
+                <Badge
+                  variant={status.tendHealthy ? "secondary" : "destructive"}
+                  className="gap-1 text-[11px]"
+                >
+                  <HeartPulse className="h-3 w-3" />
+                  {status.tendHealthy ? "Healthy" : "Unhealthy"}
+                </Badge>
+              )}
             </>
           )}
         </div>

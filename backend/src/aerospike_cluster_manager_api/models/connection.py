@@ -13,6 +13,7 @@ class ConnectionStatus(BaseModel):
     memoryTotal: int = 0
     diskUsed: int = 0
     diskTotal: int = 0
+    tendHealthy: bool | None = None
 
 
 class ConnectionProfile(BaseModel):
