@@ -16,6 +16,34 @@ interface BrowserMutationOptions {
   refresh?: () => Promise<void>;
 }
 
+interface CachedResult {
+  records: AerospikeRecord[];
+  total: number;
+  pageSize: number;
+  hasMore: boolean;
+  totalEstimated: boolean;
+  executionTimeMs: number;
+  scannedRecords: number;
+}
+
+function buildCacheKey(
+  connId: string,
+  ns: string,
+  set: string,
+  filters?: FilterGroup,
+  pageSize?: number,
+  primaryKey?: string,
+): string {
+  return JSON.stringify({
+    connId,
+    ns,
+    set,
+    filters: filters ?? null,
+    pageSize,
+    primaryKey: primaryKey ?? null,
+  });
+}
+
 interface BrowserState {
   records: AerospikeRecord[];
   total: number;
@@ -29,6 +57,9 @@ interface BrowserState {
 
   selectedNamespace: string | null;
   selectedSet: string | null;
+
+  /** Query-keyed record cache for the current browse session */
+  recordCache: Map<string, CachedResult>;
 
   setNamespace: (ns: string | null) => void;
   setSet: (set: string | null) => void;
@@ -53,6 +84,7 @@ interface BrowserState {
     pk: string,
     options?: BrowserMutationOptions,
   ) => Promise<void>;
+  clearCache: () => void;
   reset: () => void;
 }
 
@@ -68,9 +100,11 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   scannedRecords: 0,
   selectedNamespace: null,
   selectedSet: null,
+  recordCache: new Map<string, CachedResult>(),
 
-  setNamespace: (ns) => set({ selectedNamespace: ns, selectedSet: null, records: [] }),
-  setSet: (setName) => set({ selectedSet: setName, records: [] }),
+  setNamespace: (ns) =>
+    set({ selectedNamespace: ns, selectedSet: null, records: [], recordCache: new Map() }),
+  setSet: (setName) => set({ selectedSet: setName, records: [], recordCache: new Map() }),
 
   fetchRecords: async (connId, ns, setName, pageSize) => {
     const ps = pageSize ?? get().pageSize;
@@ -88,6 +122,21 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
 
   fetchFilteredRecords: async (connId, ns, setName, filters, pageSize, primaryKey) => {
     const ps = pageSize ?? get().pageSize;
+    const cacheKey = buildCacheKey(connId, ns, setName, filters, ps, primaryKey);
+    const cached = get().recordCache.get(cacheKey);
+    if (cached) {
+      set({
+        records: cached.records,
+        total: cached.total,
+        pageSize: cached.pageSize,
+        hasMore: cached.hasMore,
+        totalEstimated: cached.totalEstimated,
+        executionTimeMs: cached.executionTimeMs,
+        scannedRecords: cached.scannedRecords,
+      });
+      return;
+    }
+
     await withLoading(set, async () => {
       const body: FilteredQueryRequest = {
         namespace: ns,
@@ -98,6 +147,24 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
         primaryKey: primaryKey || undefined,
       };
       const result: FilteredQueryResponse = await api.getFilteredRecords(connId, body);
+      const entry: CachedResult = {
+        records: result.records,
+        total: result.total,
+        pageSize: result.pageSize,
+        hasMore: result.hasMore,
+        totalEstimated: result.totalEstimated ?? false,
+        executionTimeMs: result.executionTimeMs,
+        scannedRecords: result.scannedRecords,
+      };
+
+      const cache = new Map(get().recordCache);
+      // Limit cache to 10 entries to avoid unbounded growth
+      if (cache.size >= 10) {
+        const firstKey = cache.keys().next().value;
+        if (firstKey !== undefined) cache.delete(firstKey);
+      }
+      cache.set(cacheKey, entry);
+
       set({
         records: result.records,
         total: result.total,
@@ -106,6 +173,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
         totalEstimated: result.totalEstimated ?? false,
         executionTimeMs: result.executionTimeMs,
         scannedRecords: result.scannedRecords,
+        recordCache: cache,
       });
     });
   },
@@ -113,6 +181,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   putRecord: async (connId, data, options) => {
     try {
       await api.putRecord(connId, data);
+      set({ recordCache: new Map() });
       if (options?.refresh) {
         await options.refresh();
       } else {
@@ -127,6 +196,7 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   deleteRecord: async (connId, ns, setName, pk, options) => {
     try {
       await api.deleteRecord(connId, ns, setName, pk);
+      set({ recordCache: new Map() });
       if (options?.refresh) {
         await options.refresh();
       } else {
@@ -137,6 +207,8 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
       throw error;
     }
   },
+
+  clearCache: () => set({ recordCache: new Map() }),
 
   reset: () =>
     set({
@@ -149,5 +221,6 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
       error: null,
       executionTimeMs: 0,
       scannedRecords: 0,
+      recordCache: new Map(),
     }),
 }));

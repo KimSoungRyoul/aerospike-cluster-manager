@@ -159,9 +159,18 @@ export function DataTable<TData, TValue>({
     count: rows.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => densityRowHeight[density],
+    measureElement: (el) => el.getBoundingClientRect().height,
     overscan: 10,
     enabled: virtualScrolling && !isCardMode,
   });
+
+  const prevDataRef = React.useRef(data);
+  React.useEffect(() => {
+    if (prevDataRef.current !== data && virtualScrolling && !isCardMode) {
+      virtualizer.scrollToOffset(0);
+    }
+    prevDataRef.current = data;
+  }, [data, virtualScrolling, isCardMode, virtualizer]);
 
   const renderHeaderGroups = () =>
     table.getHeaderGroups().map((headerGroup) => (
@@ -239,9 +248,15 @@ export function DataTable<TData, TValue>({
       </tr>
     ));
 
-  const renderRow = (row: Row<TData>, idx: number) => (
+  const renderRow = (
+    row: Row<TData>,
+    idx: number,
+    measureRef?: (node: HTMLElement | null) => void,
+  ) => (
     <tr
       key={row.id}
+      ref={measureRef}
+      data-index={measureRef ? idx : undefined}
       className={cn(
         "record-grid-row border-base-300 group border-b last:border-b-0",
         onRowClick && "cursor-pointer",
@@ -530,8 +545,8 @@ export function DataTable<TData, TValue>({
                     />
                   </tr>
                 )}
-                {virtualItems.map((virtualRow: { index: number }) =>
-                  renderRow(rows[virtualRow.index], virtualRow.index),
+                {virtualItems.map((virtualRow) =>
+                  renderRow(rows[virtualRow.index], virtualRow.index, virtualizer.measureElement),
                 )}
                 {virtualItems.length > 0 &&
                   virtualItems[virtualItems.length - 1].end < totalSize && (

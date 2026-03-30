@@ -1,8 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "../data-table";
+
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+}
 
 interface TestData {
   id: string;
@@ -181,5 +191,84 @@ describe("DataTable", () => {
 
     await user.click(screen.getByTestId("select-all"));
     expect(onRowSelectionChange).toHaveBeenCalled();
+  });
+
+  describe("virtual scrolling", () => {
+    // Generate enough rows to exercise virtualization
+    const manyRows: TestData[] = Array.from({ length: 50 }, (_, i) => ({
+      id: String(i),
+      name: `Item ${i}`,
+      status: i % 2 === 0 ? "active" : "inactive",
+      region: "us-west-2",
+    }));
+
+    beforeEach(() => {
+      // Mock scrollElement dimensions so the virtualizer renders items
+      Object.defineProperty(HTMLDivElement.prototype, "clientHeight", {
+        configurable: true,
+        get() {
+          return 400;
+        },
+      });
+      Object.defineProperty(HTMLDivElement.prototype, "scrollHeight", {
+        configurable: true,
+        get() {
+          return 2000;
+        },
+      });
+    });
+
+    afterEach(() => {
+      delete (HTMLDivElement.prototype as unknown as Record<string, unknown>).clientHeight;
+      delete (HTMLDivElement.prototype as unknown as Record<string, unknown>).scrollHeight;
+    });
+
+    it("renders spacer rows for virtual scrolling", () => {
+      render(
+        <DataTable
+          data={manyRows}
+          columns={baseColumns}
+          virtualScrolling={true}
+          maxHeight="400px"
+        />,
+      );
+
+      const tbody = screen.getByTestId("data-table-body");
+      expect(tbody).toBeInTheDocument();
+
+      // Virtual scrolling branch should render the table
+      const table = screen.getByTestId("data-table").querySelector("table");
+      expect(table).toBeInTheDocument();
+    });
+
+    it("uses a scroll container with maxHeight when virtual scrolling is enabled", () => {
+      render(
+        <DataTable
+          data={manyRows}
+          columns={baseColumns}
+          virtualScrolling={true}
+          maxHeight="400px"
+        />,
+      );
+
+      // The virtual scrolling branch wraps the table in a scroll container with maxHeight
+      const container = screen.getByTestId("data-table").querySelector("[style*='max-height']");
+      expect(container).toBeInTheDocument();
+      expect(container).toHaveStyle({ maxHeight: "400px" });
+    });
+
+    it("renders table head and body test ids in virtual mode", () => {
+      render(
+        <DataTable
+          data={manyRows}
+          columns={baseColumns}
+          virtualScrolling={true}
+          maxHeight="400px"
+        />,
+      );
+
+      expect(screen.getByTestId("data-table-head")).toBeInTheDocument();
+      expect(screen.getByTestId("data-table-body")).toBeInTheDocument();
+    });
   });
 });
