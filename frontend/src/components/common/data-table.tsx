@@ -248,7 +248,11 @@ export function DataTable<TData, TValue>({
       </tr>
     ));
 
-  const renderRow = (row: Row<TData>, idx: number, measureRef?: (node: HTMLElement | null) => void) => (
+  const renderRow = (
+    row: Row<TData>,
+    idx: number,
+    measureRef?: (node: HTMLElement | null) => void,
+  ) => (
     <tr
       key={row.id}
       ref={measureRef}

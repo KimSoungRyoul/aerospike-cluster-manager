@@ -34,7 +34,14 @@ function buildCacheKey(
   pageSize?: number,
   primaryKey?: string,
 ): string {
-  return JSON.stringify({ connId, ns, set, filters: filters ?? null, pageSize, primaryKey: primaryKey ?? null });
+  return JSON.stringify({
+    connId,
+    ns,
+    set,
+    filters: filters ?? null,
+    pageSize,
+    primaryKey: primaryKey ?? null,
+  });
 }
 
 interface BrowserState {
@@ -95,7 +102,8 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   selectedSet: null,
   recordCache: new Map<string, CachedResult>(),
 
-  setNamespace: (ns) => set({ selectedNamespace: ns, selectedSet: null, records: [], recordCache: new Map() }),
+  setNamespace: (ns) =>
+    set({ selectedNamespace: ns, selectedSet: null, records: [], recordCache: new Map() }),
   setSet: (setName) => set({ selectedSet: setName, records: [], recordCache: new Map() }),
 
   fetchRecords: async (connId, ns, setName, pageSize) => {
