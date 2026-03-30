@@ -87,6 +87,7 @@ export default function BrowserPage({
     fetchFilteredRecords,
     putRecord,
     deleteRecord,
+    clearCache,
   } = useBrowserStore();
 
   const filterStore = useFilterStore();
@@ -129,10 +130,11 @@ export default function BrowserPage({
   );
   const indexes = useMemo<SecondaryIndex[]>(() => indexesData ?? [], [indexesData]);
 
-  // Reset filter store when leaving
+  // Reset filter store and record cache when leaving
   useEffect(() => {
     return () => {
       filterStore.reset();
+      clearCache();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
