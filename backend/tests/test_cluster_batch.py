@@ -24,10 +24,7 @@ def _make_mock_client() -> AsyncMock:
     mock.get_node_names.return_value = ["node1", "node2"]
     mock.is_connected.return_value = True
 
-    node_stats = (
-        "cluster_size=2;uptime=3600;client_connections=10;"
-        "stat_read_reqs=1000;stat_write_reqs=500"
-    )
+    node_stats = "cluster_size=2;uptime=3600;client_connections=10;stat_read_reqs=1000;stat_write_reqs=500"
 
     ns_stats = (
         "objects=200;tombstones=0;memory_used_bytes=1024;"
@@ -67,8 +64,12 @@ def _make_mock_client() -> AsyncMock:
             ]
         if cmd.startswith("sets/"):
             return [
-                _info_all_result("node1", "set=myset:objects=100:tombstones=0:memory_data_bytes=500:stop-writes-count=0"),
-                _info_all_result("node2", "set=myset:objects=100:tombstones=0:memory_data_bytes=500:stop-writes-count=0"),
+                _info_all_result(
+                    "node1", "set=myset:objects=100:tombstones=0:memory_data_bytes=500:stop-writes-count=0"
+                ),
+                _info_all_result(
+                    "node2", "set=myset:objects=100:tombstones=0:memory_data_bytes=500:stop-writes-count=0"
+                ),
             ]
         return []
 
