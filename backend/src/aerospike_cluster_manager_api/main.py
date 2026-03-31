@@ -115,6 +115,19 @@ async def security_headers_middleware(request: Request, call_next: RequestRespon
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+
+    csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
+    if config.CSP_REPORT_URI:
+        sanitized_uri = config.CSP_REPORT_URI.split(";")[0].strip()
+        if sanitized_uri:
+            csp += f"; report-uri {sanitized_uri}"
+    response.headers["Content-Security-Policy"] = csp
+
+    if config.ENABLE_HSTS:
+        response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+
     return response
 
 
