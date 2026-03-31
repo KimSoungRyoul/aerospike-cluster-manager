@@ -18,8 +18,12 @@ interface ClusterListState {
   loading: boolean;
   error: string | null;
   healthProgress: HealthProgress | null;
+  k8sContinueToken: string | null;
+  k8sHasMore: boolean;
+  isLoadingMore: boolean;
 
   fetchAll: () => Promise<void>;
+  fetchMore: () => Promise<void>;
   fetchHealth: (connectionId: string) => Promise<void>;
   fetchAllHealth: () => Promise<void>;
   updateMetadata: (connectionId: string, data: { description?: string | null }) => Promise<void>;
@@ -50,14 +54,75 @@ function sortRows(rows: UnifiedClusterRow[]): UnifiedClusterRow[] {
   });
 }
 
+function mergeK8sClusters(
+  connections: ConnectionProfile[],
+  k8sClusters: K8sClusterSummary[],
+): UnifiedClusterRow[] {
+  const k8sByConnectionId = new Map<string, K8sClusterSummary>();
+  const standaloneK8s: K8sClusterSummary[] = [];
+
+  for (const cluster of k8sClusters) {
+    if (cluster.connectionId) {
+      k8sByConnectionId.set(cluster.connectionId, cluster);
+    } else {
+      standaloneK8s.push(cluster);
+    }
+  }
+
+  const rows: UnifiedClusterRow[] = [];
+
+  for (const conn of connections) {
+    const k8sCluster = k8sByConnectionId.get(conn.id);
+    const isAckoManaged = !!k8sCluster;
+    const source: ClusterSource = isAckoManaged ? "both" : "connection";
+
+    rows.push({
+      id: conn.id,
+      name: conn.name,
+      description: conn.description,
+      source,
+      status: "unknown",
+      nodeCount: 0,
+      hosts: buildHostString(conn),
+      color: conn.color,
+      isAckoManaged,
+      k8sPhase: k8sCluster?.phase,
+      k8sNamespace: k8sCluster?.namespace,
+      k8sClusterName: k8sCluster?.name,
+      connectionId: conn.id,
+    });
+  }
+
+  for (const cluster of standaloneK8s) {
+    rows.push({
+      id: `k8s:${cluster.namespace}/${cluster.name}`,
+      name: cluster.name,
+      source: "k8s",
+      status: mapK8sPhaseToStatus(cluster.phase),
+      nodeCount: cluster.size,
+      hosts: "",
+      color: "#10B981",
+      isAckoManaged: true,
+      k8sPhase: cluster.phase,
+      k8sNamespace: cluster.namespace,
+      k8sClusterName: cluster.name,
+    });
+  }
+
+  return rows;
+}
+
 export const useClusterListStore = create<ClusterListState>()((set, get) => ({
   rows: [],
   loading: false,
   error: null,
   healthProgress: null,
+  k8sContinueToken: null,
+  k8sHasMore: false,
+  isLoadingMore: false,
 
   fetchAll: async () => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, k8sContinueToken: null, k8sHasMore: false });
     try {
       const [connectionsResult, k8sResult] = await Promise.allSettled([
         api.getConnections(),
@@ -66,66 +131,70 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
 
       const connections: ConnectionProfile[] =
         connectionsResult.status === "fulfilled" ? connectionsResult.value : [];
-      const k8sClusters: K8sClusterSummary[] =
-        k8sResult.status === "fulfilled" ? k8sResult.value : [];
+      const k8sResponse =
+        k8sResult.status === "fulfilled" ? k8sResult.value : { items: [], continueToken: null, hasMore: false };
 
-      // Build a map of K8s clusters keyed by connectionId
-      const k8sByConnectionId = new Map<string, K8sClusterSummary>();
-      const standaloneK8s: K8sClusterSummary[] = [];
+      const rows = mergeK8sClusters(connections, k8sResponse.items);
 
-      for (const cluster of k8sClusters) {
-        if (cluster.connectionId) {
-          k8sByConnectionId.set(cluster.connectionId, cluster);
-        } else {
-          standaloneK8s.push(cluster);
-        }
-      }
-
-      const rows: UnifiedClusterRow[] = [];
-
-      // Create rows from connections
-      for (const conn of connections) {
-        const k8sCluster = k8sByConnectionId.get(conn.id);
-        const isAckoManaged = !!k8sCluster;
-        const source: ClusterSource = isAckoManaged ? "both" : "connection";
-
-        rows.push({
-          id: conn.id,
-          name: conn.name,
-          description: conn.description,
-          source,
-          status: "unknown",
-          nodeCount: 0,
-          hosts: buildHostString(conn),
-          color: conn.color,
-          isAckoManaged,
-          k8sPhase: k8sCluster?.phase,
-          k8sNamespace: k8sCluster?.namespace,
-          k8sClusterName: k8sCluster?.name,
-          connectionId: conn.id,
-        });
-      }
-
-      // Create rows from standalone K8s clusters (no connectionId)
-      for (const cluster of standaloneK8s) {
-        rows.push({
-          id: `k8s:${cluster.namespace}/${cluster.name}`,
-          name: cluster.name,
-          source: "k8s",
-          status: mapK8sPhaseToStatus(cluster.phase),
-          nodeCount: cluster.size,
-          hosts: "",
-          color: "#10B981",
-          isAckoManaged: true,
-          k8sPhase: cluster.phase,
-          k8sNamespace: cluster.namespace,
-          k8sClusterName: cluster.name,
-        });
-      }
-
-      set({ rows: sortRows(rows), loading: false });
+      set({
+        rows: sortRows(rows),
+        loading: false,
+        k8sContinueToken: k8sResponse.continueToken,
+        k8sHasMore: k8sResponse.hasMore,
+      });
     } catch (error) {
       set({ error: getErrorMessage(error), loading: false });
+    }
+  },
+
+  fetchMore: async () => {
+    const { k8sContinueToken, k8sHasMore, isLoadingMore } = get();
+    if (!k8sHasMore || !k8sContinueToken || isLoadingMore) return;
+
+    set({ isLoadingMore: true });
+    try {
+      const k8sResponse = await api.getK8sClusters({ continueToken: k8sContinueToken });
+
+      set((state) => {
+        // Append new standalone K8s clusters to existing rows
+        const existingConnectionIds = new Set(
+          state.rows.filter((r) => r.connectionId).map((r) => r.connectionId),
+        );
+        const newRows: UnifiedClusterRow[] = [];
+
+        for (const cluster of k8sResponse.items) {
+          if (cluster.connectionId && existingConnectionIds.has(cluster.connectionId)) {
+            // Update existing connection row to mark as K8s-managed
+            continue;
+          }
+          if (cluster.connectionId) {
+            // Connection row exists from initial load — skip duplicate
+            continue;
+          }
+          newRows.push({
+            id: `k8s:${cluster.namespace}/${cluster.name}`,
+            name: cluster.name,
+            source: "k8s",
+            status: mapK8sPhaseToStatus(cluster.phase),
+            nodeCount: cluster.size,
+            hosts: "",
+            color: "#10B981",
+            isAckoManaged: true,
+            k8sPhase: cluster.phase,
+            k8sNamespace: cluster.namespace,
+            k8sClusterName: cluster.name,
+          });
+        }
+
+        return {
+          rows: sortRows([...state.rows, ...newRows]),
+          k8sContinueToken: k8sResponse.continueToken,
+          k8sHasMore: k8sResponse.hasMore,
+          isLoadingMore: false,
+        };
+      });
+    } catch (error) {
+      set({ error: getErrorMessage(error), isLoadingMore: false });
     }
   },
 

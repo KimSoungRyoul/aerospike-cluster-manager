@@ -18,6 +18,9 @@ interface ClusterCardListProps {
   onRowClick: (row: UnifiedClusterRow) => void;
   onEdit: (id: string) => void;
   onDelete: (row: UnifiedClusterRow) => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 const ERROR_TYPE_LABELS: Record<HealthErrorType, string> = {
@@ -197,6 +200,9 @@ export function ClusterCardList({
   onRowClick,
   onEdit,
   onDelete,
+  hasMore,
+  isLoadingMore,
+  onLoadMore,
 }: ClusterCardListProps) {
   if (!loading && rows.length === 0) {
     return (
@@ -228,6 +234,19 @@ export function ClusterCardList({
           onDelete={onDelete}
         />
       ))}
+      {hasMore && onLoadMore && (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          disabled={isLoadingMore}
+          className={cn(
+            "border-base-300 bg-base-100 hover:bg-base-200 text-base-content/70 hover:text-base-content mx-auto mt-2 rounded-xl border px-6 py-2.5 text-sm font-medium transition-colors",
+            isLoadingMore && "cursor-not-allowed opacity-60",
+          )}
+        >
+          {isLoadingMore ? "Loading..." : "Load More"}
+        </button>
+      )}
     </div>
   );
 }

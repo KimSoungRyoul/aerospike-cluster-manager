@@ -31,6 +31,7 @@ from aerospike_cluster_manager_api.models.k8s_cluster import (
     ImportClusterRequest,
     K8sClusterDetail,
     K8sClusterEvent,
+    K8sClusterListResponse,
     K8sClusterSummary,
     K8sTemplateDetail,
     K8sTemplateSummary,
@@ -122,9 +123,16 @@ def _k8s_endpoint(operation: str):
 
 @router.get("/clusters", summary="List K8s Aerospike clusters")
 @_k8s_endpoint("list Kubernetes clusters")
-async def list_k8s_clusters(namespace: str | None = None) -> list[K8sClusterSummary]:
+async def list_k8s_clusters(
+    namespace: str | None = None,
+    limit: int = Query(20, ge=1, le=100),
+    continue_token: str | None = Query(None, alias="continueToken"),
+    label_selector: str | None = Query(None, alias="labelSelector"),
+) -> K8sClusterListResponse:
 
-    items = await k8s_client.list_clusters(namespace)
+    items, next_token = await k8s_client.list_clusters(
+        namespace, limit=limit, continue_token=continue_token, label_selector=label_selector
+    )
 
     connections = await db.get_all_connections()
     conn_by_host: dict[str, str] = {}
@@ -145,7 +153,13 @@ async def list_k8s_clusters(namespace: str | None = None) -> list[K8sClusterSumm
             return conn_id
         return conn_by_name.get(f"[K8s] {name}")
 
-    return [extract_summary(item, connection_id=_find_connection_id(item)) for item in items]
+    summaries = [extract_summary(item, connection_id=_find_connection_id(item)) for item in items]
+
+    return K8sClusterListResponse(
+        items=summaries,
+        continueToken=next_token,
+        hasMore=next_token is not None,
+    )
 
 
 @router.get("/clusters/{namespace}/{name}", summary="Get K8s Aerospike cluster detail")

@@ -67,7 +67,10 @@ interface K8sClusterState {
 }
 
 export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
-  const fetchClustersData = (namespace?: string) => api.getK8sClusters(namespace);
+  const fetchClustersData = async (namespace?: string) => {
+    const res = await api.getK8sClusters({ namespace });
+    return res.items;
+  };
 
   const loadClusters = async (namespace?: string) => {
     const clusters = await fetchClustersData(namespace);
@@ -104,7 +107,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
 
     checkAvailability: async () => {
       try {
-        await api.getK8sClusters();
+        await api.getK8sClusters({ limit: 1 });
         set({ k8sAvailable: true });
       } catch (err) {
         // eslint-disable-next-line no-console -- intentional: surface K8s availability check failures
