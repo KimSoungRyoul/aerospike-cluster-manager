@@ -53,7 +53,7 @@ export default function ConnectionsPage() {
   const router = useRouter();
   const { createConnection, updateConnection, deleteConnection, testConnection } =
     useConnectionStore();
-  const { rows, loading, error, fetchAll, fetchAllHealth } = useClusterListStore();
+  const { rows, loading, error, fetchAll, fetchAllHealth, healthProgress } = useClusterListStore();
   const { k8sAvailable, checkAvailability } = useK8sClusterStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -244,6 +244,13 @@ export default function ConnectionsPage() {
       />
 
       <InlineAlert message={error} />
+
+      {healthProgress && (
+        <div className="text-muted-foreground flex items-center gap-2 text-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Checking connections… {healthProgress.completed}/{healthProgress.total}
+        </div>
+      )}
 
       <ClusterCardList
         rows={rows}

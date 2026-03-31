@@ -3,17 +3,23 @@ import type { ConnectionProfile, ConnectionStatus } from "@/lib/api/types";
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 
+interface HealthProgress {
+  completed: number;
+  total: number;
+}
+
 interface ConnectionState {
   connections: ConnectionProfile[];
   healthStatuses: Record<string, ConnectionStatus>;
   checkingHealth: Record<string, boolean>;
+  healthProgress: HealthProgress | null;
   selectedConnectionId: string | null;
   loading: boolean;
   error: string | null;
 
   fetchConnections: () => Promise<void>;
   fetchConnectionHealth: (id: string) => Promise<void>;
-  fetchAllHealth: () => void;
+  fetchAllHealth: () => Promise<void>;
   selectConnection: (id: string | null) => void;
   createConnection: (data: Partial<ConnectionProfile>) => Promise<void>;
   updateConnection: (id: string, data: Partial<ConnectionProfile>) => Promise<void>;
@@ -30,6 +36,7 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
   connections: [],
   healthStatuses: {},
   checkingHealth: {},
+  healthProgress: null,
   selectedConnectionId: null,
   loading: false,
   error: null,
@@ -68,9 +75,20 @@ export const useConnectionStore = create<ConnectionState>()((set, get) => ({
     }
   },
 
-  fetchAllHealth: () => {
+  fetchAllHealth: async () => {
     const { connections, fetchConnectionHealth } = get();
-    connections.forEach((conn) => fetchConnectionHealth(conn.id));
+    const total = connections.length;
+    if (total === 0) return;
+    let completed = 0;
+    set({ healthProgress: { completed: 0, total } });
+    await Promise.allSettled(
+      connections.map(async (conn) => {
+        await fetchConnectionHealth(conn.id);
+        completed++;
+        set({ healthProgress: { completed, total } });
+      }),
+    );
+    set({ healthProgress: null });
   },
 
   selectConnection: (id) => set({ selectedConnectionId: id }),

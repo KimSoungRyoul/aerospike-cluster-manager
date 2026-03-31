@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/common/empty-state";
-import type { UnifiedClusterRow } from "@/lib/api/types";
+import type { HealthErrorType, UnifiedClusterRow } from "@/lib/api/types";
 
 interface ClusterCardListProps {
   rows: UnifiedClusterRow[];
@@ -19,6 +19,14 @@ interface ClusterCardListProps {
   onEdit: (id: string) => void;
   onDelete: (row: UnifiedClusterRow) => void;
 }
+
+const ERROR_TYPE_LABELS: Record<HealthErrorType, string> = {
+  timeout: "Timeout",
+  connection_refused: "Connection Refused",
+  cluster_error: "Cluster Error",
+  auth_error: "Auth Error",
+  unknown: "Unknown Error",
+};
 
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
@@ -103,7 +111,9 @@ function ClusterCard({
               </span>
             )}
             {!isConnected && !isChecking && (
-              <span className="text-error text-[11px] font-medium">Unavailable</span>
+              <span className="text-error text-[11px] font-medium">
+                {row.errorType ? ERROR_TYPE_LABELS[row.errorType] : "Unavailable"}
+              </span>
             )}
           </div>
         </div>

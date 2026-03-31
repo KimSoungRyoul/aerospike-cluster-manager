@@ -1,4 +1,5 @@
 import type { K8sClusterPhase } from "./k8s";
+import type { HealthErrorType } from "./connection";
 
 // === Cluster ===
 export interface ClusterNode {
@@ -97,4 +98,6 @@ export interface UnifiedClusterRow {
   build?: string;
   /** Edition string */
   edition?: string;
+  /** Error type when health check fails */
+  errorType?: HealthErrorType;
 }

@@ -14,6 +14,8 @@ class ConnectionStatus(BaseModel):
     diskUsed: int = 0
     diskTotal: int = 0
     tendHealthy: bool | None = None
+    error: str | None = None
+    errorType: str | None = None  # timeout | connection_refused | cluster_error | auth_error | unknown
 
 
 class ConnectionProfile(BaseModel):
