@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import aerospike_py
-from aerospike_py.exception import AerospikeError, ClusterError
+from aerospike_py.exception import AerospikeError, AerospikeTimeoutError, ClusterError
 from fastapi import APIRouter, Depends, HTTPException, Request
 from starlette.responses import Response
 
@@ -86,8 +86,9 @@ async def update_connection(
     "/{conn_id}/health",
     summary="Check connection health",
     description="Check the health status of an Aerospike cluster connection.",
+    response_model=None,
 )
-async def get_connection_health(conn_id: str = Depends(_get_verified_connection)) -> ConnectionStatus:
+async def get_connection_health(conn_id: str = Depends(_get_verified_connection)) -> ConnectionStatus | Response:
     """Check the health status of an Aerospike cluster connection.
 
     Always returns HTTP 200. Uses ``connected: false`` to signal unreachable clusters
@@ -144,9 +145,43 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
             diskTotal=disk_total,
             tendHealthy=await client.ping(),  # type: ignore[attr-defined]  # ping() added in aerospike-py 0.0.5
         )
-    except (AerospikeError, ClusterError, ConnectionRefusedError, OSError):
+    except AerospikeTimeoutError as exc:
+        logger.warning("Health check timed out for connection '%s'", conn_id, exc_info=True)
+        return Response(
+            content=ConnectionStatus(
+                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType="timeout"
+            ).model_dump_json(),
+            media_type="application/json",
+            headers={"Retry-After": "30"},
+        )
+    except ConnectionRefusedError as exc:
+        logger.warning("Connection refused for '%s'", conn_id, exc_info=True)
+        return Response(
+            content=ConnectionStatus(
+                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType="connection_refused"
+            ).model_dump_json(),
+            media_type="application/json",
+            headers={"Retry-After": "30"},
+        )
+    except ClusterError as exc:
+        logger.warning("Cluster error for connection '%s'", conn_id, exc_info=True)
+        return Response(
+            content=ConnectionStatus(
+                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType="cluster_error"
+            ).model_dump_json(),
+            media_type="application/json",
+            headers={"Retry-After": "30"},
+        )
+    except (AerospikeError, OSError) as exc:
         logger.warning("Health check failed for connection '%s'", conn_id, exc_info=True)
-        return ConnectionStatus(connected=False, nodeCount=0, namespaceCount=0)
+        error_type = "auth_error" if isinstance(exc, AerospikeError) and "security" in str(exc).lower() else "unknown"
+        return Response(
+            content=ConnectionStatus(
+                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType=error_type
+            ).model_dump_json(),
+            media_type="application/json",
+            headers={"Retry-After": "30"},
+        )
 
 
 @router.post(

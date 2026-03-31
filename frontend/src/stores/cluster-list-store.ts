@@ -8,14 +8,20 @@ import type {
 import { api } from "@/lib/api/client";
 import { getErrorMessage } from "@/lib/utils";
 
+interface HealthProgress {
+  completed: number;
+  total: number;
+}
+
 interface ClusterListState {
   rows: UnifiedClusterRow[];
   loading: boolean;
   error: string | null;
+  healthProgress: HealthProgress | null;
 
   fetchAll: () => Promise<void>;
   fetchHealth: (connectionId: string) => Promise<void>;
-  fetchAllHealth: () => void;
+  fetchAllHealth: () => Promise<void>;
   updateMetadata: (connectionId: string, data: { description?: string | null }) => Promise<void>;
 }
 
@@ -48,6 +54,7 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
   rows: [],
   loading: false,
   error: null,
+  healthProgress: null,
 
   fetchAll: async () => {
     set({ loading: true, error: null });
@@ -141,6 +148,7 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
               diskTotal: health.diskTotal ?? undefined,
               build: health.build,
               edition: health.edition,
+              errorType: health.errorType,
             };
           }),
         ),
@@ -159,13 +167,21 @@ export const useClusterListStore = create<ClusterListState>()((set, get) => ({
     }
   },
 
-  fetchAllHealth: () => {
+  fetchAllHealth: async () => {
     const { rows, fetchHealth } = get();
-    for (const row of rows) {
-      if (row.source !== "k8s" && row.connectionId) {
-        fetchHealth(row.connectionId);
-      }
-    }
+    const healthRows = rows.filter((r) => r.source !== "k8s" && r.connectionId);
+    const total = healthRows.length;
+    if (total === 0) return;
+    let completed = 0;
+    set({ healthProgress: { completed: 0, total } });
+    await Promise.allSettled(
+      healthRows.map(async (row) => {
+        await fetchHealth(row.connectionId!);
+        completed++;
+        set({ healthProgress: { completed, total } });
+      }),
+    );
+    set({ healthProgress: null });
   },
 
   updateMetadata: async (connectionId, data) => {

@@ -13,6 +13,13 @@ export interface ConnectionProfile {
   description?: string;
 }
 
+export type HealthErrorType =
+  | "timeout"
+  | "connection_refused"
+  | "cluster_error"
+  | "auth_error"
+  | "unknown";
+
 export interface ConnectionStatus {
   connected: boolean;
   nodeCount: number;
@@ -24,6 +31,8 @@ export interface ConnectionStatus {
   diskUsed?: number;
   diskTotal?: number;
   tendHealthy?: boolean;
+  error?: string;
+  errorType?: HealthErrorType;
 }
 
 export interface ConnectionWithStatus extends ConnectionProfile {
