@@ -120,26 +120,41 @@ class K8sClient:
     # Generic custom-object helpers (shared by cluster and template methods)
     # ------------------------------------------------------------------
 
-    def _list_custom_objects_sync(self, plural: str, namespace: str | None = None) -> list[dict[str, Any]]:
+    def _list_custom_objects_sync(
+        self,
+        plural: str,
+        namespace: str | None = None,
+        *,
+        limit: int | None = None,
+        continue_token: str | None = None,
+        label_selector: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
         self._ensure_initialized()
         try:
             api = self._get_custom_api()
+            kwargs: dict[str, Any] = {
+                "group": GROUP,
+                "version": VERSION,
+                "plural": plural,
+                "_request_timeout": _K8S_API_TIMEOUT,
+            }
+            if limit is not None:
+                kwargs["limit"] = limit
+            if continue_token is not None:
+                kwargs["_continue"] = continue_token
+            if label_selector is not None:
+                kwargs["label_selector"] = label_selector
+
             if namespace:
-                result = api.list_namespaced_custom_object(
-                    group=GROUP,
-                    version=VERSION,
-                    namespace=namespace,
-                    plural=plural,
-                    _request_timeout=_K8S_API_TIMEOUT,
-                )
+                kwargs["namespace"] = namespace
+                result = api.list_namespaced_custom_object(**kwargs)
             else:
-                result = api.list_cluster_custom_object(
-                    group=GROUP,
-                    version=VERSION,
-                    plural=plural,
-                    _request_timeout=_K8S_API_TIMEOUT,
-                )
-            return cast(dict[str, Any], result).get("items", [])
+                result = api.list_cluster_custom_object(**kwargs)
+
+            data = cast(dict[str, Any], result)
+            items = data.get("items", [])
+            next_continue = data.get("metadata", {}).get("continue") or None
+            return items, next_continue
         except Exception as e:
             raise self._wrap_api_exception(e) from e
 
@@ -298,9 +313,18 @@ class K8sClient:
     # Cluster-specific sync helpers
     # ------------------------------------------------------------------
 
-    def _list_clusters_sync(self, namespace: str | None = None) -> list[dict[str, Any]]:
-        logger.debug("_list_clusters_sync(namespace=%s)", namespace)
-        return self._list_custom_objects_sync(PLURAL, namespace)
+    def _list_clusters_sync(
+        self,
+        namespace: str | None = None,
+        *,
+        limit: int | None = None,
+        continue_token: str | None = None,
+        label_selector: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        logger.debug("_list_clusters_sync(namespace=%s, limit=%s)", namespace, limit)
+        return self._list_custom_objects_sync(
+            PLURAL, namespace, limit=limit, continue_token=continue_token, label_selector=label_selector
+        )
 
     def _get_cluster_sync(self, namespace: str, name: str) -> dict[str, Any]:
         logger.debug("_get_cluster_sync(namespace=%s, name=%s)", namespace, name)
@@ -592,8 +616,21 @@ class K8sClient:
     # Async public API
     # ------------------------------------------------------------------
 
-    async def list_clusters(self, namespace: str | None = None) -> list[dict[str, Any]]:
-        return await asyncio.to_thread(self._list_clusters_sync, namespace)
+    async def list_clusters(
+        self,
+        namespace: str | None = None,
+        *,
+        limit: int | None = None,
+        continue_token: str | None = None,
+        label_selector: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        return await asyncio.to_thread(
+            self._list_clusters_sync,
+            namespace,
+            limit=limit,
+            continue_token=continue_token,
+            label_selector=label_selector,
+        )
 
     async def get_cluster(self, namespace: str, name: str) -> dict[str, Any]:
         return await asyncio.to_thread(self._get_cluster_sync, namespace, name)

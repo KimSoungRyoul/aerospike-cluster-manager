@@ -276,6 +276,14 @@ class K8sClusterSummary(BaseModel):
     failedReconcileCount: int = 0
 
 
+class K8sClusterListResponse(BaseModel):
+    """Paginated response for K8s cluster listing using cursor-based pagination."""
+
+    items: list[K8sClusterSummary]
+    continueToken: str | None = None
+    hasMore: bool = False
+
+
 class K8sClusterCondition(BaseModel):
     """Condition from the operator's status.conditions[]."""
 

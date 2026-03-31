@@ -193,6 +193,13 @@ export interface K8sClusterSummary {
   failedReconcileCount: number;
 }
 
+/** Paginated response for K8s cluster listing using cursor-based pagination. */
+export interface K8sClusterListResponse {
+  items: K8sClusterSummary[];
+  continueToken: string | null;
+  hasMore: boolean;
+}
+
 export interface K8sClusterDetail {
   name: string;
   namespace: string;

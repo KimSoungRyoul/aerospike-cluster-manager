@@ -373,8 +373,20 @@ export const api = {
     request<import("./types").ClusterMetrics>(`/api/metrics/${encodePathSegment(connId)}`),
 
   // K8s Clusters
-  getK8sClusters: (namespace?: string) =>
-    request<import("./types").K8sClusterSummary[]>(withQuery("/api/k8s/clusters", { namespace })),
+  getK8sClusters: (params?: {
+    namespace?: string;
+    limit?: number;
+    continueToken?: string;
+    labelSelector?: string;
+  }) =>
+    request<import("./types").K8sClusterListResponse>(
+      withQuery("/api/k8s/clusters", {
+        namespace: params?.namespace,
+        limit: params?.limit,
+        continueToken: params?.continueToken,
+        labelSelector: params?.labelSelector,
+      }),
+    ),
   getK8sCluster: (namespace: string, name: string) =>
     request<import("./types").K8sClusterDetail>(
       `/api/k8s/clusters/${encodePathSegment(namespace)}/${encodePathSegment(name)}`,

@@ -53,7 +53,8 @@ export default function ConnectionsPage() {
   const router = useRouter();
   const { createConnection, updateConnection, deleteConnection, testConnection } =
     useConnectionStore();
-  const { rows, loading, error, fetchAll, fetchAllHealth, healthProgress } = useClusterListStore();
+  const { rows, loading, error, fetchAll, fetchMore, fetchAllHealth, healthProgress, k8sHasMore, isLoadingMore } =
+    useClusterListStore();
   const { k8sAvailable, checkAvailability } = useK8sClusterStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -258,6 +259,9 @@ export default function ConnectionsPage() {
         onRowClick={handleRowClick}
         onEdit={openEditDialog}
         onDelete={setDeleteTarget}
+        hasMore={k8sHasMore}
+        isLoadingMore={isLoadingMore}
+        onLoadMore={fetchMore}
       />
 
       {/* Connection Dialog */}
