@@ -103,7 +103,18 @@ export const useBrowserStore = create<BrowserState>()((set, get) => ({
   recordCache: new Map<string, CachedResult>(),
 
   setNamespace: (ns) =>
-    set({ selectedNamespace: ns, selectedSet: null, records: [], recordCache: new Map() }),
+    set({
+      selectedNamespace: ns,
+      selectedSet: null,
+      records: [],
+      recordCache: new Map(),
+      pageSize: DEFAULT_PAGE_SIZE,
+      total: 0,
+      hasMore: false,
+      totalEstimated: false,
+      executionTimeMs: 0,
+      scannedRecords: 0,
+    }),
   setSet: (setName) => set({ selectedSet: setName, records: [], recordCache: new Map() }),
 
   fetchRecords: async (connId, ns, setName, pageSize) => {

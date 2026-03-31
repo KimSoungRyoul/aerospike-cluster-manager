@@ -157,6 +157,59 @@ describe("useAsyncData", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("aborts in-flight request on unmount", async () => {
+    let capturedSignal: AbortSignal | undefined;
+    const fetcher = vi.fn().mockImplementation(
+      (options?: { signal?: AbortSignal }) =>
+        new Promise<string>((resolve) => {
+          capturedSignal = options?.signal;
+          // Never resolves — simulates a long-running request
+          setTimeout(() => resolve("done"), 10_000);
+        }),
+    );
+
+    const { unmount } = renderHook(() => useAsyncData(fetcher));
+
+    // Wait for the fetcher to be called
+    await waitFor(() => {
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal!.aborted).toBe(false);
+
+    unmount();
+
+    expect(capturedSignal!.aborted).toBe(true);
+  });
+
+  it("aborts previous request when deps change", async () => {
+    const signals: AbortSignal[] = [];
+    const fetcher = vi.fn().mockImplementation((options?: { signal?: AbortSignal }) => {
+      if (options?.signal) signals.push(options.signal);
+      return Promise.resolve("data");
+    });
+
+    const { rerender } = renderHook(({ dep }) => useAsyncData(fetcher, [dep]), {
+      initialProps: { dep: "a" },
+    });
+
+    await waitFor(() => {
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({ dep: "b" });
+
+    await waitFor(() => {
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    });
+
+    // First signal should be aborted when deps changed
+    expect(signals[0].aborted).toBe(true);
+    // Second signal should still be active
+    expect(signals[1].aborted).toBe(false);
+  });
+
   it("sets loading to true during refetch", async () => {
     let resolvePromise: (value: string) => void;
     const fetcher = vi.fn().mockImplementation(

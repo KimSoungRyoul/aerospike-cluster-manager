@@ -17,6 +17,7 @@ import { useK8sTemplateStore } from "./k8s-template-store";
 
 // Module-level variables for detail polling
 let _k8sDetailIntervalId: ReturnType<typeof setInterval> | null = null;
+let _k8sVisibilityCleanup: (() => void) | null = null;
 
 interface K8sClusterState {
   clusters: K8sClusterSummary[];
@@ -30,6 +31,7 @@ interface K8sClusterState {
   _pollingTarget: { namespace: string; name: string } | null;
   /** When true, SSE is providing data and polling is not needed */
   sseActive: boolean;
+  _isTabVisible: boolean;
 
   // Infrastructure data (K8s namespaces, storage classes, secrets, nodes)
   k8sNamespaces: string[];
@@ -100,6 +102,7 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
     consecutiveErrors: 0,
     _pollingTarget: null,
     sseActive: false,
+    _isTabVisible: true,
     k8sNamespaces: [],
     k8sStorageClasses: [],
     k8sSecrets: [],
@@ -247,12 +250,15 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
 
     startDetailPolling: (namespace: string, name: string) => {
       if (_k8sDetailIntervalId) clearInterval(_k8sDetailIntervalId);
+      if (_k8sVisibilityCleanup) _k8sVisibilityCleanup();
       set({ consecutiveErrors: 0, _pollingTarget: { namespace, name } });
 
       // If SSE is active, skip polling
       if (get().sseActive) return;
 
       const poll = async () => {
+        // Skip polling when tab is not visible
+        if (!get()._isTabVisible) return;
         const target = get()._pollingTarget;
         if (!target || get().sseActive) return;
         try {
@@ -286,12 +292,26 @@ export const useK8sClusterStore = create<K8sClusterState>()((set, get) => {
       // Set the interval first so the catch block can see it, then call poll() immediately
       _k8sDetailIntervalId = setInterval(poll, K8S_DETAIL_POLL_INTERVAL_MS);
       poll();
+
+      // Visibility change listener — pause polling when tab is hidden
+      const handleVisibilityChange = () => {
+        set({ _isTabVisible: !document.hidden });
+      };
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      _k8sVisibilityCleanup = () => {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
+      set({ _isTabVisible: !document.hidden });
     },
 
     stopDetailPolling: () => {
       if (_k8sDetailIntervalId) {
         clearInterval(_k8sDetailIntervalId);
         _k8sDetailIntervalId = null;
+      }
+      if (_k8sVisibilityCleanup) {
+        _k8sVisibilityCleanup();
+        _k8sVisibilityCleanup = null;
       }
       // Keep detailEvents and detailHealth so the UI doesn't flash empty
       // during phase transitions. Use clearDetailData() when navigating away.
