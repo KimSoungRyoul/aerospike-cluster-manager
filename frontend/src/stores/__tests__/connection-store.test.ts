@@ -103,6 +103,8 @@ describe("useConnectionStore", () => {
       connected: false,
       nodeCount: 0,
       namespaceCount: 0,
+      error: "Timeout",
+      errorType: undefined,
     });
     expect(state.checkingHealth["conn-1"]).toBe(false);
   });

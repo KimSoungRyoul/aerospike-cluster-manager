@@ -144,21 +144,28 @@ async function parseResponseBody<T>(res: Response): Promise<T | undefined> {
   return JSON.parse(bodyText) as T;
 }
 
-async function request<T>(path: string, options?: RequestInit & { timeout?: number }): Promise<T> {
-  const { timeout = DEFAULT_TIMEOUT, ...fetchOptions } = options ?? {};
+async function request<T>(
+  path: string,
+  options?: RequestInit & { timeout?: number; signal?: AbortSignal },
+): Promise<T> {
+  const { timeout = DEFAULT_TIMEOUT, signal: externalSignal, ...fetchOptions } = options ?? {};
   const method = fetchOptions.method?.toUpperCase() ?? "GET";
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
+    // Combine the internal timeout signal with any externally provided signal
+    const combinedSignal = externalSignal
+      ? AbortSignal.any([controller.signal, externalSignal])
+      : controller.signal;
     const headers = buildHeaders(fetchOptions.headers, fetchOptions.body);
 
     try {
       const res = await fetch(`${BASE_URL}${path}`, {
         ...fetchOptions,
         headers,
-        signal: controller.signal,
+        signal: combinedSignal,
       });
 
       clearTimeout(timeoutId);
@@ -205,6 +212,11 @@ async function request<T>(path: string, options?: RequestInit & { timeout?: numb
       clearTimeout(timeoutId);
 
       if (err instanceof ApiError) throw err;
+
+      // If the external caller cancelled the request, propagate immediately
+      if (externalSignal?.aborted) {
+        throw new ApiError("Request aborted", 0);
+      }
 
       // Retry only safe/idempotent reads to avoid duplicate write side-effects.
       if (
