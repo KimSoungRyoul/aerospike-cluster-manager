@@ -48,6 +48,7 @@ AS_TEND_INTERVAL: int = _get_int("AS_TEND_INTERVAL", 1000)  # Cluster tend inter
 
 # Kubernetes API
 K8S_API_TIMEOUT: int = _get_int("K8S_API_TIMEOUT", 10)
+K8S_VERIFY_SSL: bool = os.getenv("K8S_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
 K8S_LOG_TIMEOUT: int = _get_int("K8S_LOG_TIMEOUT", 30)
 
 # SSE (Server-Sent Events) streaming
