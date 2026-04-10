@@ -929,11 +929,11 @@ The Aerospike Cluster Manager is designed to work alongside the [Aerospike CE Ku
 
 ## Claude Code
 
-이 프로젝트는 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 자동화가 설정되어 있습니다.
+This project has [Claude Code](https://docs.anthropic.com/en/docs/claude-code) automation configured.
 
-### Ecosystem Plugin 설치
+### Ecosystem Plugin Installation
 
-[aerospike-ce-ecosystem-plugins](https://github.com/aerospike-ce-ecosystem/aerospike-ce-ecosystem-plugins)를 설치하면 Aerospike CE 설정 레퍼런스, K8s 배포 가이드, aerospike-py API 가이드 등 ecosystem 전체 스킬을 사용할 수 있습니다.
+Install [aerospike-ce-ecosystem-plugins](https://github.com/aerospike-ce-ecosystem/aerospike-ce-ecosystem-plugins) to access the full ecosystem skills including Aerospike CE config reference, K8s deployment guides, aerospike-py API guides, and more.
 
 ```bash
 claude plugin marketplace add aerospike-ce-ecosystem/aerospike-ce-ecosystem-plugins

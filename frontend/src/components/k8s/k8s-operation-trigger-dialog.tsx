@@ -27,9 +27,9 @@ interface K8sOperationTriggerDialogProps {
   namespace: string;
   clusterName: string;
   pods: K8sPodStatus[];
-  /** 클러스터 상세 페이지 테이블에서 미리 선택된 Pod 목록 */
+  /** Pre-selected pod list from the cluster detail page table */
   initialSelectedPods?: string[];
-  /** 다이얼로그를 열 때 기본 오퍼레이션 타입 */
+  /** Default operation type when opening the dialog */
   initialKind?: OperationKind;
   /** Current operation phase — blocks new operations while InProgress */
   operationPhase?: string;
@@ -55,7 +55,7 @@ export function K8sOperationTriggerDialog({
   const [step, setStep] = useState<"configure" | "confirm" | "result">("configure");
   const [resultMessage, setResultMessage] = useState<string | null>(null);
 
-  // 다이얼로그 열릴 때 상태 초기화
+  // Reset state when dialog opens
   useEffect(() => {
     if (open) {
       setKind(initialKind);
@@ -67,7 +67,7 @@ export function K8sOperationTriggerDialog({
     }
   }, [open, initialKind, initialSelectedPods]);
 
-  // 전체 선택 / 해제 여부 계산
+  // Calculate whether all are selected/deselected
   const allSelected = useMemo(
     () => pods.length > 0 && selectedPods.length === pods.length,
     [pods.length, selectedPods.length],
@@ -169,7 +169,7 @@ export function K8sOperationTriggerDialog({
               </span>
             </div>
           )}
-          {/* Operation type 선택 */}
+          {/* Operation type selection */}
           <div className="grid gap-2">
             <Label htmlFor="op-kind">Operation Type</Label>
             <Select value={kind} onValueChange={(v) => setKind(v as OperationKind)}>
@@ -195,7 +195,7 @@ export function K8sOperationTriggerDialog({
             />
           </div>
 
-          {/* Pod 선택 영역 */}
+          {/* Pod selection area */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Target Pods</Label>
@@ -218,7 +218,7 @@ export function K8sOperationTriggerDialog({
                 <p className="text-base-content/40 py-2 text-center text-xs">No pods available</p>
               ) : (
                 <div className="space-y-1">
-                  {/* 전체 선택 체크박스 (헤더) */}
+                  {/* Select all checkbox (header) */}
                   <label className="bg-base-200/50 flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm font-medium">
                     <Checkbox
                       checked={allSelected}
@@ -230,7 +230,7 @@ export function K8sOperationTriggerDialog({
                     />
                     <span className="text-base-content/80 text-xs">All Pods ({pods.length})</span>
                   </label>
-                  {/* 개별 Pod 체크박스 */}
+                  {/* Individual pod checkboxes */}
                   {pods.map((pod) => (
                     <label
                       key={pod.name}
@@ -265,7 +265,7 @@ export function K8sOperationTriggerDialog({
             )}
           </div>
 
-          {/* 오퍼레이션 타입별 안내 */}
+          {/* Per-operation type guidance */}
           {kind === "WarmRestart" && (
             <div className="bg-info/5 border-info/20 rounded border p-3">
               <p className="text-info text-xs">

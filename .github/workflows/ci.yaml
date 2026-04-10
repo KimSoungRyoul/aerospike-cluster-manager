@@ -1,5 +1,5 @@
 name: CI
-# PR/push 시 Backend 테스트 (pytest) + Frontend 테스트/빌드 (vitest + next build) + Pre-commit 검증
+# On PR/push: runs backend tests (pytest) + frontend tests/build (vitest + next build) + pre-commit checks
 
 on:
   push:

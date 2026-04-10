@@ -302,7 +302,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
       )}
 
       {/* ══════════════════════════════════════════════
-          ACKO 클러스터 전용 레이아웃 — Overview | ACKO INFO 탭
+          ACKO cluster-specific layout — Overview | ACKO INFO tabs
           ══════════════════════════════════════════════ */}
       {isK8s && k8sDetail && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "overview" | "acko-info")}>
@@ -335,7 +335,7 @@ export default function ClusterPage({ params }: { params: Promise<{ connId: stri
       )}
 
       {/* ══════════════════════════════════════════════
-          Direct Connection 클러스터 레이아웃 (isK8s=false)
+          Direct Connection cluster layout (isK8s=false)
           ══════════════════════════════════════════════ */}
       {!isK8s && (
         <UnifiedOverview
