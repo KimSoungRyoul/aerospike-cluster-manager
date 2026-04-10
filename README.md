@@ -2,11 +2,6 @@
 
 [![CI](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/ci.yaml/badge.svg)](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/ci.yaml)
 [![CD](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/cd.yaml/badge.svg)](https://github.com/aerospike-ce-ecosystem/aerospike-cluster-manager/actions/workflows/cd.yaml)
-![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
-![Next.js](https://img.shields.io/badge/Next.js-16-000000?logo=next.js&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688?logo=fastapi&logoColor=white)
-![Podman](https://img.shields.io/badge/Podman-Compose-892CA0?logo=podman&logoColor=white)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 A web-based GUI management tool for Aerospike Community Edition.
