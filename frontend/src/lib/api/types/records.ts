@@ -41,10 +41,13 @@ export interface RecordListResponse {
   totalEstimated?: boolean;
 }
 
+export type PkType = "auto" | "string" | "int" | "bytes";
+
 export interface RecordWriteRequest {
   key: RecordKey;
   bins: Record<string, BinValue>;
   ttl?: number;
+  pkType?: PkType;
 }
 
 // === Bin Editor ===
