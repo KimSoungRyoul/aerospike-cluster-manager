@@ -629,7 +629,7 @@ asyncio.run(main())`;
       // TTL → Expiry
       {
         id: "ttl",
-        size: 120,
+        size: 140,
         header: () => (
           <span className="text-muted-foreground/60 font-mono text-[10px] font-semibold tracking-[0.1em] uppercase">
             Expiry
@@ -637,8 +637,14 @@ asyncio.run(main())`;
         ),
         cell: ({ row }) => {
           const ttl = row.original.meta.ttl;
+          // Cell shows short form (no seconds) to fit the narrow column without
+          // truncation; tooltip carries the full second-precision timestamp plus
+          // raw TTL for power users who want exact values.
           return (
-            <span className="text-muted-foreground/60 font-mono text-xs" title={`TTL: ${ttl}s`}>
+            <span
+              className="text-muted-foreground/60 font-mono text-xs"
+              title={`Expires: ${formatTTLAsExpiry(ttl, true)}  (TTL: ${ttl}s)`}
+            >
               {formatTTLAsExpiry(ttl)}
             </span>
           );
@@ -814,7 +820,10 @@ asyncio.run(main())`;
                     Gen:{" "}
                     <span className="text-base-content font-mono">{record.meta.generation}</span>
                   </span>
-                  <span className="text-muted-foreground" title={`TTL: ${record.meta.ttl}s`}>
+                  <span
+                    className="text-muted-foreground"
+                    title={`Expires: ${formatTTLAsExpiry(record.meta.ttl, true)}  (TTL: ${record.meta.ttl}s)`}
+                  >
                     Expiry:{" "}
                     <span className="text-base-content font-mono">
                       {formatTTLAsExpiry(record.meta.ttl)}

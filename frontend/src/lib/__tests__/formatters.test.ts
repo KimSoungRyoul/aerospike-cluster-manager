@@ -109,14 +109,25 @@ describe("formatTTLAsExpiry", () => {
     expect(formatTTLAsExpiry(0)).toBe("Default");
   });
 
-  it("returns yyyy-mm-dd hh:mm:ss format for positive TTL", () => {
+  it("returns yyyy-mm-dd hh:mm format (no seconds) by default", () => {
     const result = formatTTLAsExpiry(3600);
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  });
+
+  it("returns yyyy-mm-dd hh:mm:ss when includeSeconds=true", () => {
+    const result = formatTTLAsExpiry(3600, true);
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
   });
 
-  it("calculates correct expiry date", () => {
+  it("calculates correct expiry date (short form)", () => {
     vi.setSystemTime(new Date("2026-03-01T12:00:00"));
-    expect(formatTTLAsExpiry(86400)).toBe("2026-03-02 12:00:00");
+    expect(formatTTLAsExpiry(86400)).toBe("2026-03-02 12:00");
+    vi.useRealTimers();
+  });
+
+  it("calculates correct expiry date (long form)", () => {
+    vi.setSystemTime(new Date("2026-03-01T12:00:00"));
+    expect(formatTTLAsExpiry(86400, true)).toBe("2026-03-02 12:00:00");
     vi.useRealTimers();
   });
 });

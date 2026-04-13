@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 
 from aerospike_py.exception import AerospikeError, RecordNotFound
 from aerospike_py.types import WriteMeta
@@ -27,7 +27,11 @@ from aerospike_cluster_manager_api.models.record import (
     RecordListResponse,
     RecordWriteRequest,
 )
-from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
+from aerospike_cluster_manager_api.utils import (
+    build_predicate,
+    get_with_pk_fallback,
+    resolve_pk,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +103,17 @@ async def get_record_detail(
     ns: str = Query(..., min_length=1),
     set: str = Query(...),
     pk: str = Query(..., min_length=1),
+    pk_type: Literal["auto", "string", "int", "bytes"] = Query("auto"),
 ) -> AerospikeRecord:
-    """Retrieve a single record identified by namespace, set, and primary key."""
-    raw_result = await client.get((ns, set, auto_detect_pk(pk)), policy=POLICY_READ)
+    """Retrieve a single record identified by namespace, set, and primary key.
+
+    When ``pk_type='auto'`` (default), the lookup falls back to the alternate
+    particle type on NOT_FOUND — fixing the case where a numeric-string key
+    (e.g. ``"23404907"``) was stored as STRING but would otherwise be probed
+    as INTEGER. Pass an explicit ``pk_type`` to disable the fallback.
+    """
+    resolved = resolve_pk(pk, pk_type)
+    raw_result = await get_with_pk_fallback(client, (ns, set, resolved), pk, pk_type, POLICY_READ)
     return record_to_model(raw_result)
 
 
@@ -112,12 +124,18 @@ async def get_record_detail(
     description="Write a record to Aerospike with the specified key, bins, and optional TTL.",
 )
 async def put_record(body: RecordWriteRequest, client: AerospikeClient) -> AerospikeRecord:
-    """Write a record to Aerospike with the specified key, bins, and optional TTL."""
+    """Write a record to Aerospike with the specified key, bins, and optional TTL.
+
+    The key's particle type comes from ``body.key.pk_type`` ("auto" by default).
+    Writes do not fall back: the resolved type is what gets persisted on disk,
+    so callers that care should pass an explicit ``pk_type`` to avoid creating
+    a record under a particle type that subsequent reads can't find.
+    """
     k = body.key
     if not k.namespace or not k.set or not k.pk:
         raise HTTPException(status_code=400, detail="Missing required key fields: namespace, set, pk")
 
-    key_tuple = (k.namespace, k.set, auto_detect_pk(k.pk))
+    key_tuple = (k.namespace, k.set, resolve_pk(k.pk, body.pk_type))
 
     meta: WriteMeta | None = None
     if body.ttl is not None:
@@ -139,9 +157,16 @@ async def delete_record(
     ns: str = Query(..., min_length=1),
     set: str = Query(..., min_length=1),
     pk: str = Query(..., min_length=1),
+    pk_type: Literal["auto", "string", "int", "bytes"] = Query("auto"),
 ) -> Response:
-    """Delete a record identified by namespace, set, and primary key."""
-    await client.remove((ns, set, auto_detect_pk(pk)))
+    """Delete a record identified by namespace, set, and primary key.
+
+    Deletes do not fall back to the alternate type even in ``auto`` mode: a
+    delete that targets the wrong particle type would silently no-op (the
+    record at the *other* type stays put), and a fallback could mask that
+    fact. Pass an explicit ``pk_type`` to be sure of which record gets removed.
+    """
+    await client.remove((ns, set, resolve_pk(pk, pk_type)))
     return Response(status_code=204)
 
 
@@ -157,14 +182,22 @@ async def get_filtered_records(
     """Scan records with optional expression filters and pagination."""
     start_time = time.monotonic()
 
-    # PK lookup short-circuit
+    # PK lookup short-circuit. Falls back to the alternate particle type on
+    # NOT_FOUND when pk_type=auto so numeric-string keys (stored as STRING)
+    # are still found even though auto's heuristic resolves them as INTEGER.
     if body.primary_key:
         if not body.set:
             raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
 
-        pk = auto_detect_pk(body.primary_key)
+        resolved = resolve_pk(body.primary_key, body.pk_type)
         try:
-            raw_result = await client.get((body.namespace, body.set, pk), policy=POLICY_READ)
+            raw_result = await get_with_pk_fallback(
+                client,
+                (body.namespace, body.set, resolved),
+                body.primary_key,
+                body.pk_type,
+                POLICY_READ,
+            )
             raw_results = [raw_result]
         except RecordNotFound:
             raw_results = []

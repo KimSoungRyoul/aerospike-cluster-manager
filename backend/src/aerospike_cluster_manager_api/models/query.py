@@ -23,6 +23,8 @@ class QueryRequest(BaseModel):
     expression: str | None = Field(default=None, max_length=4096)
     maxRecords: int | None = Field(default=None, ge=1, le=1_000_000)
     primaryKey: str | None = Field(default=None, max_length=1024)
+    # Particle type for primaryKey resolution. "auto" retries alternate type on NOT_FOUND.
+    pkType: Literal["auto", "string", "int", "bytes"] = "auto"
 
 
 class QueryResponse(BaseModel):
@@ -93,6 +95,8 @@ class FilteredQueryRequest(BaseModel):
     page: int = Field(default=1, ge=1)
     page_size: int = Field(default=25, ge=1, le=500, alias="pageSize")
     primary_key: str | None = Field(default=None, max_length=1024, alias="primaryKey")
+    # Particle type for primary_key resolution. "auto" retries alternate type on NOT_FOUND.
+    pk_type: Literal["auto", "string", "int", "bytes"] = Field(default="auto", alias="pkType")
 
 
 class FilteredQueryResponse(BaseModel):

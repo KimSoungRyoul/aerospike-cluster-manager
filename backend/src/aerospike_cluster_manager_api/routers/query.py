@@ -10,7 +10,7 @@ from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QU
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.models.query import QueryRequest, QueryResponse
-from aerospike_cluster_manager_api.utils import auto_detect_pk, build_predicate
+from aerospike_cluster_manager_api.utils import build_predicate, get_with_pk_fallback, resolve_pk
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +30,17 @@ async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryRes
         if not body.set:
             raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
 
-        pk = auto_detect_pk(body.primaryKey)
-
+        # pk_type=auto retries the alternate particle type on NOT_FOUND so
+        # numeric-string keys are resolvable even when the heuristic guesses int.
+        resolved = resolve_pk(body.primaryKey, body.pkType)
         try:
-            raw_result = await client.get((body.namespace, body.set, pk), policy=POLICY_READ)
+            raw_result = await get_with_pk_fallback(
+                client,
+                (body.namespace, body.set, resolved),
+                body.primaryKey,
+                body.pkType,
+                POLICY_READ,
+            )
             raw_results = [raw_result]
         except RecordNotFound:
             raw_results = []

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 BinValue = Any
 
@@ -41,6 +41,12 @@ class RecordListResponse(BaseModel):
 
 
 class RecordWriteRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     key: RecordKey
     bins: dict[str, BinValue]
     ttl: int | None = None
+    # Particle type to use when persisting ``key.pk``. "auto" preserves the
+    # legacy heuristic (numeric-string → INTEGER); use "string" to keep digit
+    # keys as STRING so subsequent reads can find them.
+    pk_type: Literal["auto", "string", "int", "bytes"] = Field(default="auto", alias="pkType")
