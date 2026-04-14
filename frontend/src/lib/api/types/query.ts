@@ -23,6 +23,7 @@ export interface QueryRequest {
   expression?: string; // raw JSON expression
   maxRecords?: number;
   primaryKey?: string;
+  pkType?: import("./records").PkType;
 }
 
 export interface QueryResponse {
@@ -77,6 +78,7 @@ export interface FilteredQueryRequest {
   page?: number;
   pageSize?: number;
   primaryKey?: string;
+  pkType?: import("./records").PkType;
 }
 
 export interface FilteredQueryResponse {
