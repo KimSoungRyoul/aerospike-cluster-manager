@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { siteConfig } from "./siteConfig"
 
+import { ToastContainer } from "@/components/common/ToastContainer"
 import { Sidebar } from "@/components/ui/navigation/Sidebar"
 
 const inter = Inter({
@@ -52,6 +53,7 @@ export default function RootLayout({
           <ThemeProvider defaultTheme="system" attribute="class">
             <Sidebar />
             <main className="lg:pl-72">{children}</main>
+            <ToastContainer />
           </ThemeProvider>
         </div>
       </body>
