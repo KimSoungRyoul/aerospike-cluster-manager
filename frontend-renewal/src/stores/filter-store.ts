@@ -91,8 +91,11 @@ export const useFilterStore = create<FilterState>()((set, get) => ({
     if (conditions.length === 0) return undefined
     return {
       logic,
-      conditions: conditions.map(({ id: _id, ...rest }) => rest),
-    }
+      conditions: conditions.map(({ id: _id, ...rest }) => rest) as Omit<
+        FilterCondition,
+        "id"
+      >[],
+    } as FilterGroup
   },
 
   reset: () => set({ conditions: [], logic: "and", primaryKey: "" }),
