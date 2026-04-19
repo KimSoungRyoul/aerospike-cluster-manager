@@ -183,11 +183,23 @@ ACKO-specific surfaces that must live inside the `/clusters/[id]/...` tree
 - `/clusters/[clusterId]/sets` — Namespaces tab. Card per namespace, set chips.
 - `/clusters/[clusterId]/sets/[ns]/[set]` — record browser.
 - `/clusters/[clusterId]/sets/[ns]/[set]/records/[key]` — record detail + edit.
+- `/clusters/[clusterId]/sets/[ns]/[set]/records/new` — new record.
 - `/clusters/[clusterId]/secondary-indexes` — sindex list.
 - `/clusters/[clusterId]/admin` — users + roles. Renders
   "Security is not enabled" state on 403 (CE default).
 - `/clusters/[clusterId]/udfs` — UDF modules.
+- `/clusters/[clusterId]/acko` — ACKO subtab rendered only when this
+  connection is managed by ACKO. Shares the detail layout with
+  `/acko/clusters/[ns]/[name]`.
+- `/acko/clusters` — `AerospikeCluster` CR list.
+- `/acko/clusters/new` — 9-step creation wizard. Steps 1–4 + Review are
+  shipped; steps 5–8 (Monitoring, ACL, Rack, Advanced) are FIXME'd.
+- `/acko/clusters/[namespace]/[name]` — CR detail (phase, pods, events,
+  operations, scale, delete).
 - `/acko/templates` — `AerospikeClusterTemplate` CRs.
+- `/acko/templates/new` — template creator.
+- `/acko/templates/[name]` — template detail with referenced clusters.
+- `/settings` — app preferences (theme, CE limitations, about).
 
 `clusterId` in the URL is the connection profile `id` (e.g.
 `conn-be77a99faef0`). It is **not** the ACKO CR name — the two are linked via
