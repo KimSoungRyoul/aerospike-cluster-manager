@@ -4,10 +4,18 @@ name: PR Reviewer
 on:
   pull_request:
     types: [labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: number
 
 jobs:
   review:
-    if: github.event.label.name == 'needs-review'
+    if: >-
+      (github.event_name == 'pull_request' && github.event.label.name == 'needs-review') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -15,11 +23,21 @@ jobs:
       issues: write
       pull-requests: write
       id-token: write
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr_number }}
     steps:
+      - name: Get PR head ref
+        id: pr-info
+        env:
+          GH_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+        run: |
+          PR_REF=$(gh pr view ${{ env.PR_NUMBER }} --json headRefName --jq '.headRefName')
+          echo "ref=$PR_REF" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ steps.pr-info.outputs.ref }}
           fetch-depth: 0
 
       - name: Run Claude Code - PR Review
@@ -39,12 +57,12 @@ jobs:
             - Frontend: Next.js 16 (React 19) in `frontend/`
 
             ## Task
-            Review PR #${{ github.event.pull_request.number }} with auto-fix loop (max ${{ vars.CLAUDE_REVIEW_MAX_ITERATIONS }} iterations).
+            Review PR #${{ env.PR_NUMBER }} with auto-fix loop (max ${{ vars.CLAUDE_REVIEW_MAX_ITERATIONS }} iterations).
 
             ### Review Loop
             For each iteration (up to ${{ vars.CLAUDE_REVIEW_MAX_ITERATIONS }}):
 
-            1. **Analyze**: `gh pr diff ${{ github.event.pull_request.number }}`
+            1. **Analyze**: `gh pr diff ${{ env.PR_NUMBER }}`
                - **HIGH**: Bugs, security (XSS, injection), broken API contracts, auth bypasses, data corruption, build-breaking
                - **MEDIUM**: Missing error handling, incomplete tests, missing TypeScript types, accessibility
                - **LOW**: Naming, docs, style
@@ -56,7 +74,7 @@ jobs:
             Post summary comment with severity counts, auto-fixed items, and suggestions.
             End with: `@kimsoungryoul — Review complete. Human review requested.`
 
-            Add `review-complete` label: `gh pr edit ${{ github.event.pull_request.number }} --add-label "review-complete"`
+            Add `review-complete` label: `gh pr edit ${{ env.PR_NUMBER }} --add-label "review-complete"`
 
             ## Constraints
             - Max ${{ vars.CLAUDE_REVIEW_MAX_ITERATIONS }} iterations, auto-fix HIGH and MEDIUM issues
