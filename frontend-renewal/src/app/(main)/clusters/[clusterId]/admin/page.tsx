@@ -1,129 +1,532 @@
 "use client"
 
+import {
+  RiAddLine,
+  RiDeleteBin2Line,
+  RiKey2Line,
+  RiRefreshLine,
+  RiShieldKeyholeLine,
+  RiShieldUserLine,
+  RiUser3Line,
+} from "@remixicon/react"
+import { type ColumnDef } from "@tanstack/react-table"
+import { useCallback, useEffect, useMemo, useState } from "react"
+
 import { Badge } from "@/components/Badge"
 import { Button } from "@/components/Button"
 import { Card } from "@/components/Card"
-import { Input } from "@/components/Input"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeaderCell,
-  TableRoot,
-  TableRow,
-} from "@/components/Table"
-import { listRoles, listUsers } from "@/lib/api/admin"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/Dialog"
+import { Input } from "@/components/Input"
+import { Label } from "@/components/Label"
+import { TabNavigation, TabNavigationLink } from "@/components/TabNavigation"
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { DataTable } from "@/components/common/DataTable"
+import { EmptyState } from "@/components/common/EmptyState"
+import { InlineAlert } from "@/components/common/InlineAlert"
+import { PageHeader } from "@/components/common/PageHeader"
+import { CreateRoleDialog } from "@/components/dialogs/CreateRoleDialog"
+import { CreateUserDialog } from "@/components/dialogs/CreateUserDialog"
 import { ApiError } from "@/lib/api/client"
-import type { AerospikeRole, AerospikeUser } from "@/lib/types/admin"
-import { RiShieldKeyholeLine } from "@remixicon/react"
-import { useCallback, useEffect, useState } from "react"
+import type { AerospikeRole, AerospikeUser, Privilege } from "@/lib/types/admin"
+import { useAdminStore } from "@/stores/admin-store"
+import { useToastStore } from "@/stores/toast-store"
 
 type PageProps = { params: { clusterId: string } }
 
-type LoadState<T> = { data: T | null; loading: boolean; error: string | null }
+function errorMessage(err: unknown): string {
+  if (err instanceof ApiError) return err.detail || err.message
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
+type TabKey = "users" | "roles"
 
 export default function AdminPage({ params }: PageProps) {
-  const [usersState, setUsersState] = useState<LoadState<AerospikeUser[]>>({
-    data: null,
-    loading: true,
-    error: null,
-  })
-  const [rolesState, setRolesState] = useState<LoadState<AerospikeRole[]>>({
-    data: null,
-    loading: true,
-    error: null,
-  })
-  const [securityDisabled, setSecurityDisabled] = useState(false)
+  const { clusterId } = params
 
-  const load = useCallback(async () => {
-    setUsersState((s) => ({ ...s, loading: true, error: null }))
-    setRolesState((s) => ({ ...s, loading: true, error: null }))
-    setSecurityDisabled(false)
-    try {
-      const [users, roles] = await Promise.all([
-        listUsers(params.clusterId),
-        listRoles(params.clusterId),
-      ])
-      setUsersState({ data: users, loading: false, error: null })
-      setRolesState({ data: roles, loading: false, error: null })
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 403) {
-        // Backend EE_MSG: "Security is not enabled. Add a 'security { }' block ..."
-        setSecurityDisabled(true)
-        setUsersState({ data: null, loading: false, error: null })
-        setRolesState({ data: null, loading: false, error: null })
-        return
-      }
-      const message = err instanceof Error ? err.message : String(err)
-      setUsersState({ data: null, loading: false, error: message })
-      setRolesState({ data: null, loading: false, error: message })
-    }
-  }, [params.clusterId])
+  const {
+    users,
+    roles,
+    usersLoading,
+    rolesLoading,
+    error,
+    isSecurityDisabled,
+    fetchUsers,
+    fetchRoles,
+    createUser,
+    changePassword,
+    deleteUser,
+    createRole,
+    deleteRole,
+  } = useAdminStore()
+
+  const [tab, setTab] = useState<TabKey>("users")
+
+  // Dialog state
+  const [createUserOpen, setCreateUserOpen] = useState(false)
+  const [createRoleOpen, setCreateRoleOpen] = useState(false)
+
+  const [changePassOpen, setChangePassOpen] = useState(false)
+  const [changePassUser, setChangePassUser] = useState("")
+  const [newPass, setNewPass] = useState("")
+  const [changingPass, setChangingPass] = useState(false)
+
+  const [deleteUserTarget, setDeleteUserTarget] = useState<string | null>(null)
+  const [deletingUser, setDeletingUser] = useState(false)
+
+  const [deleteRoleTarget, setDeleteRoleTarget] = useState<string | null>(null)
+  const [deletingRole, setDeletingRole] = useState(false)
+
+  const toast = useToastStore((s) => s.addToast)
+
+  const refresh = useCallback(() => {
+    void fetchUsers(clusterId)
+    void fetchRoles(clusterId)
+  }, [clusterId, fetchUsers, fetchRoles])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    refresh()
+  }, [refresh])
+
+  // -- Mutations -----------------------------------------------------------
+
+  const handleCreateUser = async (body: Parameters<typeof createUser>[1]) => {
+    try {
+      await createUser(clusterId, body)
+      toast("success", `User "${body.username}" created`)
+    } catch (err) {
+      toast("error", errorMessage(err))
+      throw err
+    }
+  }
+
+  const handleCreateRole = async (body: Parameters<typeof createRole>[1]) => {
+    try {
+      await createRole(clusterId, body)
+      toast("success", `Role "${body.name}" created`)
+    } catch (err) {
+      toast("error", errorMessage(err))
+      throw err
+    }
+  }
+
+  const handleDeleteUser = async () => {
+    if (!deleteUserTarget) return
+    setDeletingUser(true)
+    try {
+      await deleteUser(clusterId, deleteUserTarget)
+      toast("success", `User "${deleteUserTarget}" deleted`)
+      setDeleteUserTarget(null)
+    } catch (err) {
+      toast("error", errorMessage(err))
+    } finally {
+      setDeletingUser(false)
+    }
+  }
+
+  const handleDeleteRole = async () => {
+    if (!deleteRoleTarget) return
+    setDeletingRole(true)
+    try {
+      await deleteRole(clusterId, deleteRoleTarget)
+      toast("success", `Role "${deleteRoleTarget}" deleted`)
+      setDeleteRoleTarget(null)
+    } catch (err) {
+      toast("error", errorMessage(err))
+    } finally {
+      setDeletingRole(false)
+    }
+  }
+
+  const handleChangePassword = async () => {
+    if (!changePassUser || !newPass) return
+    setChangingPass(true)
+    try {
+      await changePassword(clusterId, changePassUser, newPass)
+      toast("success", `Password updated for "${changePassUser}"`)
+      setChangePassOpen(false)
+      setNewPass("")
+    } catch (err) {
+      toast("error", errorMessage(err))
+    } finally {
+      setChangingPass(false)
+    }
+  }
+
+  // -- Columns -------------------------------------------------------------
+
+  const userColumns = useMemo<ColumnDef<AerospikeUser>[]>(
+    () => [
+      {
+        accessorKey: "username",
+        header: "Username",
+        cell: ({ getValue }) => (
+          <span className="font-mono font-semibold text-gray-900 dark:text-gray-50">
+            {getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "roles",
+        header: "Roles",
+        cell: ({ getValue }) => {
+          const r = getValue() as string[]
+          if (!r || r.length === 0)
+            return (
+              <span className="text-xs italic text-gray-500 dark:text-gray-400">
+                No roles
+              </span>
+            )
+          return (
+            <div className="flex flex-wrap gap-1">
+              {r.map((role) => (
+                <Badge key={role} variant="neutral">
+                  {role}
+                </Badge>
+              ))}
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: "readQuota",
+        header: "Read TPS",
+        size: 110,
+        cell: ({ getValue }) => {
+          const q = getValue() as number
+          return (
+            <span className="tabular-nums">
+              {q === 0 ? "—" : q.toLocaleString()}
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: "writeQuota",
+        header: "Write TPS",
+        size: 110,
+        cell: ({ getValue }) => {
+          const q = getValue() as number
+          return (
+            <span className="tabular-nums">
+              {q === 0 ? "—" : q.toLocaleString()}
+            </span>
+          )
+        },
+      },
+      {
+        accessorKey: "connections",
+        header: "Connections",
+        size: 110,
+        cell: ({ getValue }) => (
+          <span className="tabular-nums text-gray-500 dark:text-gray-400">
+            {(getValue() as number) ?? 0}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 120,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="ghost"
+              className="size-8 p-0"
+              aria-label={`Change password for ${row.original.username}`}
+              onClick={() => {
+                setChangePassUser(row.original.username)
+                setNewPass("")
+                setChangePassOpen(true)
+              }}
+            >
+              <RiKey2Line className="size-4" aria-hidden="true" />
+            </Button>
+            <Button
+              variant="ghost"
+              className="size-8 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+              aria-label={`Delete user ${row.original.username}`}
+              onClick={() => setDeleteUserTarget(row.original.username)}
+            >
+              <RiDeleteBin2Line className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  )
+
+  const roleColumns = useMemo<ColumnDef<AerospikeRole>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ getValue }) => (
+          <span className="font-mono font-semibold text-gray-900 dark:text-gray-50">
+            {getValue() as string}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "privileges",
+        header: "Privileges",
+        cell: ({ getValue }) => {
+          const privs = getValue() as Privilege[]
+          if (!privs || privs.length === 0)
+            return (
+              <span className="text-xs italic text-gray-500 dark:text-gray-400">
+                none
+              </span>
+            )
+          return (
+            <div className="flex flex-wrap gap-1">
+              {privs.map((p, i) => (
+                <Badge key={`${p.code}-${i}`} variant="neutral">
+                  {p.code}
+                  {p.namespace ? ` · ${p.namespace}` : ""}
+                  {p.set ? `.${p.set}` : ""}
+                </Badge>
+              ))}
+            </div>
+          )
+        },
+      },
+      {
+        accessorKey: "whitelist",
+        header: "Whitelist",
+        cell: ({ getValue }) => {
+          const wl = getValue() as string[]
+          return wl && wl.length > 0 ? (
+            <span className="font-mono text-xs">{wl.join(", ")}</span>
+          ) : (
+            <span className="text-xs italic text-gray-500 dark:text-gray-400">
+              any
+            </span>
+          )
+        },
+      },
+      {
+        id: "quotas",
+        header: "Quotas (R / W)",
+        size: 140,
+        cell: ({ row }) => (
+          <span className="tabular-nums text-xs text-gray-500 dark:text-gray-400">
+            {row.original.readQuota} / {row.original.writeQuota}
+          </span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        size: 80,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end">
+            <Button
+              variant="ghost"
+              className="size-8 p-0 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+              aria-label={`Delete role ${row.original.name}`}
+              onClick={() => setDeleteRoleTarget(row.original.name)}
+            >
+              <RiDeleteBin2Line className="size-4" aria-hidden="true" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  )
 
   return (
     <main className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-500">
-            Admin
-          </span>
-          <h1 className="mt-1 text-lg font-semibold text-gray-900 sm:text-xl dark:text-gray-50">
-            Users &amp; roles
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-            Aerospike ACL — available when security is enabled in aerospike.conf.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Administration"
+        description="Manage users and roles via the Aerospike ACL."
+        actions={
+          <Button variant="secondary" onClick={refresh}>
+            <RiRefreshLine className="mr-2 size-4" aria-hidden="true" />
+            Refresh
+          </Button>
+        }
+      />
 
-      {securityDisabled ? (
-        <SecurityDisabledState />
+      {!isSecurityDisabled && <InlineAlert message={error} />}
+
+      {isSecurityDisabled ? (
+        <SecurityDisabledCard />
       ) : (
         <>
-          <UsersSection
-            state={usersState}
-            onCreate={() => {
-              /* TODO: CreateUserDialog */
-            }}
-          />
-          <RolesSection
-            state={rolesState}
-            onCreate={() => {
-              /* TODO: CreateRoleDialog */
-            }}
-          />
+          <TabNavigation>
+            <TabNavigationLink
+              active={tab === "users"}
+              onClick={() => setTab("users")}
+            >
+              <span className="inline-flex items-center gap-2">
+                <RiUser3Line className="size-4" aria-hidden="true" />
+                Users ({users.length})
+              </span>
+            </TabNavigationLink>
+            <TabNavigationLink
+              active={tab === "roles"}
+              onClick={() => setTab("roles")}
+            >
+              <span className="inline-flex items-center gap-2">
+                <RiShieldUserLine className="size-4" aria-hidden="true" />
+                Roles ({roles.length})
+              </span>
+            </TabNavigationLink>
+          </TabNavigation>
+
+          {tab === "users" && (
+            <section className="flex flex-col gap-3">
+              <div className="flex items-center justify-end">
+                <Button variant="primary" onClick={() => setCreateUserOpen(true)}>
+                  <RiAddLine className="mr-2 size-4" aria-hidden="true" />
+                  Create user
+                </Button>
+              </div>
+              <Card className="p-0">
+                <DataTable
+                  data={users}
+                  columns={userColumns}
+                  loading={usersLoading}
+                  emptyState={
+                    <EmptyState
+                      icon={RiUser3Line}
+                      title="No users"
+                      description="Create a user to manage access control."
+                      action={
+                        <Button
+                          variant="primary"
+                          onClick={() => setCreateUserOpen(true)}
+                        >
+                          <RiAddLine className="mr-2 size-4" aria-hidden="true" />
+                          Create user
+                        </Button>
+                      }
+                    />
+                  }
+                  testId="admin-users-table"
+                />
+              </Card>
+            </section>
+          )}
+
+          {tab === "roles" && (
+            <section className="flex flex-col gap-3">
+              <div className="flex items-center justify-end">
+                <Button variant="primary" onClick={() => setCreateRoleOpen(true)}>
+                  <RiAddLine className="mr-2 size-4" aria-hidden="true" />
+                  Create role
+                </Button>
+              </div>
+              <Card className="p-0">
+                <DataTable
+                  data={roles}
+                  columns={roleColumns}
+                  loading={rolesLoading}
+                  emptyState={
+                    <EmptyState
+                      icon={RiShieldUserLine}
+                      title="No roles"
+                      description="Create a role to define privileges and quotas."
+                      action={
+                        <Button
+                          variant="primary"
+                          onClick={() => setCreateRoleOpen(true)}
+                        >
+                          <RiAddLine className="mr-2 size-4" aria-hidden="true" />
+                          Create role
+                        </Button>
+                      }
+                    />
+                  }
+                  testId="admin-roles-table"
+                />
+              </Card>
+            </section>
+          )}
         </>
       )}
+
+      {/* Dialogs */}
+      <CreateUserDialog
+        open={createUserOpen}
+        onOpenChange={setCreateUserOpen}
+        roles={roles}
+        onSubmit={handleCreateUser}
+      />
+      <CreateRoleDialog
+        open={createRoleOpen}
+        onOpenChange={setCreateRoleOpen}
+        onSubmit={handleCreateRole}
+      />
+      <ChangePasswordDialog
+        open={changePassOpen}
+        onOpenChange={setChangePassOpen}
+        username={changePassUser}
+        password={newPass}
+        onPasswordChange={setNewPass}
+        loading={changingPass}
+        onSubmit={handleChangePassword}
+      />
+      <ConfirmDialog
+        open={!!deleteUserTarget}
+        onOpenChange={(open) => !open && setDeleteUserTarget(null)}
+        title="Delete user"
+        description={`Delete user "${deleteUserTarget}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteUser}
+        loading={deletingUser}
+      />
+      <ConfirmDialog
+        open={!!deleteRoleTarget}
+        onOpenChange={(open) => !open && setDeleteRoleTarget(null)}
+        title="Delete role"
+        description={`Delete role "${deleteRoleTarget}"? Users assigned this role will lose its privileges.`}
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={handleDeleteRole}
+        loading={deletingRole}
+      />
     </main>
   )
 }
 
-function SecurityDisabledState() {
+// ---------------------------------------------------------------------------
+// Security-disabled state (CE default when `security { }` block is absent)
+// ---------------------------------------------------------------------------
+
+function SecurityDisabledCard() {
   return (
-    <Card className="flex flex-col items-center gap-3 py-12 text-center">
+    <Card className="flex flex-col items-center gap-4 py-12 text-center">
       <RiShieldKeyholeLine
         className="size-10 text-amber-500 dark:text-amber-400"
         aria-hidden="true"
       />
-      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50">
-        Security is not enabled
-      </h3>
-      <p className="max-w-md text-sm text-gray-500 dark:text-gray-400">
-        User and role management requires security. Add a{" "}
-        <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-xs dark:bg-gray-900">
-          security {"{ }"}
-        </code>{" "}
-        block to your{" "}
-        <code className="rounded bg-gray-100 px-1 py-0.5 font-mono text-xs dark:bg-gray-900">
-          aerospike.conf
-        </code>{" "}
-        and restart the cluster to enable this feature.
-      </p>
+      <div>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-50">
+          Security is not enabled
+        </h3>
+        <p className="mx-auto mt-1 max-w-md text-sm text-gray-500 dark:text-gray-400">
+          User and role management requires security to be enabled in
+          aerospike.conf. Aerospike CE supports security — it is simply
+          disabled by default.
+        </p>
+      </div>
+      <pre className="rounded bg-gray-100 px-4 py-3 text-left font-mono text-xs text-gray-700 dark:bg-gray-900 dark:text-gray-300">
+        {`security {
+    enable-security true
+}`}
+      </pre>
       <a
         href="https://aerospike.com/docs/server/operations/configure/security"
         target="_blank"
@@ -136,187 +539,73 @@ function SecurityDisabledState() {
   )
 }
 
-function UsersSection({
-  state,
-  onCreate,
-}: {
-  state: LoadState<AerospikeUser[]>
-  onCreate: () => void
-}) {
-  return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">Users</h2>
-        <div className="flex gap-2">
-          <Input type="search" placeholder="Filter users..." className="sm:w-60" />
-          <Button variant="primary" onClick={onCreate}>
-            Create user
-          </Button>
-        </div>
-      </div>
-      {state.error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-          {state.error}
-        </div>
-      )}
-      <Card className="p-0">
-        <TableRoot>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>User</TableHeaderCell>
-                <TableHeaderCell>Roles</TableHeaderCell>
-                <TableHeaderCell className="text-right">Read quota (TPS)</TableHeaderCell>
-                <TableHeaderCell className="text-right">Write quota (TPS)</TableHeaderCell>
-                <TableHeaderCell className="text-right">Connections</TableHeaderCell>
-                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.loading ? (
-                <SkeletonRows cols={6} rows={3} />
-              ) : state.data && state.data.length > 0 ? (
-                state.data.map((u) => (
-                  <TableRow key={u.username}>
-                    <TableCell>
-                      <span className="font-mono font-semibold text-gray-900 dark:text-gray-50">
-                        {u.username}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {u.roles.map((r) => (
-                          <Badge key={r} variant="neutral">
-                            {r}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {u.readQuota === 0 ? "—" : u.readQuota.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {u.writeQuota === 0 ? "—" : u.writeQuota.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-gray-500">
-                      {u.connections ?? 0}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" className="h-7 px-2 text-xs">
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-6 text-center text-sm text-gray-500">
-                    No users.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableRoot>
-      </Card>
-    </section>
-  )
+// ---------------------------------------------------------------------------
+// Change-password dialog (inline; not shared elsewhere)
+// ---------------------------------------------------------------------------
+
+interface ChangePasswordDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  username: string
+  password: string
+  onPasswordChange: (v: string) => void
+  loading: boolean
+  onSubmit: () => void | Promise<void>
 }
 
-function RolesSection({
-  state,
-  onCreate,
-}: {
-  state: LoadState<AerospikeRole[]>
-  onCreate: () => void
-}) {
+function ChangePasswordDialog({
+  open,
+  onOpenChange,
+  username,
+  password,
+  onPasswordChange,
+  loading,
+  onSubmit,
+}: ChangePasswordDialogProps) {
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-end justify-between">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">Roles</h2>
-        <Button variant="primary" onClick={onCreate}>
-          Create role
-        </Button>
-      </div>
-      {state.error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-          {state.error}
-        </div>
-      )}
-      <Card className="p-0">
-        <TableRoot>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeaderCell>Role</TableHeaderCell>
-                <TableHeaderCell>Privileges</TableHeaderCell>
-                <TableHeaderCell>Whitelist</TableHeaderCell>
-                <TableHeaderCell className="text-right">Actions</TableHeaderCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {state.loading ? (
-                <SkeletonRows cols={4} rows={2} />
-              ) : state.data && state.data.length > 0 ? (
-                state.data.map((r) => (
-                  <TableRow key={r.name}>
-                    <TableCell>
-                      <span className="font-mono font-semibold text-gray-900 dark:text-gray-50">
-                        {r.name}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {r.privileges.map((p, i) => (
-                          <Badge key={`${r.name}-priv-${i}`} variant="neutral">
-                            {p.code}
-                            {p.namespace ? ` · ${p.namespace}` : ""}
-                            {p.set ? `.${p.set}` : ""}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {r.whitelist && r.whitelist.length > 0 ? (
-                        r.whitelist.join(", ")
-                      ) : (
-                        <span className="text-gray-500">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" className="h-7 px-2 text-xs">
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-6 text-center text-sm text-gray-500">
-                    No roles.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableRoot>
-      </Card>
-    </section>
-  )
-}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <div className="flex flex-col gap-y-4">
+          <DialogHeader>
+            <DialogTitle>Change password</DialogTitle>
+            <DialogDescription>
+              Set a new password for user &quot;{username}&quot;.
+            </DialogDescription>
+          </DialogHeader>
 
-function SkeletonRows({ cols, rows }: { cols: number; rows: number }) {
-  return (
-    <>
-      {Array.from({ length: rows }).map((_, r) => (
-        <TableRow key={r}>
-          {Array.from({ length: cols }).map((_, c) => (
-            <TableCell key={c}>
-              <div className="h-3 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
-            </TableCell>
-          ))}
-        </TableRow>
-      ))}
-    </>
+          <div className="flex flex-col gap-y-1.5">
+            <Label htmlFor="cp-newpass">New password</Label>
+            <Input
+              id="cp-newpass"
+              type="password"
+              value={password}
+              onChange={(e) => onPasswordChange(e.target.value)}
+              placeholder="New password"
+              autoComplete="new-password"
+              autoFocus
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void onSubmit()}
+              isLoading={loading}
+              disabled={loading || !password}
+            >
+              Update password
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
