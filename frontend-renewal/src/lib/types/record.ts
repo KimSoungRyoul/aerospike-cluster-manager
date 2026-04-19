@@ -3,46 +3,62 @@
  * See: backend/src/aerospike_cluster_manager_api/models/record.py
  */
 
-export type BinValue = unknown;
+export type BinValue = unknown
 
-export type PkType = "auto" | "string" | "int" | "bytes";
+export type PkType = "auto" | "string" | "int" | "bytes"
 
 export interface GeoJSON {
-  type: string;
-  coordinates: unknown[];
+  type: string
+  coordinates: unknown[]
 }
 
 export interface RecordKey {
-  namespace: string;
-  set?: string;
-  pk?: string;
-  digest?: string | null;
+  namespace: string
+  set?: string
+  pk?: string
+  digest?: string | null
 }
 
 export interface RecordMeta {
-  generation: number;
-  ttl: number;
-  lastUpdateMs?: number | null;
+  generation: number
+  ttl: number
+  lastUpdateMs?: number | null
 }
 
 export interface AerospikeRecord {
-  key: RecordKey;
-  meta: RecordMeta;
-  bins: Record<string, BinValue>;
+  key: RecordKey
+  meta: RecordMeta
+  bins: Record<string, BinValue>
 }
 
 export interface RecordListResponse {
-  records: AerospikeRecord[];
-  total: number;
-  page: number;
-  pageSize: number;
-  hasMore: boolean;
-  totalEstimated: boolean;
+  records: AerospikeRecord[]
+  total: number
+  page: number
+  pageSize: number
+  hasMore: boolean
+  totalEstimated: boolean
 }
 
 export interface RecordWriteRequest {
-  key: RecordKey;
-  bins: Record<string, BinValue>;
-  ttl?: number | null;
-  pkType?: PkType;
+  key: RecordKey
+  bins: Record<string, BinValue>
+  ttl?: number | null
+  pkType?: PkType
+}
+
+// === Bin Editor ===
+export interface BinEntry {
+  id: string
+  name: string
+  value: string
+  type:
+    | "string"
+    | "integer"
+    | "float"
+    | "bool"
+    | "list"
+    | "map"
+    | "bytes"
+    | "geojson"
 }
