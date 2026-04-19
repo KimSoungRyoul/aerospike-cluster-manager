@@ -109,7 +109,6 @@ export default function MobileSidebar() {
   // Swipe-to-close: when the drawer is open, a left-swipe closes it.
   // Edge-swipe-right from the left edge opens the drawer.
   useSwipe({
-    enabled: true,
     onSwipeLeft: () => setOpen(false),
     onSwipeRight: () => setOpen(true),
   })

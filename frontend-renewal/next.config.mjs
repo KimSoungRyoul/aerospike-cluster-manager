@@ -2,7 +2,10 @@
 const nextConfig = {
   output: "standalone",
   experimental: {
-    optimizePackageImports: ["recharts", "@remixicon/react", "@tanstack/react-table"],
+    // NOTE: `@tanstack/react-table` is intentionally omitted — Next 14.2's
+    // experimental barrel optimizer fails to parse its ESM build, producing
+    // "'import' and 'export' may appear only with 'sourceType: module'".
+    optimizePackageImports: ["recharts", "@remixicon/react"],
   },
   async headers() {
     return [
