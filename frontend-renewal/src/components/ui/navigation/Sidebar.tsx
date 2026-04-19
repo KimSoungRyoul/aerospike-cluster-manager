@@ -7,17 +7,27 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/Accordion"
+import { useConnectionHealth } from "@/hooks/use-connection-health"
 import { useConnections } from "@/hooks/use-connections"
 import { useK8sClusters } from "@/hooks/use-k8s-clusters"
 import { getCluster } from "@/lib/api/clusters"
-import type { ConnectionProfileResponse } from "@/lib/types/connection"
+import type {
+  ConnectionProfileResponse,
+  ConnectionStatus,
+} from "@/lib/types/connection"
 import type { K8sClusterSummary } from "@/lib/types/k8s"
 import { cx, focusRing } from "@/lib/utils"
-import { RiCodeSSlashLine, RiFolder3Fill, RiStackLine } from "@remixicon/react"
+import {
+  RiCodeSSlashLine,
+  RiFolder3Fill,
+  RiSettings3Line,
+  RiStackLine,
+} from "@remixicon/react"
 import Image from "next/image"
 import Link from "next/link"
 import { useParams, usePathname } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
+import { useConnectionStore } from "@/stores/connection-store"
 import MobileSidebar from "./MobileSidebar"
 import { UserProfileDesktop, UserProfileMobile } from "./UserProfile"
 
@@ -29,6 +39,7 @@ type NamespaceSummary = {
 type ClusterSummary = {
   id: string
   name: string
+  color?: string
   managedBy?: "ACKO" | "manual"
   namespaces: NamespaceSummary[]
 }
@@ -78,6 +89,7 @@ function buildClusterList(
     list.push({
       id: c.id,
       name: c.name,
+      color: c.color,
       managedBy: linked ? "ACKO" : "manual",
       namespaces: nsByConn[c.id] ?? [],
     })
@@ -91,6 +103,10 @@ export function Sidebar() {
   const conn = useConnections()
   const k8s = useK8sClusters()
   const nsByConn = useClusterNamespaces(params?.clusterId ?? null)
+  const healthStatuses = useConnectionStore((s) => s.healthStatuses)
+
+  // SSE + polling fallback: populates useConnectionStore.healthStatuses
+  useConnectionHealth(conn.data)
 
   const clusterList = useMemo(
     () => buildClusterList(conn.data, k8s.data?.items ?? null, nsByConn),
@@ -127,6 +143,7 @@ export function Sidebar() {
                   cluster={c}
                   pathname={pathname}
                   isActive={isActive}
+                  health={healthStatuses[c.id]}
                 />
               ))}
             </Accordion>
@@ -170,7 +187,20 @@ export function Sidebar() {
               Cluster templates
             </Link>
           </nav>
-          <div className="mt-auto">
+          <div className="mt-auto flex flex-col gap-1">
+            <Link
+              href={siteConfig.baseLinks.settings}
+              className={cx(
+                "flex items-center gap-x-2.5 rounded-md px-2 py-1.5 text-sm font-medium transition",
+                isActive(siteConfig.baseLinks.settings)
+                  ? "text-indigo-600 dark:text-indigo-400"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 hover:dark:bg-gray-900 hover:dark:text-gray-50",
+                focusRing,
+              )}
+            >
+              <RiSettings3Line className="size-4 shrink-0" aria-hidden="true" />
+              Settings
+            </Link>
             <UserProfileDesktop />
           </div>
         </aside>
@@ -238,10 +268,12 @@ function ClusterNode({
   cluster,
   pathname,
   isActive,
+  health,
 }: {
   cluster: ClusterSummary
   pathname: string
   isActive: (href: string, exact?: boolean) => boolean
+  health?: ConnectionStatus
 }) {
   const clusterActive = isActive(`/clusters/${cluster.id}`)
   const expandedNamespaces = cluster.namespaces
@@ -261,6 +293,7 @@ function ClusterNode({
         <span className="flex items-center gap-2 text-sm font-medium">
           <RiStackLine className="size-4" aria-hidden="true" />
           <span className="font-mono">{cluster.name}</span>
+          <HealthDot status={health} />
           {cluster.managedBy === "ACKO" && (
             <span className="rounded bg-indigo-50 px-1.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
               ACKO
@@ -363,5 +396,40 @@ function NamespaceNode({
         </AccordionItem>
       </Accordion>
     </li>
+  )
+}
+
+/**
+ * Small colored dot representing live connection health.
+ *  - gray (pulse): status unknown / still probing
+ *  - green: connected
+ *  - yellow: connected but cluster tend is unhealthy
+ *  - red: disconnected / error
+ */
+function HealthDot({ status }: { status?: ConnectionStatus }) {
+  if (!status) {
+    return (
+      <span
+        aria-label="Checking health"
+        className="size-2 shrink-0 animate-pulse rounded-full bg-gray-300 dark:bg-gray-700"
+      />
+    )
+  }
+  const tone = !status.connected
+    ? "bg-red-500"
+    : status.tendHealthy === false
+      ? "bg-yellow-500"
+      : "bg-emerald-500"
+  const label = !status.connected
+    ? "Disconnected"
+    : status.tendHealthy === false
+      ? "Degraded"
+      : "Healthy"
+  return (
+    <span
+      aria-label={label}
+      title={label}
+      className={cx("size-2 shrink-0 rounded-full", tone)}
+    />
   )
 }
