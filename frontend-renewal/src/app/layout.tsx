@@ -5,6 +5,7 @@ import "./globals.css"
 import { siteConfig } from "./siteConfig"
 
 import { ToastContainer } from "@/components/common/ToastContainer"
+import { KeyboardShortcutsProvider } from "@/components/ui/navigation/KeyboardShortcutsProvider"
 import { Sidebar } from "@/components/ui/navigation/Sidebar"
 
 const inter = Inter({
@@ -51,6 +52,7 @@ export default function RootLayout({
       >
         <div className="mx-auto max-w-screen-2xl">
           <ThemeProvider defaultTheme="system" attribute="class">
+            <KeyboardShortcutsProvider />
             <Sidebar />
             <main className="lg:pl-72">{children}</main>
             <ToastContainer />

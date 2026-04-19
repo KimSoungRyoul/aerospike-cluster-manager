@@ -1,5 +1,6 @@
 "use client"
 
+import { AddConnectionDialog } from "@/components/dialogs/AddConnectionDialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +14,7 @@ import { useConnections } from "@/hooks/use-connections"
 import { cx, focusInput } from "@/lib/utils"
 import { RiAddLine, RiExpandUpDownLine } from "@remixicon/react"
 import { useParams, usePathname, useRouter } from "next/navigation"
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 
 function initialsOf(name: string): string {
   if (!name) return "??"
@@ -36,10 +37,11 @@ export function WorkspacesDropdownMobile() {
 }
 
 function WorkspaceSwitcher({ variant }: { variant: "desktop" | "mobile" }) {
-  const { data, isLoading } = useConnections()
+  const { data, isLoading, refetch } = useConnections()
   const router = useRouter()
   const pathname = usePathname()
   const params = useParams<{ clusterId?: string }>()
+  const [addOpen, setAddOpen] = useState(false)
 
   const active = useMemo(() => {
     const connections = data ?? []
@@ -57,6 +59,7 @@ function WorkspaceSwitcher({ variant }: { variant: "desktop" | "mobile" }) {
   )
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger className={triggerClass} aria-label="Switch workspace">
         <Avatar
@@ -132,8 +135,7 @@ function WorkspaceSwitcher({ variant }: { variant: "desktop" | "mobile" }) {
         <DropdownMenuItem
           onSelect={(e) => {
             e.preventDefault()
-            // TODO: open AddConnectionDialog (dialogs/AddConnectionDialog.tsx already exists)
-            router.push("/clusters?new=1")
+            setAddOpen(true)
           }}
           className="flex items-center gap-2 text-sm"
         >
@@ -142,6 +144,14 @@ function WorkspaceSwitcher({ variant }: { variant: "desktop" | "mobile" }) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    <AddConnectionDialog
+      open={addOpen}
+      onOpenChange={setAddOpen}
+      onSuccess={() => {
+        void refetch()
+      }}
+    />
+    </>
   )
 }
 
