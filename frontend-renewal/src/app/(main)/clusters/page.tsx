@@ -3,12 +3,24 @@
 import { Badge } from "@/components/Badge"
 import { Button } from "@/components/Button"
 import { Card } from "@/components/Card"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRoot,
+  TableRow,
+} from "@/components/Table"
 import { AddConnectionDialog } from "@/components/dialogs/AddConnectionDialog"
 import { clusterSections } from "@/app/siteConfig"
 import { useConnections } from "@/hooks/use-connections"
 import { useK8sClusters } from "@/hooks/use-k8s-clusters"
 import type { ConnectionProfileResponse } from "@/lib/types/connection"
 import type { K8sClusterSummary } from "@/lib/types/k8s"
+import { cx, focusRing } from "@/lib/utils"
+import { type ClustersView, useUiStore } from "@/stores/ui-store"
+import { RiLayoutGridLine, RiListCheck2 } from "@remixicon/react"
 import Link from "next/link"
 import { useMemo, useState } from "react"
 
@@ -90,6 +102,8 @@ export default function ClustersPage() {
   const k8s = useK8sClusters()
 
   const [addConnOpen, setAddConnOpen] = useState(false)
+  const view = useUiStore((s) => s.clustersView)
+  const setView = useUiStore((s) => s.setClustersView)
 
   const rows = useMemo(
     () => mergeRows(conn.data, k8s.data?.items ?? null),
@@ -135,11 +149,23 @@ export default function ClustersPage() {
       ) : rows.length === 0 ? (
         <EmptyState onAddConnection={() => setAddConnOpen(true)} />
       ) : (
-        <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {rows.map((r) => (
-            <ClusterCard key={r.key} row={r} />
-          ))}
-        </section>
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500 dark:text-gray-500">
+              {rows.length} {rows.length === 1 ? "cluster" : "clusters"}
+            </p>
+            <ViewToggle value={view} onChange={setView} />
+          </div>
+          {view === "card" ? (
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {rows.map((r) => (
+                <ClusterCard key={r.key} row={r} />
+              ))}
+            </section>
+          ) : (
+            <ClusterTable rows={rows} />
+          )}
+        </>
       )}
 
       <AddConnectionDialog
@@ -148,6 +174,133 @@ export default function ClustersPage() {
         onSuccess={handleConnectionCreated}
       />
     </main>
+  )
+}
+
+function ViewToggle({
+  value,
+  onChange,
+}: {
+  value: ClustersView
+  onChange: (v: ClustersView) => void
+}) {
+  const options: Array<{
+    value: ClustersView
+    label: string
+    icon: typeof RiLayoutGridLine
+  }> = [
+    { value: "card", label: "Card view", icon: RiLayoutGridLine },
+    { value: "table", label: "Table view", icon: RiListCheck2 },
+  ]
+
+  return (
+    <div
+      role="radiogroup"
+      aria-label="View mode"
+      className="inline-flex rounded-md border border-gray-200 bg-white p-0.5 dark:border-gray-800 dark:bg-gray-950"
+    >
+      {options.map((opt) => {
+        const Icon = opt.icon
+        const active = value === opt.value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            aria-label={opt.label}
+            title={opt.label}
+            onClick={() => onChange(opt.value)}
+            className={cx(
+              "flex size-7 items-center justify-center rounded transition",
+              active
+                ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
+                : "text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-500 hover:dark:bg-gray-900 hover:dark:text-gray-50",
+              focusRing,
+            )}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function ClusterTable({ rows }: { rows: Row[] }) {
+  return (
+    <Card className="p-0">
+      <TableRoot>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableHeaderCell>Name</TableHeaderCell>
+              <TableHeaderCell>Status</TableHeaderCell>
+              <TableHeaderCell>Managed by</TableHeaderCell>
+              <TableHeaderCell>Address</TableHeaderCell>
+              <TableHeaderCell className="text-right">Size</TableHeaderCell>
+              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((r) => {
+              const status = phaseBadge(r.phase)
+              const addr =
+                r.hosts.length > 0 ? `${r.hosts[0]}:${r.port}` : r.k8sNamespace ?? "—"
+              return (
+                <TableRow key={r.key}>
+                  <TableCell className="font-mono font-medium text-gray-900 dark:text-gray-50">
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="inline-block size-2 shrink-0 rounded-sm"
+                        style={{ background: r.color }}
+                      />
+                      {r.displayName}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className={`size-2 rounded-full ${status.dot}`}
+                        aria-hidden="true"
+                      />
+                      <span className="text-xs uppercase tracking-wider text-gray-600 dark:text-gray-400">
+                        {status.label}
+                      </span>
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    {r.managedBy === "ACKO" ? (
+                      <Badge variant="default" className="uppercase tracking-wider">
+                        ACKO
+                      </Badge>
+                    ) : (
+                      <span className="text-gray-600 dark:text-gray-400">Manual</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="font-mono text-gray-600 dark:text-gray-400">
+                    {addr}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {r.size ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {r.connId ? (
+                      <Button variant="ghost" asChild>
+                        <Link href={clusterSections.overview(r.connId)}>Open</Link>
+                      </Button>
+                    ) : (
+                      <Badge variant="warning">not linked</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </TableRoot>
+    </Card>
   )
 }
 
