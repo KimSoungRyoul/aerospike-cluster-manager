@@ -7,27 +7,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/Accordion"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/Dropdown"
 import { useConnections } from "@/hooks/use-connections"
 import { useK8sClusters } from "@/hooks/use-k8s-clusters"
 import { getCluster } from "@/lib/api/clusters"
 import type { ConnectionProfileResponse } from "@/lib/types/connection"
 import type { K8sClusterSummary } from "@/lib/types/k8s"
-import { cx, focusInput, focusRing } from "@/lib/utils"
+import { cx, focusRing } from "@/lib/utils"
 import {
-  RiAddLine,
   RiBox3Line,
   RiCodeSSlashLine,
   RiDatabase2Line,
-  RiExpandUpDownLine,
   RiFolder3Fill,
   RiStackLine,
 } from "@remixicon/react"
@@ -129,7 +118,6 @@ export function Sidebar() {
       <nav className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <aside className="flex grow flex-col gap-y-4 overflow-y-auto border-r border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
           <BrandCard />
-          <WorkspaceSwitcher />
 
           <nav aria-label="core navigation" className="flex flex-1 flex-col">
             <Accordion
@@ -224,18 +212,18 @@ function BrandCard() {
     <Link
       href="/clusters"
       className={cx(
-        "flex items-center gap-3 rounded-md border border-gray-200 px-3 py-2.5 transition hover:bg-gray-50 dark:border-gray-800 hover:dark:bg-gray-900",
+        "flex items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-gray-50 dark:hover:bg-gray-900",
         focusRing,
       )}
     >
       <Image
         src="/aerospike-logo.svg"
         alt="Aerospike"
-        width={32}
-        height={32}
-        className="rounded-md"
+        width={36}
+        height={36}
+        className="size-9 shrink-0 rounded-lg"
       />
-      <div className="min-w-0">
+      <div className="min-w-0 leading-tight">
         <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
           Aerospike
         </p>
@@ -243,114 +231,6 @@ function BrandCard() {
       </div>
     </Link>
   )
-}
-
-// TODO(workspaces): UI-only placeholder. Wire up to real multi-workspace model:
-//   - backend: `/api/workspaces` (list / create / switch) and persist active workspace
-//   - scope resources (connections, K8s clusters, templates) to the selected workspace
-//   - replace hardcoded `mockWorkspaces` below with a `useWorkspaces()` hook
-//   - implement AddWorkspaceDialog
-const mockWorkspaces: Array<{
-  id: string
-  name: string
-  role: string
-  color: string
-}> = [
-  { id: "default", name: "Default", role: "Member", color: "#4F46E5" },
-]
-
-function WorkspaceSwitcher() {
-  const active = mockWorkspaces[0]
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className={cx(
-          "flex w-full items-center gap-3 rounded-md border border-gray-200 bg-white px-3 py-2 text-left transition hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 hover:dark:bg-gray-900",
-          focusInput,
-        )}
-        aria-label="Switch workspace"
-      >
-        <WorkspaceAvatar initials={initialsOf(active.name)} color={active.color} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
-            {active.name}
-          </p>
-          <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-            {active.role}
-          </p>
-        </div>
-        <RiExpandUpDownLine
-          className="size-4 shrink-0 text-gray-500 dark:text-gray-500"
-          aria-hidden="true"
-        />
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent
-        align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[260px]"
-      >
-        <DropdownMenuLabel>
-          Workspaces{" "}
-          <span className="font-normal text-gray-500 dark:text-gray-400">
-            ({mockWorkspaces.length})
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuGroup>
-          {mockWorkspaces.map((ws) => (
-            <DropdownMenuItem
-              key={ws.id}
-              onSelect={(e) => {
-                e.preventDefault()
-                // TODO(workspaces): switch active workspace + persist + refetch scoped resources
-              }}
-              className="flex items-start gap-3 py-2"
-            >
-              <WorkspaceAvatar initials={initialsOf(ws.name)} color={ws.color} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-50">
-                  {ws.name}
-                </p>
-                <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {ws.role}
-                </p>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onSelect={(e) => {
-            e.preventDefault()
-            // TODO(workspaces): open AddWorkspaceDialog (create, invite members, set role)
-          }}
-          className="flex items-center gap-2 text-sm"
-        >
-          <RiAddLine className="size-4" aria-hidden="true" />
-          Add workspace
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function WorkspaceAvatar({ initials, color }: { initials: string; color: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="flex size-9 shrink-0 items-center justify-center rounded-md text-xs font-semibold text-white"
-      style={{ background: color }}
-    >
-      {initials}
-    </span>
-  )
-}
-
-function initialsOf(name: string): string {
-  if (!name) return "??"
-  const parts = name.split(/[-_ .:]/).filter(Boolean)
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  return name.slice(0, 2).toUpperCase()
 }
 
 function GroupSection({
