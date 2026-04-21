@@ -20,8 +20,8 @@ Goals, in priority order:
    loading / empty / error states, consistent typography).
 3. **Cleaner app structure** — hierarchical `/clusters/[id]/...` routing that
    matches mental model (cluster → namespace → set → record), top TabNavigation
-   per cluster, Sidebar drill-down for direct set access, workspace switcher
-   at the top of the sidebar.
+   per cluster, Sidebar drill-down for direct set access, brand card at the top
+   of the sidebar that links to `/clusters`.
 
 Non-goals:
 
@@ -107,7 +107,7 @@ frontend-renewal/
 │   │   ├── *.tsx               # Tremor Raw primitives (Card, Button, Table, …)
 │   │   ├── LICENSE.md          # Tremor MIT notice — DO NOT REMOVE
 │   │   ├── dialogs/            # Mutation dialogs (AddConnectionDialog, …)
-│   │   └── ui/navigation/      # Sidebar, MobileSidebar, ClusterTabs, WorkspacesDropdown, UserProfile
+│   │   └── ui/navigation/      # Sidebar, MobileSidebar, ClusterTabs, UserProfile
 │   ├── hooks/                  # use-connections, use-cluster, use-k8s-clusters, use-event-stream
 │   ├── lib/
 │   │   ├── api/                # Per-resource fetch clients (connections, clusters, records, indexes, …)
@@ -122,8 +122,8 @@ frontend-renewal/
 `aerospike-cluster-manager` manages clusters that originate from **two
 different paths**, and both must be first-class citizens in the UI:
 
-1. **Add Connection** (Sidebar workspace dropdown → "Add workspace", or the
-   `Add Connection` button on `/clusters`) — attach an **existing** Aerospike
+1. **Add Connection** (the `Add Connection` button on `/clusters`) — attach an
+   **existing** Aerospike
    cluster reachable at some `host:port`. Stores a connection profile
    (`ConnectionProfile`) in the backend DB. Does not create any Kubernetes
    resource. Used for clusters running outside Kubernetes, on another cluster

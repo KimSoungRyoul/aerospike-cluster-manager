@@ -232,18 +232,18 @@ function BrandCard() {
     <Link
       href="/clusters"
       className={cx(
-        "flex items-center gap-3 rounded-md border border-gray-200 px-3 py-2.5 transition hover:bg-gray-50 dark:border-gray-800 hover:dark:bg-gray-900",
+        "flex items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-gray-50 dark:hover:bg-gray-900",
         focusRing,
       )}
     >
       <Image
         src="/aerospike-logo.svg"
         alt="Aerospike"
-        width={32}
-        height={32}
-        className="rounded-md"
+        width={36}
+        height={36}
+        className="size-9 shrink-0 rounded-lg"
       />
-      <div className="min-w-0">
+      <div className="min-w-0 leading-tight">
         <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
           Aerospike
         </p>
