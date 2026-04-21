@@ -52,8 +52,13 @@ export function ClusterTabs({ clusterId }: Props) {
   return (
     <TabNavigation>
       {tabs.map((t) => (
-        <TabNavigationLink key={t.href} asChild active={isActive(t.href, t.exact)}>
-          <Link href={t.href} className="inline-flex items-center gap-2">
+        <TabNavigationLink
+          key={t.href}
+          asChild
+          active={isActive(t.href, t.exact)}
+          className="gap-2"
+        >
+          <Link href={t.href}>
             <t.icon className="size-4 shrink-0" aria-hidden="true" />
             {t.label}
           </Link>
