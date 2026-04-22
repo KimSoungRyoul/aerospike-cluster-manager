@@ -13,7 +13,9 @@ import { getCluster } from "@/lib/api/clusters"
 import type { ConnectionProfileResponse } from "@/lib/types/connection"
 import type { K8sClusterSummary } from "@/lib/types/k8s"
 import { cx, focusRing } from "@/lib/utils"
+import * as AccordionPrimitives from "@radix-ui/react-accordion"
 import {
+  RiArrowDownSLine,
   RiBox3Line,
   RiCodeSSlashLine,
   RiDatabase2Line,
@@ -117,7 +119,7 @@ export function Sidebar() {
       {/* sidebar (lg+) */}
       <nav className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <aside className="flex grow flex-col gap-y-4 overflow-y-auto border-r border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
-          <BrandCard />
+          <BrandCard active={pathname === "/clusters"} />
 
           <nav aria-label="core navigation" className="flex flex-1 flex-col">
             <Accordion
@@ -155,20 +157,6 @@ export function Sidebar() {
                     No clusters yet
                   </span>
                 )}
-
-                <Link
-                  href="/clusters"
-                  className={cx(
-                    "mt-0.5 flex items-center gap-x-2.5 rounded-md py-1.5 pl-2 pr-2 text-sm font-medium transition",
-                    pathname === "/clusters"
-                      ? "text-indigo-600 dark:text-indigo-400"
-                      : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 hover:dark:bg-gray-900 hover:dark:text-gray-50",
-                    focusRing,
-                  )}
-                >
-                  <RiStackLine className="size-4 shrink-0" aria-hidden="true" />
-                  All clusters
-                </Link>
               </GroupSection>
 
               <GroupSection value="acko" icon={RiBox3Line} label="ACKO">
@@ -207,12 +195,17 @@ export function Sidebar() {
   )
 }
 
-function BrandCard() {
+function BrandCard({ active }: { active?: boolean }) {
   return (
     <Link
       href="/clusters"
+      aria-label="All clusters"
+      title="All clusters"
       className={cx(
-        "flex items-center gap-3 rounded-md px-2 py-1.5 transition hover:bg-gray-50 dark:hover:bg-gray-900",
+        "flex items-center gap-3 rounded-md px-2 py-1.5 transition",
+        active
+          ? "bg-indigo-50 dark:bg-indigo-950/40"
+          : "hover:bg-gray-50 dark:hover:bg-gray-900",
         focusRing,
       )}
     >
@@ -224,7 +217,12 @@ function BrandCard() {
         className="size-9 shrink-0 rounded-lg"
       />
       <div className="min-w-0 leading-tight">
-        <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-50">
+        <p
+          className={cx(
+            "truncate text-sm font-semibold",
+            active ? "text-indigo-700 dark:text-indigo-300" : "text-gray-900 dark:text-gray-50",
+          )}
+        >
           Aerospike
         </p>
         <p className="truncate text-xs text-gray-500 dark:text-gray-400">Cluster Manager</p>
@@ -279,27 +277,53 @@ function ClusterNode({
   const expandedNamespaces = cluster.namespaces
     .filter((ns) => pathname.includes(`/clusters/${cluster.id}/sets/${ns.name}`))
     .map((ns) => ns.name)
+  // Backend prepends "[K8s] " to connection names auto-created for ACKO
+  // clusters. The ACKO badge already signals K8s origin, so drop the prefix
+  // for display to avoid visual duplication (and give the name more width).
+  const displayName =
+    cluster.managedBy === "ACKO"
+      ? cluster.name.replace(/^\[K8s\]\s*/, "")
+      : cluster.name
 
   return (
     <AccordionItem value={cluster.id} className="border-none">
-      <AccordionTrigger
+      <AccordionPrimitives.Header
         className={cx(
-          "rounded-md px-2 py-1.5 hover:bg-gray-100 hover:dark:bg-gray-900",
+          "flex items-center rounded-md pr-1 hover:bg-gray-100 hover:dark:bg-gray-900",
           clusterActive
             ? "text-indigo-600 dark:text-indigo-400"
             : "text-gray-700 dark:text-gray-400",
         )}
       >
-        <span className="flex items-center gap-2 text-sm font-medium">
-          <RiStackLine className="size-4" aria-hidden="true" />
-          <span className="font-mono">{cluster.name}</span>
+        <Link
+          href={`/clusters/${cluster.id}`}
+          title={cluster.name}
+          className={cx(
+            "flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium",
+            focusRing,
+          )}
+        >
+          <RiStackLine className="size-4 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate font-mono">{displayName}</span>
           {cluster.managedBy === "ACKO" && (
-            <span className="rounded bg-indigo-50 px-1.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+            <span className="shrink-0 rounded bg-indigo-50 px-1.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
               ACKO
             </span>
           )}
-        </span>
-      </AccordionTrigger>
+        </Link>
+        <AccordionPrimitives.Trigger
+          aria-label={`Toggle ${displayName} namespaces`}
+          className={cx(
+            "group/chev flex size-6 shrink-0 items-center justify-center rounded-md text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:text-gray-500 hover:dark:bg-gray-800 hover:dark:text-gray-50",
+            focusRing,
+          )}
+        >
+          <RiArrowDownSLine
+            className="size-4 transition-transform duration-150 group-data-[state=open]/chev:rotate-180"
+            aria-hidden="true"
+          />
+        </AccordionPrimitives.Trigger>
+      </AccordionPrimitives.Header>
       <AccordionContent className="pt-1">
         <ul className="flex flex-col gap-0.5">
           {cluster.namespaces.length === 0 && (
