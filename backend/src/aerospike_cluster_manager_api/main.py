@@ -148,9 +148,7 @@ try:
         RecordExistsError,
         RecordGenerationError,
         RecordNotFound,
-        # RustPanicError ships in aerospike-py >0.5.3 (PR aerospike-py#301).
-        # Remove the type-ignore once the dep version is bumped.
-        RustPanicError,  # type: ignore[attr-defined]
+        RustPanicError,
         ServerError,
     )
 
