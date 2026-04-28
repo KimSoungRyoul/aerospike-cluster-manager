@@ -10,10 +10,8 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend-renewal/ .
-# Next.js `rewrites()` is evaluated at build time and baked into routes-manifest.json.
-# BACKEND_URL must be set here to the Service DNS the frontend will use at runtime.
-ARG BACKEND_URL=http://aerospike-ce-kubernetes-operator-ui-backend:80
-ENV BACKEND_URL=${BACKEND_URL}
+# /api/* is proxied to BACKEND_URL at runtime by the custom server.js, so no
+# build-time BACKEND_URL is needed (and would silently override the runtime env).
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -31,6 +29,9 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:appuser /app/public ./public
 COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
+# Override the standalone-generated server.js with our custom one that
+# proxies /api/* to BACKEND_URL at runtime (uses node built-ins only).
+COPY --from=builder --chown=appuser:appuser /app/server.js ./server.js
 
 USER appuser
 

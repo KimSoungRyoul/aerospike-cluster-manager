@@ -77,6 +77,12 @@ class K8sClient:
                 configuration.ssl_ca_cert = None
                 client.Configuration.set_default(configuration)
                 logger.warning("K8S_VERIFY_SSL=false — TLS certificate verification disabled")
+            elif app_config.K8S_CA_FILE:
+                configuration = client.Configuration.get_default_copy()
+                configuration.verify_ssl = True
+                configuration.ssl_ca_cert = app_config.K8S_CA_FILE  # type: ignore[reportAttributeAccessIssue]
+                client.Configuration.set_default(configuration)
+                logger.info("Using custom K8s API CA bundle: %s", app_config.K8S_CA_FILE)
 
             self._custom_api = client.CustomObjectsApi()
             self._core_api = client.CoreV1Api()

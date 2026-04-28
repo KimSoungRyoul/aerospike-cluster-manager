@@ -49,6 +49,11 @@ AS_TEND_INTERVAL: int = _get_int("AS_TEND_INTERVAL", 1000)  # Cluster tend inter
 # Kubernetes API
 K8S_API_TIMEOUT: int = _get_int("K8S_API_TIMEOUT", 10)
 K8S_VERIFY_SSL: bool = os.getenv("K8S_VERIFY_SSL", "true").lower() in ("true", "1", "yes")
+# Optional path to a custom CA bundle for verifying the K8s API-server certificate.
+# When set (and K8S_VERIFY_SSL is true), overrides the default in-cluster CA bundle.
+# Required on clusters whose API-server cert is signed by a CA that lacks the
+# Authority Key Identifier extension — CPython 3.13+ rejects such chains by default.
+K8S_CA_FILE: str = os.getenv("K8S_CA_FILE", "")
 K8S_LOG_TIMEOUT: int = _get_int("K8S_LOG_TIMEOUT", 30)
 
 # SSE (Server-Sent Events) streaming
