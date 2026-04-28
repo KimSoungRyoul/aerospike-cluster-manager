@@ -80,7 +80,7 @@ class K8sClient:
             elif app_config.K8S_CA_FILE:
                 configuration = client.Configuration.get_default_copy()
                 configuration.verify_ssl = True
-                configuration.ssl_ca_cert = app_config.K8S_CA_FILE
+                configuration.ssl_ca_cert = app_config.K8S_CA_FILE  # type: ignore[reportAttributeAccessIssue]
                 client.Configuration.set_default(configuration)
                 logger.info("Using custom K8s API CA bundle: %s", app_config.K8S_CA_FILE)
 
