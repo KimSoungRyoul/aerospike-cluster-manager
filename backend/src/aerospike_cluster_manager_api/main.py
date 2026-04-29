@@ -6,12 +6,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.responses import Response
+from swagger_ui_bundle import swagger_ui_path  # type: ignore[import-untyped]
 
 from aerospike_cluster_manager_api import config, db
 from aerospike_cluster_manager_api.client_manager import client_manager
@@ -63,11 +66,34 @@ app = FastAPI(
     title="Aerospike Cluster Manager API",
     version="0.1.0",
     description="REST API for managing Aerospike Community Edition clusters",
-    docs_url="/api/docs",
+    # /api/docs is served below from self-hosted swagger-ui assets so the docs
+    # page works in airgap / firewalled clusters that can't reach jsdelivr (#234).
+    docs_url=None,
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
     lifespan=lifespan,
 )
+
+# Serve swagger-ui-dist files vendored by the swagger-ui-bundle package so
+# /api/docs has no public-internet egress requirement.
+app.mount(
+    "/api/docs/static",
+    StaticFiles(directory=str(swagger_ui_path)),
+    name="swagger-ui-static",
+)
+
+
+@app.get("/api/docs", include_in_schema=False)
+async def custom_swagger_ui() -> HTMLResponse:
+    """Self-hosted Swagger UI — replaces FastAPI's default cdn.jsdelivr.net version."""
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url or "/api/openapi.json",
+        title=f"{app.title} - Swagger UI",
+        swagger_js_url="/api/docs/static/swagger-ui-bundle.js",
+        swagger_css_url="/api/docs/static/swagger-ui.css",
+        swagger_favicon_url="/api/docs/static/favicon-32x32.png",
+    )
+
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[reportArgumentType]
