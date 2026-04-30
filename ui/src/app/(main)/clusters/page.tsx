@@ -12,6 +12,7 @@ import {
   TableRoot,
   TableRow,
 } from "@/components/Table"
+import { Tooltip } from "@/components/Tooltip"
 import { AddressCopyCell } from "@/components/clusters/AddressCopyCell"
 import { LabelsCell } from "@/components/clusters/LabelsCell"
 import {
@@ -59,6 +60,15 @@ function compareEnv(a: string, b: string): number {
   const [ia, sa] = envSortKey(a)
   const [ib, sb] = envSortKey(b)
   return ia !== ib ? ia - ib : sa.localeCompare(sb)
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!match) return hex
+  const r = parseInt(match[1], 16)
+  const g = parseInt(match[2], 16)
+  const b = parseInt(match[3], 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 function ensureEnvLabel(
@@ -345,32 +355,22 @@ function ViewToggle({
 }
 
 function NameLink({ row }: { row: Row }) {
-  const content = (
-    <span className="flex items-center gap-2">
-      <span
-        aria-hidden="true"
-        className="inline-block size-2 shrink-0 rounded-sm"
-        style={{ background: row.color }}
-      />
-      <span className="truncate">{row.displayName}</span>
-    </span>
-  )
   if (row.connId) {
     return (
       <Link
         href={clusterSections.overview(row.connId)}
         className={cx(
-          "block font-mono font-medium text-gray-900 transition hover:text-indigo-600 dark:text-gray-50 dark:hover:text-indigo-400",
+          "block truncate font-mono font-medium text-gray-900 transition hover:text-indigo-700 dark:text-gray-50 dark:hover:text-indigo-300",
           focusRing,
         )}
       >
-        {content}
+        {row.displayName}
       </Link>
     )
   }
   return (
-    <span className="block font-mono font-medium text-gray-500 dark:text-gray-500">
-      {content}
+    <span className="block truncate font-mono font-medium text-gray-500 dark:text-gray-500">
+      {row.displayName}
     </span>
   )
 }
@@ -423,17 +423,30 @@ function ClusterTable({
                       title={status.label}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    style={{
+                      backgroundColor: hexToRgba(r.color, 0.1),
+                      boxShadow: `inset 3px 0 0 ${r.color}`,
+                    }}
+                  >
                     <NameLink row={r} />
                   </TableCell>
                   <TableCell className="max-w-[260px]">
                     {r.description ? (
-                      <span
-                        className="block truncate text-gray-600 dark:text-gray-400"
-                        title={r.description}
+                      <Tooltip
+                        content={
+                          <div className="max-w-md whitespace-pre-wrap break-words text-xs">
+                            {r.description}
+                          </div>
+                        }
+                        side="top"
+                        triggerAsChild
+                        className="max-w-md"
                       >
-                        {r.description}
-                      </span>
+                        <span className="block cursor-help truncate text-gray-600 dark:text-gray-400">
+                          {r.description}
+                        </span>
+                      </Tooltip>
                     ) : (
                       <span className="text-gray-400 dark:text-gray-600">
                         —
@@ -530,12 +543,20 @@ function ClusterCard({
             {row.displayName}
           </h3>
           {row.description && (
-            <p
-              className="mt-1 truncate text-xs text-gray-500 dark:text-gray-500"
-              title={row.description}
+            <Tooltip
+              content={
+                <div className="max-w-md whitespace-pre-wrap break-words text-xs">
+                  {row.description}
+                </div>
+              }
+              side="top"
+              triggerAsChild
+              className="max-w-md"
             >
-              {row.description}
-            </p>
+              <p className="mt-1 cursor-help truncate text-xs text-gray-500 dark:text-gray-500">
+                {row.description}
+              </p>
+            </Tooltip>
           )}
         </div>
       </div>
