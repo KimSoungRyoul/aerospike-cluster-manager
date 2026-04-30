@@ -4,9 +4,16 @@ import { Card } from "@/components/Card"
 // strip (gen / TTL / last update / bins) on top, and a list of bin rows below.
 // Used while getRecordDetail() is in flight so the user sees structure
 // instead of a centered "Loading record…" string.
+//
+// Accessibility: a top-level visually-hidden status node carries
+// role="status" + aria-live="polite" so screen readers announce the
+// loading state instead of staying silent.
 export function RecordDetailSkeleton({ binRows = 4 }: { binRows?: number }) {
   return (
     <>
+      <span role="status" aria-live="polite" className="sr-only">
+        Loading…
+      </span>
       <Card className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="flex flex-col gap-2">
