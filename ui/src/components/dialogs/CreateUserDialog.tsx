@@ -160,7 +160,11 @@ export function CreateUserDialog({
           </DialogHeader>
 
           {error && (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+            >
               {error}
             </div>
           )}
@@ -177,9 +181,16 @@ export function CreateUserDialog({
               placeholder="alice"
               autoFocus
               required
+              aria-invalid={!!usernameError}
+              aria-describedby={
+                usernameError ? "user-username-error" : undefined
+              }
             />
             {usernameError && (
-              <span className="text-xs text-red-600 dark:text-red-400">
+              <span
+                id="user-username-error"
+                className="text-xs text-red-600 dark:text-red-400"
+              >
                 {usernameError}
               </span>
             )}

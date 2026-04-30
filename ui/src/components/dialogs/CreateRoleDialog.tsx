@@ -26,9 +26,15 @@ interface CreateRoleDialogProps {
   clusterId: string
 }
 
+interface PrivilegeRow {
+  code: string
+  ns: string
+  set: string
+}
+
 interface FormState {
   name: string
-  privileges: string[] // privilege codes
+  privileges: PrivilegeRow[]
   whitelist: string
   readQuota: string
   writeQuota: string
@@ -49,21 +55,24 @@ const INITIAL_STATE: FormState = {
  * catalogue endpoint, so we mirror the canonical set documented at
  * https://aerospike.com/docs/server/operations/configure/security/access-control
  *
+ * Note: ``udf-admin`` is intentionally not in this list — it is not a
+ * standard Aerospike privilege; the canonical UDF privilege is
+ * ``read-write-udf``.
+ *
  * Keep this in sync with the backend (server/aerospike-core ResultCode etc.)
  * when new privileges are added.
  */
 const PRIVILEGE_CATALOG: ReadonlyArray<{ code: string; description: string }> =
   [
-    { code: "user-admin", description: "Manage users and roles" },
-    { code: "sys-admin", description: "Server configuration" },
-    { code: "data-admin", description: "Manage data (UDF, sindex)" },
-    { code: "udf-admin", description: "Manage UDFs" },
-    { code: "sindex-admin", description: "Manage secondary indexes" },
-    { code: "truncate", description: "Truncate sets" },
     { code: "read", description: "Read records" },
     { code: "read-write", description: "Read and write records" },
     { code: "read-write-udf", description: "Read/write + execute UDFs" },
     { code: "write", description: "Write records" },
+    { code: "data-admin", description: "Manage data (UDF, sindex)" },
+    { code: "sys-admin", description: "Server configuration" },
+    { code: "user-admin", description: "Manage users and roles" },
+    { code: "truncate", description: "Truncate sets" },
+    { code: "sindex-admin", description: "Manage secondary indexes" },
   ]
 
 export function CreateRoleDialog({
@@ -90,14 +99,27 @@ export function CreateRoleDialog({
 
   const togglePrivilege = (code: string) => {
     setForm((prev) => {
-      const has = prev.privileges.includes(code)
+      const has = prev.privileges.some((p) => p.code === code)
       return {
         ...prev,
         privileges: has
-          ? prev.privileges.filter((p) => p !== code)
-          : [...prev.privileges, code],
+          ? prev.privileges.filter((p) => p.code !== code)
+          : [...prev.privileges, { code, ns: "", set: "" }],
       }
     })
+  }
+
+  const updatePrivilegeScope = (
+    code: string,
+    field: "ns" | "set",
+    value: string,
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      privileges: prev.privileges.map((p) =>
+        p.code === code ? { ...p, [field]: value } : p,
+      ),
+    }))
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -113,6 +135,17 @@ export function CreateRoleDialog({
     if (form.privileges.length === 0) {
       setError("Select at least one privilege.")
       return
+    }
+
+    // Reject set scoping without a namespace — Aerospike requires the
+    // namespace to be set whenever a set is specified.
+    for (const p of form.privileges) {
+      if (p.set.trim() && !p.ns.trim()) {
+        setError(
+          `Privilege "${p.code}" specifies a set but no namespace; provide both.`,
+        )
+        return
+      }
     }
 
     const whitelist = form.whitelist
@@ -137,7 +170,15 @@ export function CreateRoleDialog({
       return
     }
 
-    const privileges: Privilege[] = form.privileges.map((code) => ({ code }))
+    const privileges: Privilege[] = form.privileges.map((p) => {
+      const ns = p.ns.trim()
+      const set = p.set.trim()
+      return {
+        code: p.code,
+        namespace: ns ? ns : null,
+        set: set ? set : null,
+      }
+    })
 
     const body: CreateRoleRequest = {
       name,
@@ -182,7 +223,11 @@ export function CreateRoleDialog({
           </DialogHeader>
 
           {error && (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+            <div
+              role="alert"
+              aria-live="polite"
+              className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+            >
               {error}
             </div>
           )}
@@ -199,9 +244,14 @@ export function CreateRoleDialog({
               placeholder="analytics_reader"
               autoFocus
               required
+              aria-invalid={!!nameError}
+              aria-describedby={nameError ? "role-name-error" : undefined}
             />
             {nameError && (
-              <span className="text-xs text-red-600 dark:text-red-400">
+              <span
+                id="role-name-error"
+                className="text-xs text-red-600 dark:text-red-400"
+              >
                 {nameError}
               </span>
             )}
@@ -211,36 +261,69 @@ export function CreateRoleDialog({
             <Label>Privileges</Label>
             <div className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded border border-gray-200 p-2 dark:border-gray-800">
               {PRIVILEGE_CATALOG.map((p) => {
-                const checked = form.privileges.includes(p.code)
+                const selected = form.privileges.find(
+                  (row) => row.code === p.code,
+                )
+                const checked = !!selected
                 return (
-                  <label
+                  <div
                     key={p.code}
-                    className="flex cursor-pointer items-start gap-2 rounded px-1 py-0.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
+                    className="flex flex-col gap-1 rounded px-1 py-0.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-900"
                   >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => togglePrivilege(p.code)}
-                      className="mt-0.5"
-                    />
-                    <span className="flex flex-col">
-                      <span className="font-mono text-xs font-medium text-gray-900 dark:text-gray-50">
-                        {p.code}
+                    <label className="flex cursor-pointer items-start gap-2">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={() => togglePrivilege(p.code)}
+                        className="mt-0.5"
+                      />
+                      <span className="flex flex-col">
+                        <span className="font-mono text-xs font-medium text-gray-900 dark:text-gray-50">
+                          {p.code}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {p.description}
+                        </span>
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        {p.description}
-                      </span>
-                    </span>
-                  </label>
+                    </label>
+                    {checked && selected && (
+                      <div className="ml-6 mt-1 grid grid-cols-2 gap-2">
+                        <Input
+                          aria-label={`${p.code} namespace scope`}
+                          value={selected.ns}
+                          onChange={(e) =>
+                            updatePrivilegeScope(p.code, "ns", e.target.value)
+                          }
+                          placeholder="namespace (optional)"
+                        />
+                        <Input
+                          aria-label={`${p.code} set scope`}
+                          value={selected.set}
+                          onChange={(e) =>
+                            updatePrivilegeScope(p.code, "set", e.target.value)
+                          }
+                          placeholder="set (optional)"
+                        />
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
             {form.privileges.length > 0 && (
               <div className="mt-1 flex flex-wrap gap-1">
-                {form.privileges.map((code) => (
-                  <Badge key={code} variant="neutral">
-                    {code}
-                  </Badge>
-                ))}
+                {form.privileges.map((row) => {
+                  const scope = row.ns
+                    ? row.set
+                      ? ` (${row.ns}:${row.set})`
+                      : ` (${row.ns})`
+                    : ""
+                  return (
+                    <Badge key={row.code} variant="neutral">
+                      {row.code}
+                      {scope}
+                    </Badge>
+                  )
+                })}
               </div>
             )}
           </div>
