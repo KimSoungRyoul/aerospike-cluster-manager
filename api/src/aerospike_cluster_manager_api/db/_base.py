@@ -33,18 +33,39 @@ class DatabaseBackend(Protocol):
     async def delete_connection(self, conn_id: str) -> bool: ...
 
 
+def _decode_json_column(value: Any, fallback: Any) -> Any:
+    """Decode a JSON-encoded text column. Returns ``fallback`` on missing/invalid input."""
+    if value is None:
+        return fallback
+    if isinstance(value, str):
+        if not value:
+            return fallback
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return fallback
+    return value
+
+
 def row_to_profile(row: Any) -> ConnectionProfile:
     """Convert a database row (dict-like) to a ConnectionProfile model.
 
     Works with both ``sqlite3.Row`` and ``asyncpg.Record`` since both
     support ``row["column_name"]`` access.
     """
-    hosts = row["hosts"]
-    if isinstance(hosts, str):
+    hosts_raw = row["hosts"]
+    if isinstance(hosts_raw, str):
         try:
-            hosts = json.loads(hosts)
+            hosts = json.loads(hosts_raw)
         except json.JSONDecodeError:
-            hosts = [hosts]
+            hosts = [hosts_raw]
+    else:
+        hosts = hosts_raw
+    # sqlite3.Row / asyncpg.Record use `key in row` for value membership, not column lookup;
+    # explicit keys() is the documented way to check column presence.
+    labels_raw = row["labels"] if "labels" in row.keys() else None  # noqa: SIM118
+    # Validator on ConnectionProfile.labels normalizes empty dicts to {"env":"default"}.
+    labels = _decode_json_column(labels_raw, {})
     return ConnectionProfile(
         id=row["id"],
         name=row["name"],
@@ -55,6 +76,7 @@ def row_to_profile(row: Any) -> ConnectionProfile:
         password=row["password"],
         color=row["color"],
         description=row["description"],
+        labels=labels,
         createdAt=row["created_at"],
         updatedAt=row["updated_at"],
     )
@@ -82,6 +104,7 @@ def build_merged_profile(
         password=merged.get("password"),
         color=merged["color"],
         description=merged.get("description"),
+        labels=merged.get("labels") or {},
         createdAt=existing.createdAt,
         updatedAt=merged["updatedAt"],
     )

@@ -14,17 +14,19 @@ import {
 import { Input } from "@/components/Input"
 import { Label } from "@/components/Label"
 import {
-  DEFAULT_ENV_VALUE,
   ENV_LABEL_KEY,
   type LabelEntry,
   LabelsEditor,
   entriesToLabels,
+  labelsToEntries,
 } from "@/components/clusters/LabelsEditor"
 import { ApiError } from "@/lib/api/client"
-import { createConnection } from "@/lib/api/connections"
+import { updateConnection } from "@/lib/api/connections"
+import type { ConnectionProfileResponse } from "@/lib/types/connection"
 
-interface AddConnectionDialogProps {
+interface EditConnectionDialogProps {
   open: boolean
+  connection: ConnectionProfileResponse | null
   onOpenChange: (open: boolean) => void
   onSuccess?: () => void
 }
@@ -33,45 +35,58 @@ interface FormState {
   name: string
   hosts: string
   port: string
-  username: string
-  password: string
   color: string
   description: string
   labels: LabelEntry[]
 }
 
-const INITIAL_STATE: FormState = {
+const EMPTY_FORM: FormState = {
   name: "",
   hosts: "",
   port: "3000",
-  username: "",
-  password: "",
   color: "#4F46E5",
   description: "",
-  labels: [{ key: ENV_LABEL_KEY, value: DEFAULT_ENV_VALUE }],
+  labels: [{ key: ENV_LABEL_KEY, value: "default" }],
 }
 
-export function AddConnectionDialog({
+function fromConnection(conn: ConnectionProfileResponse): FormState {
+  return {
+    name: conn.name,
+    hosts: conn.hosts.join(", "),
+    port: String(conn.port),
+    color: conn.color,
+    description: conn.description ?? "",
+    labels: labelsToEntries(conn.labels ?? {}),
+  }
+}
+
+export function EditConnectionDialog({
   open,
+  connection,
   onOpenChange,
   onSuccess,
-}: AddConnectionDialogProps) {
-  const [form, setForm] = React.useState(INITIAL_STATE)
+}: EditConnectionDialogProps) {
+  const [form, setForm] = React.useState<FormState>(EMPTY_FORM)
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
-  const resetForm = () => {
-    setForm(INITIAL_STATE)
-    setError(null)
-  }
+  React.useEffect(() => {
+    if (open && connection) {
+      setForm(fromConnection(connection))
+      setError(null)
+    }
+  }, [open, connection])
 
   const handleOpenChange = (next: boolean) => {
-    if (!next) resetForm()
+    if (!next) {
+      setError(null)
+    }
     onOpenChange(next)
   }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!connection) return
     setError(null)
 
     const name = form.name.trim()
@@ -84,7 +99,6 @@ export function AddConnectionDialog({
       .split(",")
       .map((h) => h.trim())
       .filter((h) => h.length > 0)
-
     if (hostList.length === 0) {
       setError("At least one host is required.")
       return
@@ -98,17 +112,14 @@ export function AddConnectionDialog({
 
     setIsSubmitting(true)
     try {
-      await createConnection({
+      await updateConnection(connection.id, {
         name,
         hosts: hostList,
         port: portNum,
-        username: form.username.trim() || null,
-        password: form.password ? form.password : null,
         color: form.color || "#4F46E5",
         description: form.description.trim() || null,
         labels: entriesToLabels(form.labels),
       })
-      resetForm()
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
@@ -117,7 +128,7 @@ export function AddConnectionDialog({
       } else if (err instanceof Error) {
         setError(err.message)
       } else {
-        setError("Failed to create connection.")
+        setError("Failed to update connection.")
       }
     } finally {
       setIsSubmitting(false)
@@ -129,9 +140,10 @@ export function AddConnectionDialog({
       <DialogContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-y-4">
           <DialogHeader>
-            <DialogTitle>Add connection</DialogTitle>
+            <DialogTitle>Edit connection</DialogTitle>
             <DialogDescription>
-              Register a new Aerospike cluster connection profile.
+              Update connection details and labels for grouping in the cluster
+              list.
             </DialogDescription>
           </DialogHeader>
 
@@ -142,33 +154,30 @@ export function AddConnectionDialog({
           )}
 
           <div className="flex flex-col gap-y-1.5">
-            <Label htmlFor="conn-name">Name</Label>
+            <Label htmlFor="edit-conn-name">Name</Label>
             <Input
-              id="conn-name"
+              id="edit-conn-name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="my-cluster"
-              autoFocus
               required
             />
           </div>
 
           <div className="flex flex-col gap-y-1.5">
-            <Label htmlFor="conn-hosts">Hosts (comma-separated)</Label>
+            <Label htmlFor="edit-conn-hosts">Hosts (comma-separated)</Label>
             <Input
-              id="conn-hosts"
+              id="edit-conn-hosts"
               value={form.hosts}
               onChange={(e) => setForm({ ...form, hosts: e.target.value })}
-              placeholder="node1.example.com, node2.example.com"
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-y-1.5">
-              <Label htmlFor="conn-port">Port</Label>
+              <Label htmlFor="edit-conn-port">Port</Label>
               <Input
-                id="conn-port"
+                id="edit-conn-port"
                 type="number"
                 min={1}
                 max={65535}
@@ -178,9 +187,9 @@ export function AddConnectionDialog({
               />
             </div>
             <div className="flex flex-col gap-y-1.5">
-              <Label htmlFor="conn-color">Color</Label>
+              <Label htmlFor="edit-conn-color">Color</Label>
               <Input
-                id="conn-color"
+                id="edit-conn-color"
                 type="color"
                 value={form.color}
                 onChange={(e) => setForm({ ...form, color: e.target.value })}
@@ -188,32 +197,12 @@ export function AddConnectionDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-y-1.5">
-              <Label htmlFor="conn-username">Username (optional)</Label>
-              <Input
-                id="conn-username"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                autoComplete="off"
-              />
-            </div>
-            <div className="flex flex-col gap-y-1.5">
-              <Label htmlFor="conn-password">Password (optional)</Label>
-              <Input
-                id="conn-password"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                autoComplete="new-password"
-              />
-            </div>
-          </div>
-
           <div className="flex flex-col gap-y-1.5">
-            <Label htmlFor="conn-description">Description (optional)</Label>
+            <Label htmlFor="edit-conn-description">
+              Description (optional)
+            </Label>
             <Input
-              id="conn-description"
+              id="edit-conn-description"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
@@ -225,7 +214,7 @@ export function AddConnectionDialog({
           <LabelsEditor
             value={form.labels}
             onChange={(labels) => setForm({ ...form, labels })}
-            idPrefix="conn-label"
+            idPrefix="edit-conn-label"
           />
 
           <DialogFooter>
@@ -240,9 +229,9 @@ export function AddConnectionDialog({
             <Button
               type="submit"
               isLoading={isSubmitting}
-              loadingText="Creating..."
+              loadingText="Saving..."
             >
-              Create
+              Save
             </Button>
           </DialogFooter>
         </form>
@@ -251,4 +240,4 @@ export function AddConnectionDialog({
   )
 }
 
-export default AddConnectionDialog
+export default EditConnectionDialog

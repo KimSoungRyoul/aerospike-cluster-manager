@@ -12,7 +12,14 @@ import {
   TableRoot,
   TableRow,
 } from "@/components/Table"
+import { AddressCopyCell } from "@/components/clusters/AddressCopyCell"
+import { LabelsCell } from "@/components/clusters/LabelsCell"
+import {
+  DEFAULT_ENV_VALUE,
+  ENV_LABEL_KEY,
+} from "@/components/clusters/LabelsEditor"
 import { AddConnectionDialog } from "@/components/dialogs/AddConnectionDialog"
+import { EditConnectionDialog } from "@/components/dialogs/EditConnectionDialog"
 import { clusterSections } from "@/app/siteConfig"
 import { useConnections } from "@/hooks/use-connections"
 import { useK8sClusters } from "@/hooks/use-k8s-clusters"
@@ -35,6 +42,30 @@ type Row = {
   k8sNamespace?: string
   phase?: string
   size?: number
+  description: string | null
+  labels: Record<string, string>
+  profile: ConnectionProfileResponse | null
+}
+
+const ENV_PRIORITY = ["prod", "stage", "test", "dev", DEFAULT_ENV_VALUE]
+
+function envSortKey(env: string): [number, string] {
+  const idx = ENV_PRIORITY.indexOf(env.toLowerCase())
+  return [idx === -1 ? ENV_PRIORITY.length : idx, env.toLowerCase()]
+}
+
+function compareEnv(a: string, b: string): number {
+  const [ia, sa] = envSortKey(a)
+  const [ib, sb] = envSortKey(b)
+  return ia !== ib ? ia - ib : sa.localeCompare(sb)
+}
+
+function ensureEnvLabel(
+  labels: Record<string, string> | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = { ...(labels ?? {}) }
+  if (!out[ENV_LABEL_KEY]) out[ENV_LABEL_KEY] = DEFAULT_ENV_VALUE
+  return out
 }
 
 function phaseBadge(phase: string | undefined): {
@@ -76,10 +107,12 @@ function mergeRows(
       k8sNamespace: linkedK8s?.namespace,
       phase: linkedK8s?.phase,
       size: linkedK8s?.size,
+      description: c.description ?? null,
+      labels: ensureEnvLabel(c.labels),
+      profile: c,
     })
   }
 
-  // ACKO clusters that don't have a matching connection yet
   for (const k of k8s ?? []) {
     if (k.connectionId && seenConnIds.has(k.connectionId)) continue
     rows.push({
@@ -93,10 +126,32 @@ function mergeRows(
       k8sNamespace: k.namespace,
       phase: k.phase,
       size: k.size,
+      description: null,
+      labels: ensureEnvLabel(null),
+      profile: null,
     })
   }
 
   return rows
+}
+
+function groupByEnv(rows: Row[]): Array<{ env: string; rows: Row[] }> {
+  const groups = new Map<string, Row[]>()
+  for (const row of rows) {
+    const env = row.labels[ENV_LABEL_KEY] ?? DEFAULT_ENV_VALUE
+    const list = groups.get(env)
+    if (list) {
+      list.push(row)
+    } else {
+      groups.set(env, [row])
+    }
+  }
+  return Array.from(groups.entries())
+    .map(([env, items]) => ({
+      env,
+      rows: items.sort((a, b) => a.displayName.localeCompare(b.displayName)),
+    }))
+    .sort((a, b) => compareEnv(a.env, b.env))
 }
 
 export default function ClustersPage() {
@@ -104,6 +159,8 @@ export default function ClustersPage() {
   const k8s = useK8sClusters()
 
   const [addConnOpen, setAddConnOpen] = useState(false)
+  const [editTarget, setEditTarget] =
+    useState<ConnectionProfileResponse | null>(null)
   const view = useUiStore((s) => s.clustersView)
   const setView = useUiStore((s) => s.setClustersView)
 
@@ -111,11 +168,12 @@ export default function ClustersPage() {
     () => mergeRows(conn.data, k8s.data?.items ?? null),
     [conn.data, k8s.data],
   )
+  const groups = useMemo(() => groupByEnv(rows), [rows])
 
   const loading = conn.isLoading || k8s.isLoading
   const combinedError = conn.error ?? k8s.error
 
-  const handleConnectionCreated = () => {
+  const handleConnectionUpserted = () => {
     conn.refetch()
   }
 
@@ -154,28 +212,73 @@ export default function ClustersPage() {
         <>
           <div className="flex items-center justify-between">
             <p className="text-xs text-gray-500 dark:text-gray-500">
-              {rows.length} {rows.length === 1 ? "cluster" : "clusters"}
+              {rows.length} {rows.length === 1 ? "cluster" : "clusters"} ·{" "}
+              {groups.length} env group{groups.length === 1 ? "" : "s"}
             </p>
             <ViewToggle value={view} onChange={setView} />
           </div>
-          {view === "card" ? (
-            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {rows.map((r) => (
-                <ClusterCard key={r.key} row={r} />
-              ))}
-            </section>
-          ) : (
-            <ClusterTable rows={rows} />
-          )}
+          <div className="flex flex-col gap-8">
+            {groups.map((group) => (
+              <EnvSection
+                key={group.env}
+                env={group.env}
+                rows={group.rows}
+                view={view}
+                onEdit={setEditTarget}
+              />
+            ))}
+          </div>
         </>
       )}
 
       <AddConnectionDialog
         open={addConnOpen}
         onOpenChange={setAddConnOpen}
-        onSuccess={handleConnectionCreated}
+        onSuccess={handleConnectionUpserted}
+      />
+      <EditConnectionDialog
+        open={editTarget !== null}
+        connection={editTarget}
+        onOpenChange={(open) => {
+          if (!open) setEditTarget(null)
+        }}
+        onSuccess={handleConnectionUpserted}
       />
     </main>
+  )
+}
+
+function EnvSection({
+  env,
+  rows,
+  view,
+  onEdit,
+}: {
+  env: string
+  rows: Row[]
+  view: ClustersView
+  onEdit: (conn: ConnectionProfileResponse) => void
+}) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Badge variant="default" className="font-mono uppercase tracking-wider">
+          env={env}
+        </Badge>
+        <span className="text-xs text-gray-500 dark:text-gray-500">
+          {rows.length} {rows.length === 1 ? "cluster" : "clusters"}
+        </span>
+      </div>
+      {view === "card" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((r) => (
+            <ClusterCard key={r.key} row={r} onEdit={onEdit} />
+          ))}
+        </div>
+      ) : (
+        <ClusterTable rows={rows} onEdit={onEdit} />
+      )}
+    </section>
   )
 }
 
@@ -229,7 +332,44 @@ function ViewToggle({
   )
 }
 
-function ClusterTable({ rows }: { rows: Row[] }) {
+function NameLink({ row }: { row: Row }) {
+  const content = (
+    <span className="flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="inline-block size-2 shrink-0 rounded-sm"
+        style={{ background: row.color }}
+      />
+      <span className="truncate">{row.displayName}</span>
+    </span>
+  )
+  if (row.connId) {
+    return (
+      <Link
+        href={clusterSections.overview(row.connId)}
+        className={cx(
+          "block font-mono font-medium text-gray-900 transition hover:text-indigo-600 dark:text-gray-50 dark:hover:text-indigo-400",
+          focusRing,
+        )}
+      >
+        {content}
+      </Link>
+    )
+  }
+  return (
+    <span className="block font-mono font-medium text-gray-500 dark:text-gray-500">
+      {content}
+    </span>
+  )
+}
+
+function ClusterTable({
+  rows,
+  onEdit,
+}: {
+  rows: Row[]
+  onEdit: (conn: ConnectionProfileResponse) => void
+}) {
   return (
     <Card className="p-0">
       <TableRoot>
@@ -239,29 +379,22 @@ function ClusterTable({ rows }: { rows: Row[] }) {
               <TableHeaderCell>Name</TableHeaderCell>
               <TableHeaderCell>Status</TableHeaderCell>
               <TableHeaderCell>Managed by</TableHeaderCell>
+              <TableHeaderCell>Labels</TableHeaderCell>
+              <TableHeaderCell>Description</TableHeaderCell>
               <TableHeaderCell>Address</TableHeaderCell>
-              <TableHeaderCell className="text-right">Size</TableHeaderCell>
-              <TableHeaderCell className="text-right">Actions</TableHeaderCell>
+              <TableHeaderCell className="w-12 text-right" />
             </TableRow>
           </TableHead>
           <TableBody>
             {rows.map((r) => {
               const status = phaseBadge(r.phase)
-              const addr =
-                r.hosts.length > 0
-                  ? `${r.hosts[0]}:${r.port}`
-                  : (r.k8sNamespace ?? "—")
               return (
-                <TableRow key={r.key}>
-                  <TableCell className="font-mono font-medium text-gray-900 dark:text-gray-50">
-                    <span className="flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="inline-block size-2 shrink-0 rounded-sm"
-                        style={{ background: r.color }}
-                      />
-                      {r.displayName}
-                    </span>
+                <TableRow
+                  key={r.key}
+                  className="transition hover:bg-gray-50 dark:hover:bg-gray-900/40"
+                >
+                  <TableCell>
+                    <NameLink row={r} />
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-2">
@@ -288,21 +421,43 @@ function ClusterTable({ rows }: { rows: Row[] }) {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="font-mono text-gray-600 dark:text-gray-400">
-                    {addr}
+                  <TableCell>
+                    <LabelsCell labels={r.labels} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {r.size ?? "—"}
+                  <TableCell className="max-w-[260px]">
+                    {r.description ? (
+                      <span
+                        className="block truncate text-gray-600 dark:text-gray-400"
+                        title={r.description}
+                      >
+                        {r.description}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 dark:text-gray-600">
+                        —
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <AddressCopyCell
+                      hosts={r.hosts}
+                      port={r.port}
+                      fallback={r.k8sNamespace ?? "—"}
+                    />
                   </TableCell>
                   <TableCell className="text-right">
-                    {r.connId ? (
-                      <Button variant="ghost" asChild>
-                        <Link href={clusterSections.overview(r.connId)}>
-                          Open
-                        </Link>
+                    {r.profile ? (
+                      <Button
+                        variant="ghost"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => onEdit(r.profile!)}
+                      >
+                        Edit
                       </Button>
                     ) : (
-                      <Badge variant="warning">not linked</Badge>
+                      <Badge variant="warning" className="text-[10px]">
+                        not linked
+                      </Badge>
                     )}
                   </TableCell>
                 </TableRow>
@@ -315,78 +470,100 @@ function ClusterTable({ rows }: { rows: Row[] }) {
   )
 }
 
-function ClusterCard({ row }: { row: Row }) {
+function ClusterCard({
+  row,
+  onEdit,
+}: {
+  row: Row
+  onEdit: (conn: ConnectionProfileResponse) => void
+}) {
   const status = phaseBadge(row.phase)
-  const hostLabel =
-    row.hosts.length > 0
-      ? `${row.hosts[0]}:${row.port}`
-      : (row.k8sNamespace ?? "—")
-
-  return (
-    <Card className="flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span
-            aria-hidden="true"
-            className="mt-1 h-6 w-1 shrink-0 rounded-sm"
-            style={{ background: row.color }}
-          />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span
-                className={`size-2 rounded-full ${status.dot}`}
-                aria-hidden="true"
-              />
-              <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-500">
-                {status.label}
+  const cardInner = (
+    <Card
+      className={cx(
+        "flex h-full flex-col gap-3 transition",
+        row.connId &&
+          "hover:border-indigo-300 hover:shadow-sm dark:hover:border-indigo-700",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="mt-1 h-6 w-1 shrink-0 rounded-sm"
+          style={{ background: row.color }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span
+              className={`size-2 rounded-full ${status.dot}`}
+              aria-hidden="true"
+            />
+            <span className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-500">
+              {status.label}
+            </span>
+            {row.managedBy === "ACKO" && (
+              <span className="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                · ACKO
               </span>
-              {row.managedBy === "ACKO" && (
-                <span className="text-xs font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                  · ACKO
-                </span>
-              )}
-            </div>
-            <h3 className="mt-2 truncate font-mono text-base font-semibold text-gray-900 dark:text-gray-50">
-              {row.displayName}
-            </h3>
-            <p className="truncate font-mono text-xs text-gray-500 dark:text-gray-500">
-              {hostLabel}
-            </p>
+            )}
           </div>
+          <h3 className="mt-2 truncate font-mono text-base font-semibold text-gray-900 dark:text-gray-50">
+            {row.displayName}
+          </h3>
+          {row.description && (
+            <p
+              className="mt-1 truncate text-xs text-gray-500 dark:text-gray-500"
+              title={row.description}
+            >
+              {row.description}
+            </p>
+          )}
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 dark:border-gray-800">
-        <div>
-          <dt className="text-xs text-gray-500 dark:text-gray-500">
-            Managed by
-          </dt>
-          <dd className="font-medium text-gray-900 dark:text-gray-50">
-            {row.managedBy === "ACKO" ? "ACKO" : "Manual"}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-xs text-gray-500 dark:text-gray-500">Size</dt>
-          <dd className="font-medium tabular-nums text-gray-900 dark:text-gray-50">
-            {row.size ?? "—"}
-          </dd>
-        </div>
-      </dl>
+      <LabelsCell labels={row.labels} />
 
-      <div className="flex gap-2">
-        {row.connId ? (
-          <Button variant="secondary" className="flex-1" asChild>
-            <Link href={clusterSections.overview(row.connId)}>
-              Open overview
-            </Link>
+      <AddressCopyCell
+        hosts={row.hosts}
+        port={row.port}
+        fallback={row.k8sNamespace ?? "—"}
+        className="text-xs"
+      />
+
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-gray-200 pt-3 dark:border-gray-800">
+        <span className="text-xs text-gray-500 dark:text-gray-500">
+          {row.managedBy === "ACKO" ? "ACKO" : "Manual"}
+        </span>
+        {row.profile ? (
+          <Button
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onEdit(row.profile!)
+            }}
+          >
+            Edit
           </Button>
         ) : (
-          <Badge variant="warning">connection not linked</Badge>
+          <Badge variant="warning">not linked</Badge>
         )}
-        <Button variant="ghost">Edit</Button>
       </div>
     </Card>
   )
+
+  if (row.connId) {
+    return (
+      <Link
+        href={clusterSections.overview(row.connId)}
+        className={cx("block focus-visible:outline-none", focusRing)}
+      >
+        {cardInner}
+      </Link>
+    )
+  }
+  return cardInner
 }
 
 function SkeletonGrid() {

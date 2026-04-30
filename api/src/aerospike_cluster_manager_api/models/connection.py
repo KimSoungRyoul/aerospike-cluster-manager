@@ -1,6 +1,26 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _normalize_labels(v: object) -> dict[str, str]:
+    """Coerce label input to a clean dict and ensure ``env`` is always present.
+
+    Empty/whitespace keys and values are dropped. ``env`` falls back to ``default``.
+    """
+    if v is None:
+        return {"env": "default"}
+    if not isinstance(v, dict):
+        raise TypeError("labels must be a mapping of str to str")
+    labels: dict[str, str] = {}
+    for key, val in v.items():
+        k = str(key).strip()
+        if not k:
+            continue
+        labels[k] = str(val) if val is not None else ""
+    if not labels.get("env"):
+        labels["env"] = "default"
+    return labels
 
 
 class ConnectionStatus(BaseModel):
@@ -28,8 +48,14 @@ class ConnectionProfile(BaseModel):
     password: str | None = None
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = None
+    labels: dict[str, str] = Field(default_factory=lambda: {"env": "default"})
     createdAt: str
     updatedAt: str
+
+    @field_validator("labels", mode="before")
+    @classmethod
+    def _validate_labels(cls, v: object) -> dict[str, str]:
+        return _normalize_labels(v)
 
     def __repr__(self) -> str:
         masked = self.model_dump()
@@ -50,6 +76,7 @@ class CreateConnectionRequest(BaseModel):
     password: str | None = None
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$", default="#0097D3")
     description: str | None = None
+    labels: dict[str, str] | None = None
 
 
 class UpdateConnectionRequest(BaseModel):
@@ -63,6 +90,7 @@ class UpdateConnectionRequest(BaseModel):
     password: str | None = None
     color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = None
+    labels: dict[str, str] | None = None
 
 
 class TestConnectionRequest(BaseModel):
@@ -83,8 +111,14 @@ class ConnectionProfileResponse(BaseModel):
     username: str | None = None
     color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = None
+    labels: dict[str, str] = Field(default_factory=lambda: {"env": "default"})
     createdAt: str
     updatedAt: str
+
+    @field_validator("labels", mode="before")
+    @classmethod
+    def _validate_labels(cls, v: object) -> dict[str, str]:
+        return _normalize_labels(v)
 
     @classmethod
     def from_profile(cls, profile: ConnectionProfile) -> ConnectionProfileResponse:
