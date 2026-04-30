@@ -22,10 +22,13 @@ def setup_logging(level: str = "INFO", log_format: str = "text") -> None:
 
         # %(request_id)s is populated by RequestIDFilter (attached below) so each
         # JSON record carries the current X-Request-ID for log correlation.
+        # `defaults` ensures missing request_id never raises if a handler is
+        # attached without the filter (defense-in-depth for python-json-logger >= 2.0).
         formatter = JsonFormatter(
             fmt="%(asctime)s %(levelname)s %(name)s %(request_id)s %(message)s",
             datefmt="%Y-%m-%dT%H:%M:%S",
             rename_fields={"asctime": "timestamp", "levelname": "level", "name": "logger"},
+            defaults={"request_id": "-"},
         )
     else:
         formatter = logging.Formatter(
@@ -40,6 +43,11 @@ def setup_logging(level: str = "INFO", log_format: str = "text") -> None:
     handler.addFilter(RequestIDFilter())
 
     root = logging.getLogger("aerospike_cluster_manager_api")
+    # Clear existing handlers before attaching a new one. Repeated calls
+    # (test fixtures, uvicorn --reload) would otherwise accumulate handlers
+    # with mismatched filter coverage and produce duplicate log lines.
+    for h in list(root.handlers):
+        root.removeHandler(h)
     root.setLevel(log_level)
     root.addHandler(handler)
     root.propagate = False

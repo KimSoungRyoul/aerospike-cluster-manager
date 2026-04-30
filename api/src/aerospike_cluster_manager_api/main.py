@@ -20,7 +20,7 @@ from aerospike_cluster_manager_api.client_manager import client_manager
 from aerospike_cluster_manager_api.events.broker import broker
 from aerospike_cluster_manager_api.events.collector import collector
 from aerospike_cluster_manager_api.logging_config import setup_logging
-from aerospike_cluster_manager_api.middleware.trace_id import TraceIDMiddleware, request_id_var
+from aerospike_cluster_manager_api.middleware.trace_id import TraceIDMiddleware
 from aerospike_cluster_manager_api.rate_limit import limiter
 from aerospike_cluster_manager_api.routers import (
     admin_roles,
@@ -176,18 +176,20 @@ app.add_middleware(
 @app.middleware("http")
 async def request_logging_middleware(request: Request, call_next: RequestResponseEndpoint) -> Response:
     # TraceIDMiddleware (registered below) runs as the outermost layer and
-    # populates request_id_var before this handler executes.
+    # populates request_id_var before this handler executes. It also owns
+    # the X-Request-ID response header — do NOT set it here.
     start = time.monotonic()
     response = await call_next(request)
     elapsed_ms = (time.monotonic() - start) * 1000
-    request_id = request_id_var.get()
+    # The structured `request_id` JSON field (populated by RequestIDFilter)
+    # is the source of truth for log correlation; no need to repeat it in
+    # the message text.
     logger.info(
-        "%s %s %d %.1fms request_id=%s",
+        "%s %s %d %.1fms",
         request.method,
         request.url.path,
         response.status_code,
         elapsed_ms,
-        request_id,
     )
     return response
 
