@@ -52,10 +52,28 @@ export function LabelsEditor({
       ? value
       : [{ key: ENV_LABEL_KEY, value: DEFAULT_ENV_VALUE }]
 
+  // Stable per-row ids so deleting / reordering rows doesn't reuse another
+  // row's React key (which would carry over input focus / cursor state).
+  // We track ids by reference using a WeakMap keyed on the entry object.
+  const idMap = React.useRef(new WeakMap<LabelEntry, number>())
+  const nextId = React.useRef(0)
+  const rowKey = (entry: LabelEntry): number => {
+    const cached = idMap.current.get(entry)
+    if (cached !== undefined) return cached
+    const id = nextId.current++
+    idMap.current.set(entry, id)
+    return id
+  }
+
   const update = (index: number, patch: Partial<LabelEntry>) => {
-    const next = entries.map((entry, i) =>
-      i === index ? { ...entry, ...patch } : entry,
-    )
+    const next = entries.map((entry, i) => {
+      if (i !== index) return entry
+      const merged = { ...entry, ...patch }
+      // Preserve the row's stable id across edits.
+      const existing = idMap.current.get(entry)
+      if (existing !== undefined) idMap.current.set(merged, existing)
+      return merged
+    })
     onChange(next)
   }
 
@@ -86,7 +104,7 @@ export function LabelsEditor({
         {entries.map((entry, index) => {
           const locked = entry.key === ENV_LABEL_KEY
           return (
-            <div key={index} className="flex items-center gap-2">
+            <div key={rowKey(entry)} className="flex items-center gap-2">
               <Input
                 aria-label={`${idPrefix} key ${index}`}
                 value={entry.key}

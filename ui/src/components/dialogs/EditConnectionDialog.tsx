@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/Input"
 import { Label } from "@/components/Label"
 import {
+  DEFAULT_ENV_VALUE,
   ENV_LABEL_KEY,
   type LabelEntry,
   LabelsEditor,
@@ -46,7 +47,7 @@ const EMPTY_FORM: FormState = {
   port: "3000",
   color: "#4F46E5",
   description: "",
-  labels: [{ key: ENV_LABEL_KEY, value: "default" }],
+  labels: [{ key: ENV_LABEL_KEY, value: DEFAULT_ENV_VALUE }],
 }
 
 function fromConnection(conn: ConnectionProfileResponse): FormState {

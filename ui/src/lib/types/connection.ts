@@ -1,6 +1,6 @@
 /**
- * Connection-related types mirrored from backend Pydantic models.
- * See: backend/src/aerospike_cluster_manager_api/models/connection.py
+ * Connection-related types mirrored from API Pydantic models.
+ * See: api/src/aerospike_cluster_manager_api/models/connection.py
  */
 
 export type ConnectionErrorType =

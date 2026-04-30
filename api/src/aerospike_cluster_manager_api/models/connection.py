@@ -11,7 +11,7 @@ def _normalize_labels(v: object) -> dict[str, str]:
     if v is None:
         return {"env": "default"}
     if not isinstance(v, dict):
-        raise TypeError("labels must be a mapping of str to str")
+        raise ValueError("labels must be a mapping of str to str")
     labels: dict[str, str] = {}
     for key, val in v.items():
         k = str(key).strip()

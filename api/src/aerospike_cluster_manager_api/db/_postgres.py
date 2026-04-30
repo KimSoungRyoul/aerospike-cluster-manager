@@ -42,22 +42,13 @@ def _get_pool() -> asyncpg.Pool:
 
 
 async def _apply_migrations(conn: asyncpg.Connection | asyncpg.pool.PoolConnectionProxy) -> None:
-    """Add columns introduced after the initial schema."""
-    row = await conn.fetchrow(
-        """SELECT column_name FROM information_schema.columns
-           WHERE table_name = 'connections' AND column_name = 'description'"""
-    )
-    if row is None:
-        logger.info("Migrating PostgreSQL: adding description column")
-        await conn.execute("ALTER TABLE connections ADD COLUMN description TEXT")
+    """Add columns introduced after the initial schema.
 
-    labels_row = await conn.fetchrow(
-        """SELECT column_name FROM information_schema.columns
-           WHERE table_name = 'connections' AND column_name = 'labels'"""
-    )
-    if labels_row is None:
-        logger.info("Migrating PostgreSQL: adding labels column")
-        await conn.execute("ALTER TABLE connections ADD COLUMN labels JSONB")
+    Uses ``ADD COLUMN IF NOT EXISTS`` so concurrent startups (e.g. rolling
+    deploys with multiple replicas) do not race each other.
+    """
+    await conn.execute("ALTER TABLE connections ADD COLUMN IF NOT EXISTS description TEXT")
+    await conn.execute("ALTER TABLE connections ADD COLUMN IF NOT EXISTS labels JSONB")
 
 
 async def init_db() -> None:
