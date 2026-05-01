@@ -55,12 +55,9 @@ const INITIAL_STATE: FormState = {
  * catalogue endpoint, so we mirror the canonical set documented at
  * https://aerospike.com/docs/server/operations/configure/security/access-control
  *
- * Note: ``udf-admin`` is intentionally not in this list — it is not a
- * standard Aerospike privilege; the canonical UDF privilege is
- * ``read-write-udf``.
- *
  * Keep this in sync with the backend (server/aerospike-core ResultCode etc.)
- * when new privileges are added.
+ * and with ``api/src/aerospike_cluster_manager_api/routers/_admin_utils.py``
+ * (PRIVILEGE_NAME_TO_CODE) when new privileges are added.
  */
 const PRIVILEGE_CATALOG: ReadonlyArray<{ code: string; description: string }> =
   [
@@ -69,10 +66,11 @@ const PRIVILEGE_CATALOG: ReadonlyArray<{ code: string; description: string }> =
     { code: "read-write-udf", description: "Read/write + execute UDFs" },
     { code: "write", description: "Write records" },
     { code: "data-admin", description: "Manage data (UDF, sindex)" },
+    { code: "udf-admin", description: "Manage UDF modules" },
+    { code: "sindex-admin", description: "Manage secondary indexes" },
     { code: "sys-admin", description: "Server configuration" },
     { code: "user-admin", description: "Manage users and roles" },
     { code: "truncate", description: "Truncate sets" },
-    { code: "sindex-admin", description: "Manage secondary indexes" },
   ]
 
 export function CreateRoleDialog({
@@ -153,21 +151,40 @@ export function CreateRoleDialog({
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
 
+    // Aerospike quotas are integer TPS values; reject decimals/whitespace
+    // outright rather than silently truncating via Number(). parseInt with
+    // radix 10 stops at the first non-digit, so we additionally guard against
+    // inputs like "10.5" or "10abc" by requiring an exact digits-only match.
     const readQuotaValue = form.readQuota.trim()
     const writeQuotaValue = form.writeQuota.trim()
-    const readQuota = readQuotaValue ? Number(readQuotaValue) : null
-    const writeQuota = writeQuotaValue ? Number(writeQuotaValue) : null
+    const INT_RE = /^\d+$/
 
-    if (readQuota !== null && (!Number.isFinite(readQuota) || readQuota < 0)) {
-      setError("Read quota must be a non-negative number.")
-      return
+    let readQuota: number | null = null
+    if (readQuotaValue) {
+      if (!INT_RE.test(readQuotaValue)) {
+        setError("Read quota must be a non-negative integer (no decimals).")
+        return
+      }
+      const parsed = parseInt(readQuotaValue, 10)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setError("Read quota must be a non-negative integer.")
+        return
+      }
+      readQuota = parsed
     }
-    if (
-      writeQuota !== null &&
-      (!Number.isFinite(writeQuota) || writeQuota < 0)
-    ) {
-      setError("Write quota must be a non-negative number.")
-      return
+
+    let writeQuota: number | null = null
+    if (writeQuotaValue) {
+      if (!INT_RE.test(writeQuotaValue)) {
+        setError("Write quota must be a non-negative integer (no decimals).")
+        return
+      }
+      const parsed = parseInt(writeQuotaValue, 10)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setError("Write quota must be a non-negative integer.")
+        return
+      }
+      writeQuota = parsed
     }
 
     const privileges: Privilege[] = form.privileges.map((p) => {

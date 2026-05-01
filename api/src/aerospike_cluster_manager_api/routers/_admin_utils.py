@@ -6,10 +6,33 @@ import functools
 from collections.abc import Callable
 from typing import Any
 
+import aerospike_py
 from aerospike_py.exception import AdminError, AerospikeError, ServerError
 from fastapi import HTTPException
 
 from aerospike_cluster_manager_api.constants import EE_MSG
+
+# Mapping between Aerospike privilege string codes (used by clients/REST API)
+# and the integer constants required by aerospike-py's ``Privilege`` TypedDict.
+#
+# aerospike-py's admin protocol expects ``code`` to be an int (e.g. PRIV_READ=10).
+# However the REST API and UI surface privileges as human-readable strings
+# ("read", "read-write", ...). Translate at the router boundary so internal
+# call sites speak ints and external clients speak strings.
+PRIVILEGE_NAME_TO_CODE: dict[str, int] = {
+    "read": aerospike_py.PRIV_READ,
+    "read-write": aerospike_py.PRIV_READ_WRITE,
+    "read-write-udf": aerospike_py.PRIV_READ_WRITE_UDF,
+    "write": aerospike_py.PRIV_WRITE,
+    "truncate": aerospike_py.PRIV_TRUNCATE,
+    "user-admin": aerospike_py.PRIV_USER_ADMIN,
+    "sys-admin": aerospike_py.PRIV_SYS_ADMIN,
+    "data-admin": aerospike_py.PRIV_DATA_ADMIN,
+    "udf-admin": aerospike_py.PRIV_UDF_ADMIN,
+    "sindex-admin": aerospike_py.PRIV_SINDEX_ADMIN,
+}
+
+PRIVILEGE_CODE_TO_NAME: dict[int, str] = {v: k for k, v in PRIVILEGE_NAME_TO_CODE.items()}
 
 
 def _msg_lower(exc: BaseException) -> str:

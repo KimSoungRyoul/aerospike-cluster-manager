@@ -9,7 +9,11 @@ from starlette.responses import Response
 
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.models.admin import AerospikeRole, CreateRoleRequest, Privilege
-from aerospike_cluster_manager_api.routers._admin_utils import admin_endpoint
+from aerospike_cluster_manager_api.routers._admin_utils import (
+    PRIVILEGE_CODE_TO_NAME,
+    PRIVILEGE_NAME_TO_CODE,
+    admin_endpoint,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +35,27 @@ async def get_roles(client: AerospikeClient) -> list[AerospikeRole]:
         privileges: list[Privilege] = []
         for p in privs_raw:
             if isinstance(p, dict):
+                raw_code = p.get("code", "")
+                # aerospike-py returns ``code`` as an int (PRIV_READ=10, ...).
+                # Translate to the canonical string for API consumers; fall back
+                # to ``str()`` if an unknown int slips through (defensive).
+                if isinstance(raw_code, int):
+                    code_str = PRIVILEGE_CODE_TO_NAME.get(raw_code, str(raw_code))
+                else:
+                    code_str = str(raw_code)
                 privileges.append(
                     Privilege(
-                        code=p.get("code", ""),
+                        code=code_str,
                         namespace=p.get("ns") or p.get("namespace"),
                         set=p.get("set"),
                     )
                 )
             else:
-                privileges.append(Privilege(code=str(p)))
+                # Bare scalar — assume it's an int code or already a string.
+                if isinstance(p, int):
+                    privileges.append(Privilege(code=PRIVILEGE_CODE_TO_NAME.get(p, str(p))))
+                else:
+                    privileges.append(Privilege(code=str(p)))
 
         roles.append(
             AerospikeRole(
@@ -65,9 +81,25 @@ async def create_role(body: CreateRoleRequest, client: AerospikeClient) -> Aeros
     if not body.name or not body.privileges:
         raise HTTPException(status_code=400, detail="Missing required fields: name, privileges")
 
-    privileges: list[AerospikePrivilege] = [
-        cast(AerospikePrivilege, {"code": p.code, "ns": p.namespace or "", "set": p.set or ""}) for p in body.privileges
-    ]
+    # aerospike-py's ``Privilege`` TypedDict requires ``code`` to be an int
+    # (e.g. PRIV_READ=10). Translate the human-readable string codes that
+    # the REST API accepts into the int constants before passing to the
+    # client. Reject unknown names with 422 rather than letting aerospike-py
+    # raise ``TypeError: 'str' object cannot be interpreted as an integer``.
+    privileges: list[AerospikePrivilege] = []
+    for p in body.privileges:
+        code_int = PRIVILEGE_NAME_TO_CODE.get(p.code)
+        if code_int is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown privilege: {p.code!r}",
+            )
+        privileges.append(
+            cast(
+                AerospikePrivilege,
+                {"code": code_int, "ns": p.namespace or "", "set": p.set or ""},
+            )
+        )
     await client.admin_create_role(
         body.name,
         privileges,
