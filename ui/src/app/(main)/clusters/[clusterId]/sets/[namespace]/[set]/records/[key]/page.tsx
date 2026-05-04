@@ -8,6 +8,7 @@ import { Label } from "@/components/Label"
 import { RecordDetailSkeleton } from "@/components/skeletons/RecordDetailSkeleton"
 import { clusterSections } from "@/app/siteConfig"
 import { ApiError } from "@/lib/api/client"
+import { logFetchError } from "@/lib/api/log"
 import { deleteRecord, getRecordDetail, putRecord } from "@/lib/api/records"
 import type { AerospikeRecord, BinValue, PkType } from "@/lib/types/record"
 import Link from "next/link"
@@ -298,6 +299,7 @@ export default function RecordDetailPage({ params }: PageProps) {
         clusterSections.set(params.clusterId, params.namespace, params.set),
       )
     } catch (err) {
+      logFetchError("record-delete", err)
       if (err instanceof ApiError) setError(err.detail || err.message)
       else if (err instanceof Error) setError(err.message)
       else setError("Failed to delete record")
@@ -410,6 +412,7 @@ export default function RecordDetailPage({ params }: PageProps) {
       setDrafts([])
       await loadRecord()
     } catch (err) {
+      logFetchError("record-save", err)
       if (err instanceof ApiError) setError(err.detail || err.message)
       else if (err instanceof Error) setError(err.message)
       else setError("Failed to save record")

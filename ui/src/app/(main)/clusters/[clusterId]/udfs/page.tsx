@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/Table"
 import { listUdfs } from "@/lib/api/udfs"
+import { logFetchError } from "@/lib/api/log"
 import type { UDFModule } from "@/lib/types/udf"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
@@ -33,6 +34,7 @@ export default function UdfsPage({ params }: PageProps) {
       const data = await listUdfs(params.clusterId)
       setUdfs(data)
     } catch (err) {
+      logFetchError("udfs", err)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)

@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/Select"
 import { listIndexes } from "@/lib/api/indexes"
+import { logFetchError } from "@/lib/api/log"
 import { filterRecords } from "@/lib/api/records"
 import { TableSkeleton } from "@/components/skeletons/TableSkeleton"
 import type { BinDataType } from "@/lib/types/query"
@@ -188,6 +189,7 @@ export default function RecordBrowserPage({ params }: PageProps) {
           executionTimeMs: resp.executionTimeMs,
         })
       } catch (err) {
+        logFetchError("records", err)
         setError(err instanceof Error ? err.message : String(err))
       } finally {
         setLoading(false)
@@ -218,7 +220,8 @@ export default function RecordBrowserPage({ params }: PageProps) {
       .then((data) => {
         if (!cancelled) setIndexes(data)
       })
-      .catch(() => {
+      .catch((err) => {
+        logFetchError("records-indexes", err)
         if (!cancelled) setIndexes([])
       })
     return () => {

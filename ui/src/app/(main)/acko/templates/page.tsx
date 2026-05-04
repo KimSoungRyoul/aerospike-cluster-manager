@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/Table"
 import { listK8sTemplates } from "@/lib/api/k8s"
+import { logFetchError } from "@/lib/api/log"
 import type { K8sTemplateSummary } from "@/lib/types/k8s"
 import { useCallback, useEffect, useState } from "react"
 
@@ -29,6 +30,7 @@ export default function AckoTemplatesPage() {
       const data = await listK8sTemplates()
       setTemplates(data)
     } catch (err) {
+      logFetchError("templates", err)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
