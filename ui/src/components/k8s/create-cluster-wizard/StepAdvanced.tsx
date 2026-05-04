@@ -5,6 +5,7 @@ import { Card } from "@/components/Card"
 import { Checkbox } from "@/components/Checkbox"
 import { Input } from "@/components/Input"
 import { Label } from "@/components/Label"
+import { useStableListKeys } from "@/hooks/use-stable-list-keys"
 import type {
   ACLConfig,
   ACLRoleSpec,
@@ -140,8 +141,20 @@ function AclSection({ form, updateForm }: StepAdvancedProps) {
   const set = (patch: Partial<ACLConfig>) =>
     updateForm({ acl: { ...acl, ...patch } })
 
+  const {
+    keys: roleKeys,
+    notifyAdd: addRoleKey,
+    notifyRemove: removeRoleKey,
+  } = useStableListKeys(acl.roles?.length ?? 0)
+  const {
+    keys: userKeys,
+    notifyAdd: addUserKey,
+    notifyRemove: removeUserKey,
+  } = useStableListKeys(acl.users?.length ?? 0)
+
   const addRole = () => {
     const role: ACLRoleSpec = { name: "", privileges: [], whitelist: null }
+    addRoleKey()
     set({ roles: [...(acl.roles ?? []), role] })
   }
   const updateRole = (i: number, patch: Partial<ACLRoleSpec>) => {
@@ -150,11 +163,14 @@ function AclSection({ form, updateForm }: StepAdvancedProps) {
     )
     set({ roles })
   }
-  const removeRole = (i: number) =>
+  const removeRole = (i: number) => {
+    removeRoleKey(i)
     set({ roles: (acl.roles ?? []).filter((_, idx) => idx !== i) })
+  }
 
   const addUser = () => {
     const user: ACLUserSpec = { name: "", secretName: "", roles: [] }
+    addUserKey()
     set({ users: [...(acl.users ?? []), user] })
   }
   const updateUser = (i: number, patch: Partial<ACLUserSpec>) => {
@@ -163,8 +179,10 @@ function AclSection({ form, updateForm }: StepAdvancedProps) {
     )
     set({ users })
   }
-  const removeUser = (i: number) =>
+  const removeUser = (i: number) => {
+    removeUserKey(i)
     set({ users: (acl.users ?? []).filter((_, idx) => idx !== i) })
+  }
 
   return (
     <Section title="Security (ACL)" summary={summary}>
@@ -212,7 +230,7 @@ function AclSection({ form, updateForm }: StepAdvancedProps) {
               </div>
               {(acl.roles ?? []).map((role, i) => (
                 <div
-                  key={i}
+                  key={roleKeys[i]}
                   className="flex flex-col gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-800"
                 >
                   <div className="flex items-center justify-between">
@@ -268,7 +286,7 @@ function AclSection({ form, updateForm }: StepAdvancedProps) {
               </div>
               {(acl.users ?? []).map((user, i) => (
                 <div
-                  key={i}
+                  key={userKeys[i]}
                   className="flex flex-col gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-800"
                 >
                   <div className="flex items-center justify-between">
@@ -401,10 +419,17 @@ function RackConfigSection({ form, updateForm }: StepAdvancedProps) {
   const set = (patch: Partial<typeof rc>) =>
     updateForm({ rackConfig: { ...rc, ...patch } })
 
+  const {
+    keys: rackKeys,
+    notifyAdd: addRackKey,
+    notifyRemove: removeRackKey,
+  } = useStableListKeys(racks.length)
+
   const addRack = () => {
     const nextId =
       (racks.reduce((max, r) => Math.max(max, r.id ?? 0), 0) || 0) + 1
     const rack: RackConfig = { id: nextId }
+    addRackKey()
     set({ racks: [...racks, rack] })
   }
 
@@ -414,8 +439,10 @@ function RackConfigSection({ form, updateForm }: StepAdvancedProps) {
     })
   }
 
-  const removeRack = (i: number) =>
+  const removeRack = (i: number) => {
+    removeRackKey(i)
     set({ racks: racks.filter((_, idx) => idx !== i) })
+  }
 
   return (
     <Section title="Rack Config" summary={summary}>
@@ -480,7 +507,7 @@ function RackConfigSection({ form, updateForm }: StepAdvancedProps) {
 
         {racks.map((rack, i) => (
           <div
-            key={i}
+            key={rackKeys[i]}
             className="flex flex-col gap-3 rounded-md border border-gray-200 p-3 dark:border-gray-800"
           >
             <div className="flex items-center justify-between">
@@ -575,6 +602,11 @@ function PodSettingsSection({ form, updateForm }: StepAdvancedProps) {
     Boolean(meta.annotations && Object.keys(meta.annotations).length)
 
   const tolerations = ps.tolerations ?? []
+  const {
+    keys: tolerationKeys,
+    notifyAdd: addTolerationKey,
+    notifyRemove: removeTolerationKey,
+  } = useStableListKeys(tolerations.length)
   const addToleration = () => {
     const t: TolerationConfig = {
       key: "",
@@ -582,6 +614,7 @@ function PodSettingsSection({ form, updateForm }: StepAdvancedProps) {
       value: "",
       effect: "NoSchedule",
     }
+    addTolerationKey()
     set({ tolerations: [...tolerations, t] })
   }
   const updateToleration = (i: number, patch: Partial<TolerationConfig>) =>
@@ -590,8 +623,10 @@ function PodSettingsSection({ form, updateForm }: StepAdvancedProps) {
         idx === i ? { ...t, ...patch } : t,
       ),
     })
-  const removeToleration = (i: number) =>
+  const removeToleration = (i: number) => {
+    removeTolerationKey(i)
     set({ tolerations: tolerations.filter((_, idx) => idx !== i) })
+  }
 
   return (
     <Section title="Pod Settings" summary={changed ? "Customized" : "Default"}>
@@ -696,7 +731,7 @@ function PodSettingsSection({ form, updateForm }: StepAdvancedProps) {
           )}
           {tolerations.map((t, i) => (
             <div
-              key={i}
+              key={tolerationKeys[i]}
               className="grid grid-cols-1 gap-2 rounded-md border border-gray-200 p-3 md:grid-cols-5 dark:border-gray-800"
             >
               <Input
@@ -796,10 +831,17 @@ function ContainerList({
   value: SidecarConfig[]
   onChange: (next: SidecarConfig[]) => void
 }) {
-  const add = () => onChange([...value, { name: "", image: "" }])
+  const { keys, notifyAdd, notifyRemove } = useStableListKeys(value.length)
+  const add = () => {
+    notifyAdd()
+    onChange([...value, { name: "", image: "" }])
+  }
   const update = (i: number, patch: Partial<SidecarConfig>) =>
     onChange(value.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
-  const remove = (i: number) => onChange(value.filter((_, idx) => idx !== i))
+  const remove = (i: number) => {
+    notifyRemove(i)
+    onChange(value.filter((_, idx) => idx !== i))
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -814,7 +856,7 @@ function ContainerList({
       {value.length === 0 && <p className="text-xs text-gray-500">None.</p>}
       {value.map((c, i) => (
         <div
-          key={i}
+          key={keys[i]}
           className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-2 dark:border-gray-800"
         >
           <div className="flex flex-col gap-1.5">

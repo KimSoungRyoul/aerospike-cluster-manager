@@ -4,6 +4,7 @@ import { Button } from "@/components/Button"
 import { Card } from "@/components/Card"
 import { Input } from "@/components/Input"
 import { Label } from "@/components/Label"
+import { useStableListKeys } from "@/hooks/use-stable-list-keys"
 import { cx } from "@/lib/utils"
 import { CE_LIMITS } from "@/lib/validations/k8s"
 import type {
@@ -50,6 +51,12 @@ export function StepNamespaceStorage({
     updateForm({ namespaces })
   }
 
+  const {
+    keys: nsKeys,
+    notifyAdd: addNsKey,
+    notifyRemove: removeNsKey,
+  } = useStableListKeys(namespaces.length)
+
   const updateNamespace = (
     i: number,
     patch: Partial<AerospikeNamespaceConfig>,
@@ -62,6 +69,7 @@ export function StepNamespaceStorage({
 
   const addNamespace = () => {
     if (namespaces.length >= CE_LIMITS.MAX_CE_NAMESPACES) return
+    addNsKey()
     updateForm({
       namespaces: [
         ...namespaces,
@@ -72,6 +80,7 @@ export function StepNamespaceStorage({
 
   const removeNamespace = (i: number) => {
     if (namespaces.length <= 1) return
+    removeNsKey(i)
     updateForm({ namespaces: namespaces.filter((_, idx) => idx !== i) })
   }
 
@@ -100,7 +109,7 @@ export function StepNamespaceStorage({
         const storageType = ns.storageEngine?.type ?? "memory"
         return (
           <div
-            key={i}
+            key={nsKeys[i]}
             className="flex flex-col gap-4 rounded-md border border-gray-200 p-4 dark:border-gray-800"
           >
             <div className="flex items-center justify-between">
