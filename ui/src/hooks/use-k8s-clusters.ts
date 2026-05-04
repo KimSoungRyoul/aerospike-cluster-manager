@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import { listK8sClusters, type ListK8sClustersParams } from "@/lib/api/k8s"
+import { logFetchError } from "@/lib/api/log"
 import type { K8sClusterListResponse } from "@/lib/types/k8s"
 
 export interface UseK8sClustersResult {
@@ -37,6 +38,7 @@ export function useK8sClusters(
       const result = await listK8sClusters(paramsRef.current)
       setData(result)
     } catch (err) {
+      logFetchError("k8s-clusters", err)
       setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
       setIsLoading(false)
@@ -54,6 +56,7 @@ export function useK8sClusters(
           setError(null)
         }
       } catch (err) {
+        logFetchError("k8s-clusters", err)
         if (!cancelled) {
           setError(err instanceof Error ? err : new Error(String(err)))
         }

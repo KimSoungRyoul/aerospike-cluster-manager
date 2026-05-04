@@ -17,6 +17,7 @@ import {
 } from "@/components/Table"
 import { listRoles, listUsers } from "@/lib/api/admin"
 import { ApiError } from "@/lib/api/client"
+import { logFetchError } from "@/lib/api/log"
 import type { AerospikeRole, AerospikeUser } from "@/lib/types/admin"
 import { RiShieldKeyholeLine } from "@remixicon/react"
 import { useCallback, useEffect, useState } from "react"
@@ -52,6 +53,7 @@ export default function AdminPage({ params }: PageProps) {
       setUsersState({ data: users, loading: false, error: null })
       setRolesState({ data: roles, loading: false, error: null })
     } catch (err) {
+      logFetchError("admin", err)
       if (err instanceof ApiError && err.status === 403) {
         // Backend EE_MSG: "Security is not enabled. Add a 'security { }' block ..."
         setSecurityDisabled(true)

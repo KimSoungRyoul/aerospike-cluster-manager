@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import { subscribeEvents, type EventSubscription } from "@/lib/api/events"
+import { logFetchError } from "@/lib/api/log"
 import type { SSEEvent } from "@/lib/types/events"
 
 export interface UseEventStreamOptions<T> {
@@ -47,6 +48,7 @@ export function useEventStream<T = unknown>(
         types,
         onOpen: () => setConnected(true),
         onError: (err) => {
+          logFetchError("event-stream", err)
           setError(err)
           setConnected(false)
         },
@@ -57,6 +59,7 @@ export function useEventStream<T = unknown>(
       })
     } catch (err) {
       // subscribeEvents throws on SSR — already guarded above, but be safe.
+      logFetchError("event-stream", err)
       setError(err as Event)
     }
 

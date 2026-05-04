@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react"
 
 import { getCluster } from "@/lib/api/clusters"
+import { logFetchError } from "@/lib/api/log"
 import type { ClusterInfo } from "@/lib/types/cluster"
 
 export interface UseClusterResult {
@@ -32,6 +33,7 @@ export function useCluster(
       const result = await getCluster(connId)
       setData(result)
     } catch (err) {
+      logFetchError("cluster", err)
       setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
       setIsLoading(false)
@@ -55,6 +57,7 @@ export function useCluster(
           setError(null)
         }
       } catch (err) {
+        logFetchError("cluster", err)
         if (!cancelled) {
           setError(err instanceof Error ? err : new Error(String(err)))
         }

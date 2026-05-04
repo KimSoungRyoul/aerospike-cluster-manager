@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/Table"
 import { listIndexes } from "@/lib/api/indexes"
+import { logFetchError } from "@/lib/api/log"
 import type { SecondaryIndex, SecondaryIndexState } from "@/lib/types/index"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Fragment } from "react"
@@ -43,6 +44,7 @@ export default function SecondaryIndexesPage({ params }: PageProps) {
       const data = await listIndexes(params.clusterId)
       setIndexes(data)
     } catch (err) {
+      logFetchError("sindex", err)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)

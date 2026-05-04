@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react"
 
 import { listConnections } from "@/lib/api/connections"
+import { logFetchError } from "@/lib/api/log"
 import type { ConnectionProfileResponse } from "@/lib/types/connection"
 
 export interface UseConnectionsResult {
@@ -29,6 +30,7 @@ export function useConnections(): UseConnectionsResult {
       const result = await listConnections()
       setData(result)
     } catch (err) {
+      logFetchError("connections", err)
       setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
       setIsLoading(false)
@@ -45,6 +47,7 @@ export function useConnections(): UseConnectionsResult {
           setError(null)
         }
       } catch (err) {
+        logFetchError("connections", err)
         if (!cancelled) {
           setError(err instanceof Error ? err : new Error(String(err)))
         }
