@@ -15,6 +15,7 @@ import { ConnectionFormFields } from "@/components/dialogs/ConnectionFormFields"
 import { useConnectionForm } from "@/components/dialogs/useConnectionForm"
 import { ApiError } from "@/lib/api/client"
 import { createConnection } from "@/lib/api/connections"
+import { useUiStore } from "@/stores/ui-store"
 
 interface AddConnectionDialogProps {
   open: boolean
@@ -30,6 +31,7 @@ export function AddConnectionDialog({
   const { form, setForm, validate, reset } = useConnectionForm()
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const currentWorkspaceId = useUiStore((s) => s.currentWorkspaceId)
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -51,7 +53,10 @@ export function AddConnectionDialog({
 
     setIsSubmitting(true)
     try {
-      await createConnection(result.payload)
+      await createConnection({
+        ...result.payload,
+        workspaceId: currentWorkspaceId,
+      })
       reset()
       onSuccess?.()
       onOpenChange(false)
