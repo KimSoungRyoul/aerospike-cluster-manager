@@ -3,6 +3,7 @@
 import { Badge } from "@/components/Badge"
 import { Button } from "@/components/Button"
 import { Card } from "@/components/Card"
+import { ErrorBanner } from "@/components/ErrorBanner"
 import {
   Table,
   TableBody,
@@ -29,7 +30,6 @@ export default function AckoTemplatesPage() {
       setTemplates(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
-      setTemplates(null)
     } finally {
       setLoading(false)
     }
@@ -67,9 +67,12 @@ export default function AckoTemplatesPage() {
       </header>
 
       {error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-          {error}
-        </div>
+        <ErrorBanner
+          message={error}
+          onRetry={() => void load()}
+          disabled={loading}
+          staleData={!!templates && templates.length > 0}
+        />
       )}
 
       <Card className="p-0">
@@ -98,6 +101,15 @@ export default function AckoTemplatesPage() {
                     ))}
                   </TableRow>
                 ))
+              ) : error && !templates ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="py-8 text-center text-sm text-red-600 dark:text-red-400"
+                  >
+                    Failed to load templates.
+                  </TableCell>
+                </TableRow>
               ) : !templates || templates.length === 0 ? (
                 <TableRow>
                   <TableCell
