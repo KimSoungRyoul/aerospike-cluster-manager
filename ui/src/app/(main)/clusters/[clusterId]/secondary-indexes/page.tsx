@@ -43,7 +43,6 @@ export default function SecondaryIndexesPage({ params }: PageProps) {
       setIndexes(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
-      setIndexes(null)
     } finally {
       setLoading(false)
     }
@@ -100,8 +99,15 @@ export default function SecondaryIndexesPage({ params }: PageProps) {
       </header>
 
       {error && (
-        <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-          {error}
+        <div className="flex items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          <span>{error}</span>
+          <Button
+            variant="secondary"
+            className="h-7 px-2 text-xs"
+            onClick={() => void load()}
+          >
+            Retry
+          </Button>
         </div>
       )}
 
@@ -123,6 +129,15 @@ export default function SecondaryIndexesPage({ params }: PageProps) {
             <TableBody>
               {loading && !indexes ? (
                 <SkeletonRows cols={6} rows={3} />
+              ) : error && !indexes ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="py-6 text-center text-sm text-red-600 dark:text-red-400"
+                  >
+                    Failed to load secondary indexes.
+                  </TableCell>
+                </TableRow>
               ) : Object.keys(grouped).length === 0 ? (
                 <TableRow>
                   <TableCell
