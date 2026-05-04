@@ -3,6 +3,7 @@
 import { Badge } from "@/components/Badge"
 import { Button } from "@/components/Button"
 import { Card } from "@/components/Card"
+import { ErrorBanner } from "@/components/ErrorBanner"
 import {
   Table,
   TableBody,
@@ -197,6 +198,10 @@ export default function RecordBrowserPage({ params }: PageProps) {
     const blank = emptyFilterDraft()
     setDraft(blank)
     setApplied(blank)
+    // Wipe prior set's data so a failed fetch on the new route can't render
+    // the previous set's rows under the new breadcrumb.
+    setRecords(null)
+    setMeta(EMPTY_META)
     void runFetch(blank, pageSize)
     // Intentionally omit pageSize from deps — we only want to reset on set
     // change, not on every limit change (that's handled by handlePageSize).
@@ -349,17 +354,12 @@ export default function RecordBrowserPage({ params }: PageProps) {
       />
 
       {error && (
-        <div className="flex items-center justify-between gap-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-          <span>{error}</span>
-          <Button
-            variant="secondary"
-            className="h-7 px-2 text-xs"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
-            Retry
-          </Button>
-        </div>
+        <ErrorBanner
+          message={error}
+          onRetry={handleRefresh}
+          disabled={loading}
+          staleData={!!records && records.length > 0}
+        />
       )}
 
       <Card className="p-0">
