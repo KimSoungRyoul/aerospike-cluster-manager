@@ -7,11 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .record import AerospikeRecord, BinValue
 
-# Placeholder bin name used when a FilterCondition targets the primary key
-# (operators PK_PREFIX / PK_REGEX). The bin field on FilterCondition is
-# required (min_length=1) for serialization, but PK operators use exp.key()
-# instead of any bin accessor — this sentinel makes the intent explicit and
-# is rejected when paired with non-PK operators.
+# Sentinel bin name reserved for FilterConditions whose operator is PK_PREFIX
+# or PK_REGEX. PK operators target exp.key() rather than a bin accessor.
 PK_BIN_PLACEHOLDER = "__pk__"
 
 
@@ -85,7 +82,7 @@ class BinDataType(StrEnum):
 class FilterCondition(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    bin: str = Field(min_length=1, max_length=255)
+    bin: str = Field(min_length=1, max_length=15)
     operator: FilterOperator
     value: BinValue | None = None
     value2: BinValue | None = None
@@ -93,19 +90,23 @@ class FilterCondition(BaseModel):
 
     @model_validator(mode="after")
     def _validate_pk_operator_pairing(self) -> FilterCondition:
-        """Enforce that PK operators only appear with the PK placeholder bin,
-        and conversely that the placeholder is reserved for PK operators.
-        Bin names are normally <=15 chars; the placeholder is checked here
-        so the regular field-length cap can be relaxed without losing safety."""
         is_pk_op = self.operator in PK_OPERATORS
         is_pk_bin = self.bin == PK_BIN_PLACEHOLDER
-        if is_pk_op != is_pk_bin:
+
+        if is_pk_op and not is_pk_bin:
             raise ValueError(
-                f"Operator {self.operator!r} requires bin={PK_BIN_PLACEHOLDER!r} "
-                f"and that placeholder is only valid with PK operators."
+                f"PK operator {self.operator.value!r} requires bin={PK_BIN_PLACEHOLDER!r}; got bin={self.bin!r}"
             )
-        if not is_pk_op and len(self.bin) > 15:
-            raise ValueError("bin must be at most 15 characters")
+        if is_pk_bin and not is_pk_op:
+            allowed = sorted(o.value for o in PK_OPERATORS)
+            raise ValueError(
+                f"bin={PK_BIN_PLACEHOLDER!r} is reserved for PK operators ({allowed}); "
+                f"got operator={self.operator.value!r}"
+            )
+        if is_pk_op and not isinstance(self.value, str):
+            raise ValueError(
+                f"PK operator {self.operator.value!r} requires a string value; got {type(self.value).__name__}"
+            )
         return self
 
 
@@ -128,13 +129,25 @@ class FilteredQueryRequest(BaseModel):
     primary_key: str | None = Field(default=None, max_length=1024, alias="primaryKey")
     # Particle type for primary_key resolution. "auto" retries alternate type on NOT_FOUND.
     pk_type: Literal["auto", "string", "int", "bytes"] = Field(default="auto", alias="pkType")
-    # PK pattern + match mode. When pk_match_mode is "exact", behaves like
-    # primary_key (single-record client.get). For "prefix"/"regex", the scan
-    # path is taken and a regex_compare(exp.key(STRING)) expression is composed
-    # with body.filters via AND. Resolution: pk_pattern preferred over the
-    # legacy primary_key field; both are accepted for backward compatibility.
+    # Canonical PK search field; primary_key kept for backward compatibility.
     pk_pattern: str | None = Field(default=None, max_length=4096, alias="pkPattern")
     pk_match_mode: Literal["exact", "prefix", "regex"] = Field(default="exact", alias="pkMatchMode")
+
+    @model_validator(mode="after")
+    def _validate_pk_fields(self) -> FilteredQueryRequest:
+        # Disallow ambiguous request shapes where the legacy and canonical
+        # PK fields disagree, or where mode and pattern presence are out
+        # of sync. The router's `pk_pattern or primary_key` precedence
+        # would otherwise silently pick a winner.
+        if self.pk_pattern is not None and self.primary_key is not None:
+            raise ValueError("Provide either pk_pattern or primary_key, not both")
+        if self.primary_key is not None and self.pk_match_mode != "exact":
+            raise ValueError("Legacy primary_key only supports pk_match_mode='exact'; use pk_pattern for prefix/regex")
+        if self.pk_match_mode != "exact":
+            pattern = self.pk_pattern
+            if pattern is None or pattern.strip() == "":
+                raise ValueError(f"pk_match_mode={self.pk_match_mode!r} requires a non-empty pk_pattern")
+        return self
 
 
 class FilteredQueryResponse(BaseModel):

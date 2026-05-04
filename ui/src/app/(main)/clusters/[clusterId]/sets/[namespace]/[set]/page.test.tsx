@@ -145,7 +145,7 @@ describe("RecordBrowserPage — PK match mode (#287)", () => {
     expect(screen.getByRole("status")).toHaveTextContent(/POLICY_KEY_SEND/)
   })
 
-  it("submitting in prefix mode sends pkPattern + pkMatchMode=prefix", async () => {
+  it("submitting in prefix mode sends pkPattern + pkMatchMode=prefix and no legacy primaryKey", async () => {
     mockedFilter
       .mockResolvedValueOnce(fixtureResponse(0)) // initial load
       .mockResolvedValueOnce(fixtureResponse(2)) // after Search
@@ -168,5 +168,43 @@ describe("RecordBrowserPage — PK match mode (#287)", () => {
         pkMatchMode: "prefix",
       }),
     )
+    // Belt-and-braces: no dual-field send. Backend rejects pkPattern +
+    // primaryKey simultaneously, so this assertion would catch a regression
+    // where the page accidentally re-introduces the legacy field.
+    const lastCallBody = mockedFilter.mock.lastCall?.[1] ?? {}
+    expect(lastCallBody).not.toHaveProperty("primaryKey")
+  })
+
+  it("disables the Search button and surfaces an inline error for an invalid regex", async () => {
+    mockedFilter.mockResolvedValueOnce(fixtureResponse(0))
+    render(<RecordBrowserPage params={PARAMS} />)
+    await screen.findByText(/no records in this set/i)
+
+    await userEvent.click(screen.getByLabelText(/pk match mode/i))
+    await userEvent.click(screen.getByRole("option", { name: /regex/i }))
+
+    const input = screen.getByPlaceholderText(/Regex/i)
+    // userEvent.type treats `[` as a special key sequence — paste a literal value instead.
+    input.focus()
+    await userEvent.paste("[unclosed")
+
+    // Inline error visible (alert role).
+    expect(await screen.findByRole("alert")).toBeInTheDocument()
+    // Search button is disabled because the draft is invalid.
+    expect(screen.getByRole("button", { name: /^search$/i })).toBeDisabled()
+    // No call past the initial mount.
+    expect(mockedFilter).toHaveBeenCalledTimes(1)
+  })
+
+  it("disables Search when prefix/regex mode is selected with an empty input", async () => {
+    mockedFilter.mockResolvedValueOnce(fixtureResponse(0))
+    render(<RecordBrowserPage params={PARAMS} />)
+    await screen.findByText(/no records in this set/i)
+
+    await userEvent.click(screen.getByLabelText(/pk match mode/i))
+    await userEvent.click(screen.getByRole("option", { name: /prefix/i }))
+
+    // Input is still empty in prefix mode.
+    expect(screen.getByRole("button", { name: /^search$/i })).toBeDisabled()
   })
 })

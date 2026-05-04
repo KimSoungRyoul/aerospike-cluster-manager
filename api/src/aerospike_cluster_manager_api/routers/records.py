@@ -21,6 +21,7 @@ from aerospike_cluster_manager_api.constants import (
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.expression_builder import (
+    InvalidPkPatternError,
     build_expression,
     build_pk_filter_expression,
 )
@@ -203,18 +204,21 @@ async def get_filtered_records(
     """Scan records with optional expression filters and pagination."""
     start_time = time.monotonic()
 
-    # Resolve PK lookup target. `pk_pattern` is the canonical field; the
-    # legacy `primary_key` field is still accepted for backward compatibility.
     pk_target = body.pk_pattern or body.primary_key
+
+    # Set is required for any PK-targeted query (exact, prefix, or regex):
+    # an unscoped namespace scan with a regex would dwarf the user's intent
+    # and is what the InfoBanner caveat warns against.
+    if pk_target and not body.set:
+        raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
 
     # PK lookup short-circuit (exact mode). Falls back to the alternate
     # particle type on NOT_FOUND when pk_type=auto so numeric-string keys
     # (stored as STRING) are still found even though auto's heuristic resolves
     # them as INTEGER. Prefix/regex modes skip this branch and run a scan.
     if pk_target and body.pk_match_mode == "exact":
-        if not body.set:
-            raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
-
+        # Set was already required above for PK-targeted queries.
+        assert body.set is not None
         resolved = resolve_pk(pk_target, body.pk_type)
         try:
             raw_result = await get_with_pk_fallback(
@@ -241,6 +245,21 @@ async def get_filtered_records(
             returnedRecords=len(records),
         )
 
+    # Build expressions BEFORE constructing the query — validating user input
+    # up front means a bad pattern surfaces as 400 without ever touching the
+    # client.query path.
+    pk_expr: dict | None = None
+    try:
+        if pk_target is not None:
+            if body.pk_match_mode == "prefix":
+                pk_expr = build_pk_filter_expression(pk_target, "prefix")
+            elif body.pk_match_mode == "regex":
+                pk_expr = build_pk_filter_expression(pk_target, "regex")
+    except InvalidPkPatternError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    bin_expr = build_expression(body.filters) if body.filters else None
+
     # Build query
     q = client.query(body.namespace, body.set or "")
 
@@ -259,13 +278,6 @@ async def get_filtered_records(
     # cannot be obtained without a separate count-only scan (which would
     # double cluster load) — `totalEstimated=True` plus a lower-bound
     # `total` are reported instead. See issue #284.
-    pk_expr: dict | None = None
-    if pk_target is not None:
-        if body.pk_match_mode == "prefix":
-            pk_expr = build_pk_filter_expression(pk_target, "prefix")
-        elif body.pk_match_mode == "regex":
-            pk_expr = build_pk_filter_expression(pk_target, "regex")
-
     has_filters = body.filters is not None or body.predicate is not None or pk_expr is not None
     fetch_limit = min(
         body.max_records or MAX_QUERY_RECORDS,
@@ -274,7 +286,6 @@ async def get_filtered_records(
     )
 
     policy: dict[str, Any] = {**POLICY_QUERY, "max_records": fetch_limit}
-    bin_expr = build_expression(body.filters) if body.filters else None
     if bin_expr is not None and pk_expr is not None:
         policy["filter_expression"] = exp.and_(pk_expr, bin_expr)
     elif pk_expr is not None:
@@ -285,10 +296,17 @@ async def get_filtered_records(
     try:
         raw_results = await q.results(policy)
     except AerospikeError:
+        # The empty/sparse-namespace failure mode (issue #259) is the reason
+        # this catch exists. Log at exception level so operators can still
+        # find the underlying cause in logs — pattern + filter context goes
+        # in the message so user-supplied PK patterns are reproducible.
         logger.exception(
-            "Filtered query failed for ns=%s set=%s; returning empty page",
+            "Filtered query failed for ns=%s set=%s pk_mode=%s pk_pattern=%r has_filters=%s; returning empty page",
             body.namespace,
             body.set,
+            body.pk_match_mode,
+            pk_target,
+            body.filters is not None,
         )
         raw_results = []
 

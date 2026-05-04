@@ -41,6 +41,34 @@ const PK_PLACEHOLDER_BY_MODE: Record<PkMatchMode, string> = {
   regex: "Regex (e.g., ^acct[0-9]+$)",
 }
 
+/**
+ * Validate the PK input against the selected match mode. Returns null when
+ * the draft is OK to submit, otherwise a short user-facing error string.
+ *
+ * Caveat: JS RegExp follows ECMAScript syntax, while the Aerospike server
+ * uses POSIX. The two grammars overlap on the structural errors users hit
+ * most (unbalanced brackets / parens, dangling quantifiers), so a JS-side
+ * compile catches the common typos and surfaces them as inline UI feedback
+ * before the user wastes a round-trip on a 400.
+ */
+export function validatePkDraft(pk: string, mode: PkMatchMode): string | null {
+  if (mode === "exact") return null
+  if (pk.trim() === "") {
+    return mode === "prefix"
+      ? "Enter a prefix to search."
+      : "Enter a regex pattern."
+  }
+  if (mode === "regex") {
+    try {
+      // eslint-disable-next-line no-new
+      new RegExp(pk)
+    } catch (e) {
+      return e instanceof Error ? e.message : "Invalid regex pattern"
+    }
+  }
+  return null
+}
+
 export interface FilterDraftCondition extends FilterCondition {
   id: string
   binType: BinDataType
@@ -170,18 +198,23 @@ export function RecordFilters({
     onChange({ ...draft, logic: draft.logic === "and" ? "or" : "and" })
   }, [draft, onChange])
 
+  const pkError = useMemo(
+    () => validatePkDraft(draft.pk, draft.pkMatchMode),
+    [draft.pk, draft.pkMatchMode],
+  )
+
   const handleApplyKey = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
+      if (e.key === "Enter" && pkError == null) {
         e.preventDefault()
         onApply()
       }
     },
-    [onApply],
+    [onApply, pkError],
   )
 
   const hasDraft = draftHasFilters(draft)
-  const canApply = !loading && dirty !== false
+  const canApply = !loading && dirty !== false && pkError == null
 
   return (
     <div className="flex flex-col gap-2">
@@ -213,9 +246,14 @@ export function RecordFilters({
             onChange={(e) => updatePk(e.target.value)}
             onKeyDown={handleApplyKey}
             placeholder={PK_PLACEHOLDER_BY_MODE[draft.pkMatchMode]}
+            aria-invalid={pkError != null && draft.pk.length > 0}
+            aria-describedby={pkError ? "pk-error" : undefined}
             className={cx(
               "sm:w-60",
               draft.pkMatchMode !== "exact" && "font-mono",
+              pkError != null &&
+                draft.pk.length > 0 &&
+                "border-red-400 focus:border-red-500 focus:ring-red-200 dark:border-red-700",
             )}
           />
         </div>
@@ -300,6 +338,16 @@ export function RecordFilters({
           </div>
         )}
       </div>
+
+      {pkError && draft.pk.length > 0 && (
+        <p
+          id="pk-error"
+          role="alert"
+          className="text-[11px] text-red-600 dark:text-red-400"
+        >
+          {pkError}
+        </p>
+      )}
 
       {draft.pkMatchMode !== "exact" && (
         <InfoBanner title="PK pattern search uses a full set scan">

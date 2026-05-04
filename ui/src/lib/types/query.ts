@@ -65,12 +65,6 @@ export type FilterOperator =
  */
 export type PkMatchMode = "exact" | "prefix" | "regex"
 
-/**
- * Sentinel bin name for FilterCondition entries that target the primary key
- * via pk_prefix / pk_regex operators. Mirrors PK_BIN_PLACEHOLDER on the API.
- */
-export const PK_BIN_PLACEHOLDER = "__pk__"
-
 export type BinDataType =
   | "integer"
   | "float"
