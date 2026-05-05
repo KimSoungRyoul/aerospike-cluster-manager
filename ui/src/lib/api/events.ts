@@ -5,7 +5,15 @@
  * The backend streams JSON-encoded events (see routers/events.py).
  * Each message's `data` field is a JSON string that we parse before
  * delivering to the consumer.
+ *
+ * Auth: `EventSource` cannot set headers, so the access token is appended as
+ * `?access_token=<jwt>` and the active cluster id as `&cluster=<id>`. The
+ * backend (Stream B) reads these and applies the same JWT verification as the
+ * Authorization header path.
  */
+
+import { useAuthStore } from "@/stores/auth-store"
+import { useClusterSelectorStore } from "@/stores/cluster-selector-store"
 
 import type { SSEEvent, SSEHandler } from "../types/events"
 import { API_PREFIX } from "./client"
@@ -43,8 +51,36 @@ export function subscribeEvents<T = unknown>(
 
   const params = new URLSearchParams()
   if (types && types.length > 0) params.set("types", types.join(","))
+
+  // Multi-cluster + OIDC mode: append cluster id and JWT so SSE works across
+  // origins without an Authorization header (EventSource limitation).
+  //
+  // SECURITY: the access token appears in the request URL. This means the
+  // token can leak via (a) upstream ingress access logs, (b) browser dev
+  // tools, (c) Referer headers if the SSE response page links elsewhere.
+  // Mitigations: short token TTL, mandatory access-log masking on every
+  // ingress that sits in front of the API (documented in
+  // aerospike-ce-kubernetes-operator/docs/multi-cluster-keycloak.md), and
+  // logging middleware on the API masks `access_token`/`id_token` query
+  // params before persisting them. See ADR-0040 follow-up: the long-term
+  // fix is per-stream signed nonces or transport upgrades that allow
+  // header-based auth on subscriptions.
+  const selector = useClusterSelectorStore.getState()
+  const active =
+    selector.registry?.clusters.find(
+      (c) => c.id === selector.currentClusterId,
+    ) ??
+    selector.registry?.clusters.find(
+      (c) => c.id === selector.registry?.defaultClusterId,
+    ) ??
+    null
+  if (active) params.set("cluster", active.id)
+  const token = useAuthStore.getState().accessToken
+  if (token) params.set("access_token", token)
+
   const qs = params.toString()
-  const url = `${API_PREFIX}/events/stream${qs ? `?${qs}` : ""}`
+  const baseHost = active?.apiUrl?.replace(/\/+$/, "") ?? ""
+  const url = `${baseHost}${API_PREFIX}/events/stream${qs ? `?${qs}` : ""}`
 
   const source = new EventSource(url)
 
