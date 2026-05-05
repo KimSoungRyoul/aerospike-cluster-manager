@@ -141,6 +141,11 @@ services:
     depends_on:
       aerospike-node-1:
         condition: service_healthy
+      aerospike-node-2:
+        condition: service_healthy
+      aerospike-node-3:
+        condition: service_healthy
+    restart: unless-stopped
 
   aerospike-cluster-manager-web:
     container_name: aerospike-cluster-manager-web
@@ -153,11 +158,6 @@ services:
       - API_URL=http://aerospike-cluster-manager-api:8000
     depends_on:
       aerospike-cluster-manager-api:
-        condition: service_healthy
-    restart: unless-stopped
-      aerospike-node-2:
-        condition: service_healthy
-      aerospike-node-3:
         condition: service_healthy
     restart: unless-stopped
 
