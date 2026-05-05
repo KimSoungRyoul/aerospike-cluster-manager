@@ -45,6 +45,28 @@ SSE_QUERY_TOKEN_PATHS: frozenset[str] = frozenset(
     }
 )
 
+# Asymmetric algorithms only — never trust the JWK's ``alg`` field blindly.
+# Symmetric algs (HS256/384/512) and ``none`` would let a malicious or
+# misconfigured JWKS open a verification path with attacker-known secrets.
+# Keycloak issues RS256 by default; ES* are allowed for installations that
+# rotate to elliptic-curve signing keys.
+_ALLOWED_ALGS: frozenset[str] = frozenset(
+    {"RS256", "RS384", "RS512", "ES256", "ES384", "ES512"},
+)
+
+# Back-off window for ``kid``-miss-driven JWKS refetches. After a refresh that
+# still does not contain the requested ``kid`` (i.e. the token was forged or
+# references a key the IdP no longer publishes), additional unknown-kid
+# requests within this window do NOT trigger another fetch — they fail fast.
+# Prevents an attacker from amplifying a flood of bogus tokens into a flood
+# of HTTP requests against the issuer.
+_KID_MISS_BACKOFF_SECONDS: int = 30
+
+# TODO(follow-up): migrate from python-jose to PyJWT (>=2.9). python-jose is
+# unmaintained as of 2024 and has open CVE-2024-33663/4. Mitigations applied
+# here: pinned algorithm whitelist (above), strict aud/iss verification,
+# kid-miss back-off. Still, switching to a maintained library is preferred.
+
 
 class OIDCAuthMiddleware(BaseHTTPMiddleware):
     """Native (no introspection) JWT verification with cached JWKS."""
@@ -82,6 +104,11 @@ class OIDCAuthMiddleware(BaseHTTPMiddleware):
         self._jwks_by_kid: dict[str, dict[str, Any]] = {}
         self._jwks_expires_at: float = 0.0
         self._jwks_lock = asyncio.Lock()
+        # Last wall-clock time we refetched JWKS specifically because of an
+        # unknown ``kid``. Used to enforce ``_KID_MISS_BACKOFF_SECONDS`` so
+        # an attacker spamming bogus kids cannot turn each request into a
+        # round-trip to the issuer.
+        self._last_kid_miss_refresh_at: float = 0.0
         # Cached well-known doc — only the ``jwks_uri`` value is used today,
         # but caching it avoids two HTTP round-trips on every refetch.
         self._jwks_uri: str | None = None
@@ -160,6 +187,11 @@ class OIDCAuthMiddleware(BaseHTTPMiddleware):
         algorithm = key.get("alg") or unverified_header.get("alg")
         if not algorithm:
             raise _AuthError("Cannot determine signing algorithm")
+        if algorithm not in _ALLOWED_ALGS:
+            # Defense-in-depth: even though Keycloak issues RS256, refusing
+            # everything else here closes off a class of downgrade attacks
+            # via a tampered or rogue JWKS endpoint.
+            raise _AuthError(f"Unsupported signing algorithm: {algorithm}")
 
         try:
             claims = jwt.decode(
@@ -189,8 +221,20 @@ class OIDCAuthMiddleware(BaseHTTPMiddleware):
             # Re-check after acquiring the lock — another task may have
             # already refreshed the cache while we were waiting.
             now = time.time()
-            need_refresh = now >= self._jwks_expires_at or kid not in self._jwks_by_kid
-            if need_refresh:
+            ttl_expired = now >= self._jwks_expires_at
+            kid_missing = kid not in self._jwks_by_kid
+
+            if ttl_expired:
+                # Standard TTL refresh path.
+                await self._refresh_jwks()
+            elif kid_missing and (
+                now - self._last_kid_miss_refresh_at >= _KID_MISS_BACKOFF_SECONDS
+            ):
+                # Unknown-kid refresh, but rate-limited via back-off window so
+                # a flood of bogus kids cannot amplify into JWKS requests.
+                # Outside the back-off window we fall through and let the
+                # caller see ``None`` (token rejected as unknown kid).
+                self._last_kid_miss_refresh_at = now
                 await self._refresh_jwks()
             return self._jwks_by_kid.get(kid)
 

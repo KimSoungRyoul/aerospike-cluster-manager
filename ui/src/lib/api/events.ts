@@ -54,6 +54,17 @@ export function subscribeEvents<T = unknown>(
 
   // Multi-cluster + OIDC mode: append cluster id and JWT so SSE works across
   // origins without an Authorization header (EventSource limitation).
+  //
+  // SECURITY: the access token appears in the request URL. This means the
+  // token can leak via (a) upstream ingress access logs, (b) browser dev
+  // tools, (c) Referer headers if the SSE response page links elsewhere.
+  // Mitigations: short token TTL, mandatory access-log masking on every
+  // ingress that sits in front of the API (documented in
+  // aerospike-ce-kubernetes-operator/docs/multi-cluster-keycloak.md), and
+  // logging middleware on the API masks `access_token`/`id_token` query
+  // params before persisting them. See ADR-0040 follow-up: the long-term
+  // fix is per-stream signed nonces or transport upgrades that allow
+  // header-based auth on subscriptions.
   const selector = useClusterSelectorStore.getState()
   const active =
     selector.registry?.clusters.find(

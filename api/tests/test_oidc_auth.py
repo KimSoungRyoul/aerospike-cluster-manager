@@ -321,6 +321,56 @@ async def test_unknown_kid_triggers_immediate_refetch():
 
 
 @pytest.mark.asyncio
+async def test_disallowed_alg_is_rejected():
+    """A JWK advertising a non-asymmetric/non-allowlisted alg must be rejected
+    even if the JWKS cache somehow contains it (defense-in-depth against
+    downgrade or rogue-IdP scenarios)."""
+    priv, jwk = _rsa_keypair()
+    jwk["alg"] = "HS256"  # symmetric — not in _ALLOWED_ALGS
+    mock = _JWKSMock([jwk])
+    app = _build_app(http_client=_client_for(mock), jwks_cache_ttl_seconds=600)
+    token = _sign(priv, jwk["kid"])
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get("/api/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 401
+    assert "Unsupported signing algorithm" in resp.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_unknown_kid_back_off_prevents_amplification():
+    """An attacker spamming tokens with random kids must not amplify into a
+    flood of JWKS requests. After one refetch fails to resolve a bogus kid,
+    subsequent unknown-kid requests within the back-off window must NOT
+    trigger additional fetches."""
+    priv, jwk = _rsa_keypair()
+    mock = _JWKSMock([jwk])
+    # Long TTL so the TTL-driven refetch path never fires during this test.
+    app = _build_app(http_client=_client_for(mock), jwks_cache_ttl_seconds=3600)
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        # Warm the cache via a valid token.
+        valid = _sign(priv, jwk["kid"])
+        await ac.get("/api/me", headers={"Authorization": f"Bearer {valid}"})
+        baseline = mock.jwks_calls
+        # First bogus kid: triggers ONE refetch (cache-miss path).
+        bogus1 = _sign(priv, "kid-bogus-1")
+        resp = await ac.get("/api/me", headers={"Authorization": f"Bearer {bogus1}"})
+        assert resp.status_code == 401
+        assert mock.jwks_calls == baseline + 1
+        # Multiple subsequent bogus kids within the back-off window must NOT
+        # trigger more refetches.
+        for i in range(2, 12):
+            bogus = _sign(priv, f"kid-bogus-{i}")
+            resp = await ac.get("/api/me", headers={"Authorization": f"Bearer {bogus}"})
+            assert resp.status_code == 401
+        assert mock.jwks_calls == baseline + 1, (
+            "JWKS was refetched more than once for unknown-kid storm "
+            "(amplification protection failed)"
+        )
+
+
+@pytest.mark.asyncio
 async def test_disabled_middleware_is_passthrough():
     mock = _JWKSMock([])
     app = _build_app(enabled=False, http_client=_client_for(mock))

@@ -20,10 +20,7 @@
  */
 
 import { useAuthStore } from "@/stores/auth-store"
-import {
-  getActiveApiUrl,
-  useClusterSelectorStore,
-} from "@/stores/cluster-selector-store"
+import { getActiveApiUrl } from "@/stores/cluster-selector-store"
 
 export const API_PREFIX = "/api"
 export const DEFAULT_TIMEOUT_MS = 30_000
@@ -187,9 +184,11 @@ export async function apiFetch<T>(
     )
   }
 
-  // 401 → silent refresh + single retry. We only retry once per request to
-  // avoid loops if the IdP keeps issuing tokens the API rejects.
-  if (response.status === 401 && useClusterSelectorStore.getState().registry) {
+  // 401 → silent refresh + single retry. Gated on token presence (not
+  // registry presence) so single-cluster installs that opt into OIDC also
+  // get the silent-refresh path. We only retry once per request to avoid
+  // loops if the IdP keeps issuing tokens the API rejects.
+  if (response.status === 401 && useAuthStore.getState().accessToken) {
     const newToken = await attemptTokenRefresh()
     if (newToken) {
       try {
