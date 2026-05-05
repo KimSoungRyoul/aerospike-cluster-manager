@@ -65,7 +65,9 @@ async function pingHealth(
   }
 }
 
-function useClusterHealth(clusters: ClusterEntry[]): Record<string, HealthState> {
+function useClusterHealth(
+  clusters: ClusterEntry[],
+): Record<string, HealthState> {
   const [state, setState] = React.useState<Record<string, HealthState>>({})
 
   React.useEffect(() => {
@@ -151,7 +153,9 @@ export function ClusterSelector() {
                 aria-hidden="true"
                 className={cx(
                   "inline-block size-2 shrink-0 rounded-full",
-                  dotClasses(current ? health[current.id] ?? "checking" : "checking"),
+                  dotClasses(
+                    current ? (health[current.id] ?? "checking") : "checking",
+                  ),
                 )}
               />
               {current?.labels?.env ?? "Cluster"}
@@ -164,9 +168,7 @@ export function ClusterSelector() {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
-        <DropdownMenuLabel>
-          Clusters ({clusters.length})
-        </DropdownMenuLabel>
+        <DropdownMenuLabel>Clusters ({clusters.length})</DropdownMenuLabel>
         {clusters.map((c) => {
           const selected = c.id === current?.id
           const state = health[c.id] ?? "checking"

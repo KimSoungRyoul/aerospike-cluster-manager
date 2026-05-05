@@ -19,7 +19,7 @@ import KeycloakImport, {
 
 import { useAuthStore } from "@/stores/auth-store"
 
-const KeycloakCtor = (KeycloakImport as unknown) as typeof KeycloakImport &
+const KeycloakCtor = KeycloakImport as unknown as typeof KeycloakImport &
   ((config: KeycloakConfig) => KeycloakInstance)
 
 export interface WebOidcConfig {

@@ -365,8 +365,7 @@ async def test_unknown_kid_back_off_prevents_amplification():
             resp = await ac.get("/api/me", headers={"Authorization": f"Bearer {bogus}"})
             assert resp.status_code == 401
         assert mock.jwks_calls == baseline + 1, (
-            "JWKS was refetched more than once for unknown-kid storm "
-            "(amplification protection failed)"
+            "JWKS was refetched more than once for unknown-kid storm (amplification protection failed)"
         )
 
 
@@ -411,10 +410,7 @@ def test_request_logging_masks_access_token_query():
     from aerospike_cluster_manager_api.main import _mask_query_string
 
     assert _mask_query_string("access_token=eyJabc.def.ghi") == "access_token=***"
-    assert (
-        _mask_query_string("foo=bar&access_token=eyJabc.def.ghi&baz=1")
-        == "foo=bar&access_token=***&baz=1"
-    )
+    assert _mask_query_string("foo=bar&access_token=eyJabc.def.ghi&baz=1") == "foo=bar&access_token=***&baz=1"
     # Case-insensitive
     assert _mask_query_string("Access_Token=secret") == "Access_Token=***"
     # Other JWT-shaped query keys also get masked

@@ -51,7 +51,11 @@ afterEach(() => {
 
 describe("apiFetch (multi-cluster + auth)", () => {
   it("prepends the active cluster apiUrl and attaches Authorization", async () => {
-    useAuthStore.setState({ accessToken: "tok-1", claims: null, refreshing: false })
+    useAuthStore.setState({
+      accessToken: "tok-1",
+      claims: null,
+      refreshing: false,
+    })
 
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ok: true }))
     vi.stubGlobal("fetch", fetchMock)

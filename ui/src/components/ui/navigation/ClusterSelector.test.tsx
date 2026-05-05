@@ -73,15 +73,16 @@ describe("ClusterSelector", () => {
   it("pings each cluster /api/health on mount", async () => {
     render(<ClusterSelector />)
     await waitFor(() => {
-      const calls = (global.fetch as unknown as { mock: { calls: unknown[][] } })
-        .mock.calls
+      const calls = (
+        global.fetch as unknown as { mock: { calls: unknown[][] } }
+      ).mock.calls
       const urls = calls.map((c) => String(c[0]))
-      expect(urls.some((u) => u.startsWith("https://dev-api.example.com"))).toBe(
-        true,
-      )
-      expect(urls.some((u) => u.startsWith("https://prod-api.example.com"))).toBe(
-        true,
-      )
+      expect(
+        urls.some((u) => u.startsWith("https://dev-api.example.com")),
+      ).toBe(true)
+      expect(
+        urls.some((u) => u.startsWith("https://prod-api.example.com")),
+      ).toBe(true)
     })
   })
 })

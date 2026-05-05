@@ -227,9 +227,7 @@ class OIDCAuthMiddleware(BaseHTTPMiddleware):
             if ttl_expired:
                 # Standard TTL refresh path.
                 await self._refresh_jwks()
-            elif kid_missing and (
-                now - self._last_kid_miss_refresh_at >= _KID_MISS_BACKOFF_SECONDS
-            ):
+            elif kid_missing and (now - self._last_kid_miss_refresh_at >= _KID_MISS_BACKOFF_SECONDS):
                 # Unknown-kid refresh, but rate-limited via back-off window so
                 # a flood of bogus kids cannot amplify into JWKS requests.
                 # Outside the back-off window we fall through and let the
