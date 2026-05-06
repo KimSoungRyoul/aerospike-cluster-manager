@@ -8,6 +8,7 @@ import {
   labelsToEntries,
 } from "@/components/clusters/labels"
 import type { ConnectionProfileResponse } from "@/lib/types/connection"
+import { DEFAULT_WORKSPACE_ID } from "@/lib/types/workspace"
 import React from "react"
 
 export interface ConnectionFormState {
@@ -19,6 +20,7 @@ export interface ConnectionFormState {
   color: string
   description: string
   labels: LabelEntry[]
+  workspaceId: string
 }
 
 export interface ParsedConnectionPayload {
@@ -30,6 +32,7 @@ export interface ParsedConnectionPayload {
   color: string
   description: string | null
   labels: Record<string, string>
+  workspaceId: string
 }
 
 const DEFAULT_COLOR = "#4F46E5"
@@ -43,6 +46,7 @@ const EMPTY_FORM: ConnectionFormState = {
   color: DEFAULT_COLOR,
   description: "",
   labels: [{ key: ENV_LABEL_KEY, value: DEFAULT_ENV_VALUE }],
+  workspaceId: DEFAULT_WORKSPACE_ID,
 }
 
 export function fromConnection(
@@ -57,6 +61,7 @@ export function fromConnection(
     color: conn.color,
     description: conn.description ?? "",
     labels: labelsToEntries(conn.labels ?? {}),
+    workspaceId: conn.workspaceId ?? DEFAULT_WORKSPACE_ID,
   }
 }
 
@@ -111,6 +116,7 @@ export function useConnectionForm(initial?: ConnectionFormState) {
         color: form.color || DEFAULT_COLOR,
         description: form.description.trim() || null,
         labels: entriesToLabels(form.labels),
+        workspaceId: form.workspaceId || DEFAULT_WORKSPACE_ID,
       },
     }
   }, [form])

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
 import { Button } from "@/components/Button"
+import { useWorkspaces } from "@/hooks/use-workspaces"
 import { ApiError } from "@/lib/api/client"
 import { useClusterSelectorStore } from "@/stores/cluster-selector-store"
 import { useUiStore } from "@/stores/ui-store"
@@ -202,11 +203,16 @@ function cleanupPayload(
 
 export function CreateClusterWizard() {
   const router = useRouter()
+  const currentWorkspaceId = useUiStore((s) => s.currentWorkspaceId)
+  const { data: workspaces } = useWorkspaces()
 
   const [mode, setMode] = useState<CreationMode>("scratch")
   const [step, setStep] = useState(0)
   const [maxReachedStep, setMaxReachedStep] = useState(0)
-  const [form, setForm] = useState<CreateK8sClusterRequest>(INITIAL_FORM)
+  const [form, setForm] = useState<CreateK8sClusterRequest>(() => ({
+    ...INITIAL_FORM,
+    workspaceId: currentWorkspaceId,
+  }))
 
   const [templates, setTemplates] = useState<K8sTemplateSummary[]>([])
   const [selectedTemplateName, setSelectedTemplateName] = useState<
@@ -355,10 +361,6 @@ export function CreateClusterWizard() {
     setSubmitting(true)
     try {
       const payload = cleanupPayload(form)
-      // Attach the auto-created connection to the workspace the user is
-      // currently viewing — otherwise the new cluster only appears after
-      // they switch back to Default.
-      payload.workspaceId = useUiStore.getState().currentWorkspaceId
       await createK8sCluster(payload)
       router.push("/clusters")
     } catch (err) {
@@ -408,6 +410,7 @@ export function CreateClusterWizard() {
           <StepBasic
             form={form}
             namespaces={namespacesList}
+            workspaces={workspaces}
             updateForm={updateForm}
           />
         ) : step === 2 ? (
@@ -430,6 +433,7 @@ export function CreateClusterWizard() {
         <StepBasic
           form={form}
           namespaces={namespacesList}
+          workspaces={workspaces}
           updateForm={updateForm}
           templateMode
         />

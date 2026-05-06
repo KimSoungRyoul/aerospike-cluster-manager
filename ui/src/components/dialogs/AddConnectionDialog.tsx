@@ -13,6 +13,7 @@ import {
 } from "@/components/Dialog"
 import { ConnectionFormFields } from "@/components/dialogs/ConnectionFormFields"
 import { useConnectionForm } from "@/components/dialogs/useConnectionForm"
+import { useWorkspaces } from "@/hooks/use-workspaces"
 import { ApiError } from "@/lib/api/client"
 import { createConnection } from "@/lib/api/connections"
 import { useUiStore } from "@/stores/ui-store"
@@ -32,6 +33,16 @@ export function AddConnectionDialog({
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const currentWorkspaceId = useUiStore((s) => s.currentWorkspaceId)
+  const { data: workspaces } = useWorkspaces()
+
+  // Default the selector to the workspace the user is currently viewing each
+  // time the dialog opens. Without this the field would always start on
+  // ws-default, surprising users who switched workspace before clicking Add.
+  React.useEffect(() => {
+    if (open) {
+      setForm((prev) => ({ ...prev, workspaceId: currentWorkspaceId }))
+    }
+  }, [open, currentWorkspaceId, setForm])
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -53,10 +64,7 @@ export function AddConnectionDialog({
 
     setIsSubmitting(true)
     try {
-      await createConnection({
-        ...result.payload,
-        workspaceId: currentWorkspaceId,
-      })
+      await createConnection(result.payload)
       reset()
       onSuccess?.()
       onOpenChange(false)
@@ -90,7 +98,12 @@ export function AddConnectionDialog({
             </div>
           )}
 
-          <ConnectionFormFields form={form} setForm={setForm} idPrefix="conn" />
+          <ConnectionFormFields
+            form={form}
+            setForm={setForm}
+            idPrefix="conn"
+            workspaces={workspaces}
+          />
 
           <DialogFooter>
             <Button
