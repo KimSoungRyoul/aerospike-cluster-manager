@@ -52,9 +52,7 @@ export function ConnectionFormFields({
           <select
             id={id("workspace")}
             value={form.workspaceId}
-            onChange={(e) =>
-              setForm({ ...form, workspaceId: e.target.value })
-            }
+            onChange={(e) => setForm({ ...form, workspaceId: e.target.value })}
             className={SELECT_CLASSES}
           >
             {workspaces.map((ws) => (

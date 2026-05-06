@@ -23,8 +23,7 @@ interface DataRevisionStore {
 export const useDataRevisionStore = create<DataRevisionStore>((set) => ({
   connectionsRev: 0,
   workspacesRev: 0,
-  bumpConnections: () =>
-    set((s) => ({ connectionsRev: s.connectionsRev + 1 })),
+  bumpConnections: () => set((s) => ({ connectionsRev: s.connectionsRev + 1 })),
   bumpWorkspaces: () => set((s) => ({ workspacesRev: s.workspacesRev + 1 })),
 }))
 
