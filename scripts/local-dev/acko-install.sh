@@ -83,6 +83,10 @@ fi
 _helm_args=(
   --namespace "${ACKO_NAMESPACE}" --create-namespace
   --set "crds.install=false"
+  # The chart's NOTES.txt asserts defaultTemplates.enabled requires
+  # crds.install=true; in our split-mode setup the CRDs come from a
+  # sibling release, so disable defaultTemplates to satisfy that check.
+  --set "defaultTemplates.enabled=false"
 )
 if [[ -n "${ACKO_FULLNAME_OVERRIDE}" ]]; then
   _helm_args+=(--set "fullnameOverride=${ACKO_FULLNAME_OVERRIDE}")
