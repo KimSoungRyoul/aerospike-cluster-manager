@@ -7,6 +7,7 @@ import { Button } from "@/components/Button"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { ApiError } from "@/lib/api/client"
 import { useClusterSelectorStore } from "@/stores/cluster-selector-store"
+import { bumpConnectionsRev } from "@/stores/data-revision-store"
 import { useUiStore } from "@/stores/ui-store"
 import {
   createK8sCluster,
@@ -362,6 +363,10 @@ export function CreateClusterWizard() {
     try {
       const payload = cleanupPayload(form)
       await createK8sCluster(payload)
+      // The operator path also auto-creates a connection profile under the
+      // chosen workspace; refresh consumers (sidebar, dropdowns) so the new
+      // entry appears immediately on /clusters.
+      bumpConnectionsRev()
       router.push("/clusters")
     } catch (err) {
       if (err instanceof ApiError) {
