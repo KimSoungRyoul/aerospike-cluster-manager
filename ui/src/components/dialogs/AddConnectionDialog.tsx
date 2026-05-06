@@ -13,8 +13,10 @@ import {
 } from "@/components/Dialog"
 import { ConnectionFormFields } from "@/components/dialogs/ConnectionFormFields"
 import { useConnectionForm } from "@/components/dialogs/useConnectionForm"
+import { useWorkspaces } from "@/hooks/use-workspaces"
 import { ApiError } from "@/lib/api/client"
 import { createConnection } from "@/lib/api/connections"
+import { bumpConnectionsRev } from "@/stores/data-revision-store"
 import { useUiStore } from "@/stores/ui-store"
 
 interface AddConnectionDialogProps {
@@ -31,7 +33,20 @@ export function AddConnectionDialog({
   const { form, setForm, validate, reset } = useConnectionForm()
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
-  const currentWorkspaceId = useUiStore((s) => s.currentWorkspaceId)
+  const { data: workspaces } = useWorkspaces()
+
+  // Default the selector to the workspace the user is currently viewing
+  // when the dialog opens. Reading currentWorkspaceId via getState() inside
+  // the effect (instead of as a dep) avoids clobbering the user's explicit
+  // selection when they switch workspaces in the sidebar while the dialog
+  // is still open.
+  React.useEffect(() => {
+    if (!open) return
+    setForm((prev) => ({
+      ...prev,
+      workspaceId: useUiStore.getState().currentWorkspaceId,
+    }))
+  }, [open, setForm])
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -53,10 +68,8 @@ export function AddConnectionDialog({
 
     setIsSubmitting(true)
     try {
-      await createConnection({
-        ...result.payload,
-        workspaceId: currentWorkspaceId,
-      })
+      await createConnection(result.payload)
+      bumpConnectionsRev()
       reset()
       onSuccess?.()
       onOpenChange(false)
@@ -90,7 +103,12 @@ export function AddConnectionDialog({
             </div>
           )}
 
-          <ConnectionFormFields form={form} setForm={setForm} idPrefix="conn" />
+          <ConnectionFormFields
+            form={form}
+            setForm={setForm}
+            idPrefix="conn"
+            workspaces={workspaces}
+          />
 
           <DialogFooter>
             <Button

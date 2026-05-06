@@ -19,6 +19,7 @@ import {
 import { ApiError } from "@/lib/api/client"
 import { deleteWorkspace, updateWorkspace } from "@/lib/api/workspaces"
 import type { WorkspaceResponse } from "@/lib/types/workspace"
+import { bumpWorkspacesRev } from "@/stores/data-revision-store"
 
 interface EditWorkspaceDialogProps {
   workspace: WorkspaceResponse | null
@@ -69,6 +70,7 @@ export function EditWorkspaceDialog({
     setIsSubmitting(true)
     try {
       const saved = await updateWorkspace(workspace.id, result.payload)
+      bumpWorkspacesRev()
       onSaved?.(saved)
       onOpenChange(false)
     } catch (err) {
@@ -91,6 +93,7 @@ export function EditWorkspaceDialog({
     setIsDeleting(true)
     try {
       await deleteWorkspace(workspace.id)
+      bumpWorkspacesRev()
       onDeleted?.(workspace.id)
       onOpenChange(false)
     } catch (err) {

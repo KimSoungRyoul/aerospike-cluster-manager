@@ -10,6 +10,7 @@ import {
 } from "@/components/Dropdown"
 import { AddWorkspaceDialog } from "@/components/dialogs/AddWorkspaceDialog"
 import { EditWorkspaceDialog } from "@/components/dialogs/EditWorkspaceDialog"
+import { useConnections } from "@/hooks/use-connections"
 import { useWorkspaces } from "@/hooks/use-workspaces"
 import { cx, focusRing } from "@/lib/utils"
 import {
@@ -59,6 +60,7 @@ function WorkspaceAvatar({
 
 export function WorkspacesDropdown() {
   const { data, isLoading, refetch } = useWorkspaces()
+  const { data: connections } = useConnections()
   const currentWorkspaceId = useUiStore((s) => s.currentWorkspaceId)
   const setCurrentWorkspaceId = useUiStore((s) => s.setCurrentWorkspaceId)
 
@@ -67,24 +69,40 @@ export function WorkspacesDropdown() {
     null,
   )
 
-  // Reconcile the persisted currentWorkspaceId against the live list once
-  // workspaces load — if the saved id no longer exists (e.g. it was deleted
-  // in another session), fall back to the default so the rest of the UI
-  // doesn't filter on an orphan id. Skip when we're already on the default;
-  // otherwise a backend race that yields a list missing ws-default would
-  // re-fire the setter on every refetch.
+  // Hide the built-in default workspace from the list once the user has at
+  // least one custom workspace AND the default no longer holds any
+  // connections. Keeps the picker meaningful — an empty "Default" entry is
+  // just clutter once everything has been moved into named workspaces.
+  // Wait until connections finish loading before filtering, otherwise the
+  // default would briefly disappear during the initial fetch.
+  const visible = React.useMemo<WorkspaceResponse[] | null>(() => {
+    if (!data) return null
+    if (!connections) return data
+    const hasCustom = data.some((w) => !w.isDefault)
+    if (!hasCustom) return data
+    return data.filter((w) => {
+      if (!w.isDefault) return true
+      return connections.some((c) => c.workspaceId === w.id)
+    })
+  }, [data, connections])
+
+  // Reconcile the persisted currentWorkspaceId against the visible list once
+  // workspaces load. If the saved id no longer exists (e.g. it was deleted
+  // in another session) or the default was hidden because it became empty,
+  // pick the first visible workspace so the rest of the UI doesn't filter
+  // on an orphan id.
   React.useEffect(() => {
-    if (!data) return
-    if (data.length === 0) return
-    if (currentWorkspaceId === DEFAULT_WORKSPACE_ID) return
-    if (!data.some((w) => w.id === currentWorkspaceId)) {
-      setCurrentWorkspaceId(DEFAULT_WORKSPACE_ID)
-    }
-  }, [data, currentWorkspaceId, setCurrentWorkspaceId])
+    if (!visible || visible.length === 0) return
+    if (visible.some((w) => w.id === currentWorkspaceId)) return
+    const fallback =
+      visible.find((w) => w.id === DEFAULT_WORKSPACE_ID) ?? visible[0]
+    setCurrentWorkspaceId(fallback.id)
+  }, [visible, currentWorkspaceId, setCurrentWorkspaceId])
 
   const current =
-    data?.find((w) => w.id === currentWorkspaceId) ??
-    data?.find((w) => w.id === DEFAULT_WORKSPACE_ID) ??
+    visible?.find((w) => w.id === currentWorkspaceId) ??
+    visible?.find((w) => w.id === DEFAULT_WORKSPACE_ID) ??
+    visible?.[0] ??
     null
 
   return (
@@ -120,9 +138,9 @@ export function WorkspacesDropdown() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64">
           <DropdownMenuLabel>
-            Workspaces ({data?.length ?? 0})
+            Workspaces ({visible?.length ?? 0})
           </DropdownMenuLabel>
-          {data?.map((ws) => {
+          {visible?.map((ws) => {
             const selected = ws.id === currentWorkspaceId
             return (
               <DropdownMenuItem
@@ -166,7 +184,7 @@ export function WorkspacesDropdown() {
               </DropdownMenuItem>
             )
           })}
-          {data && data.length === 0 && !isLoading && (
+          {visible && visible.length === 0 && !isLoading && (
             <div className="px-2 py-1.5 text-sm italic text-gray-400 dark:text-gray-600">
               No workspaces
             </div>

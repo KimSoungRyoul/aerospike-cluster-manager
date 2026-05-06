@@ -16,6 +16,7 @@ import { useWorkspaceForm } from "@/components/dialogs/useWorkspaceForm"
 import { ApiError } from "@/lib/api/client"
 import { createWorkspace } from "@/lib/api/workspaces"
 import type { WorkspaceResponse } from "@/lib/types/workspace"
+import { bumpWorkspacesRev } from "@/stores/data-revision-store"
 
 interface AddWorkspaceDialogProps {
   open: boolean
@@ -53,6 +54,7 @@ export function AddWorkspaceDialog({
     setIsSubmitting(true)
     try {
       const created = await createWorkspace(result.payload)
+      bumpWorkspacesRev()
       reset()
       onSuccess?.(created)
       onOpenChange(false)

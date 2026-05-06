@@ -6,17 +6,26 @@ import { Input } from "@/components/Input"
 import { Label } from "@/components/Label"
 import { AEROSPIKE_IMAGES, CE_LIMITS } from "@/lib/validations/k8s"
 import type { CreateK8sClusterRequest } from "@/lib/types/k8s"
+import {
+  DEFAULT_WORKSPACE_ID,
+  type WorkspaceResponse,
+} from "@/lib/types/workspace"
 
 interface StepBasicProps {
   form: CreateK8sClusterRequest
   namespaces: string[]
+  workspaces?: WorkspaceResponse[] | null
   updateForm: (updates: Partial<CreateK8sClusterRequest>) => void
   templateMode?: boolean
 }
 
+const SELECT_CLASSES =
+  "h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+
 export function StepBasic({
   form,
   namespaces,
+  workspaces,
   updateForm,
   templateMode,
 }: StepBasicProps) {
@@ -51,7 +60,7 @@ export function StepBasic({
             id="cluster-namespace"
             value={form.namespace ?? ""}
             onChange={(e) => updateForm({ namespace: e.target.value })}
-            className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
+            className={SELECT_CLASSES}
             required
           >
             <option value="">Select a namespace</option>
@@ -63,6 +72,29 @@ export function StepBasic({
           </select>
         </div>
       </div>
+
+      {workspaces && workspaces.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="cluster-workspace">Workspace</Label>
+          <select
+            id="cluster-workspace"
+            value={form.workspaceId ?? DEFAULT_WORKSPACE_ID}
+            onChange={(e) => updateForm({ workspaceId: e.target.value })}
+            className={SELECT_CLASSES}
+          >
+            {workspaces.map((ws) => (
+              <option key={ws.id} value={ws.id}>
+                {ws.name}
+                {ws.isDefault ? " (Default)" : ""}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 dark:text-gray-500">
+            The auto-created connection profile will be attached to this
+            workspace.
+          </p>
+        </div>
+      )}
 
       {!templateMode && (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

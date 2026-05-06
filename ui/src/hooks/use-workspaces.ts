@@ -1,6 +1,11 @@
 /**
  * useWorkspaces — fetch-on-mount hook for the workspace list.
  * Returns data/error/isLoading plus a `refetch` for manual reloads.
+ *
+ * Subscribes to ``useDataRevisionStore.workspacesRev`` so every instance
+ * refetches whenever any component bumps it after a mutation. Without that,
+ * sibling consumers (sidebar dropdown, dialogs) would keep stale snapshots
+ * after a workspace is created or renamed elsewhere.
  */
 
 "use client"
@@ -10,6 +15,7 @@ import { useCallback, useEffect, useState } from "react"
 import { listWorkspaces } from "@/lib/api/workspaces"
 import { logFetchError } from "@/lib/api/log"
 import type { WorkspaceResponse } from "@/lib/types/workspace"
+import { useDataRevisionStore } from "@/stores/data-revision-store"
 
 export interface UseWorkspacesResult {
   data: WorkspaceResponse[] | null
@@ -22,6 +28,7 @@ export function useWorkspaces(): UseWorkspacesResult {
   const [data, setData] = useState<WorkspaceResponse[] | null>(null)
   const [error, setError] = useState<Error | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const rev = useDataRevisionStore((s) => s.workspacesRev)
 
   const refetch = useCallback(async () => {
     setIsLoading(true)
@@ -58,7 +65,7 @@ export function useWorkspaces(): UseWorkspacesResult {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [rev])
 
   return { data, error, isLoading, refetch }
 }

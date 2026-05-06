@@ -41,6 +41,6 @@ build_and_load() {
 }
 
 build_and_load "${ACKO_UI_API_IMAGE}" "Dockerfile.api"
-build_and_load "${ACKO_UI_WEB_IMAGE}" "Dockerfile.ui"
+build_and_load "${ACKO_UI_WEB_IMAGE}" "Dockerfile.web"
 
 ok "All 2 UI images built and loaded into kind"

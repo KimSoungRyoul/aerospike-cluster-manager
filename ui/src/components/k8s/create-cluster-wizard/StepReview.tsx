@@ -1,7 +1,9 @@
 "use client"
 
 import { Card } from "@/components/Card"
+import { useWorkspaces } from "@/hooks/use-workspaces"
 import type { CreateK8sClusterRequest } from "@/lib/types/k8s"
+import { DEFAULT_WORKSPACE_ID } from "@/lib/types/workspace"
 
 interface StepReviewProps {
   form: CreateK8sClusterRequest
@@ -20,6 +22,10 @@ export function StepReview({ form, templateName }: StepReviewProps) {
   const requests = form.resources?.requests
   const limits = form.resources?.limits
   const namespaces = form.namespaces ?? []
+  const { data: workspaces } = useWorkspaces()
+  const workspaceId = form.workspaceId ?? DEFAULT_WORKSPACE_ID
+  const workspaceName =
+    workspaces?.find((w) => w.id === workspaceId)?.name ?? workspaceId
 
   return (
     <Card className="flex flex-col gap-5">
@@ -30,6 +36,7 @@ export function StepReview({ form, templateName }: StepReviewProps) {
       <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Field label="Name" value={form.name ?? "—"} />
         <Field label="Namespace" value={form.namespace ?? "—"} />
+        <Field label="Workspace" value={workspaceName} />
         <Field
           label="Size"
           value={`${form.size ?? 1} node${(form.size ?? 1) > 1 ? "s" : ""}`}

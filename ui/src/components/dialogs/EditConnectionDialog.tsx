@@ -16,9 +16,11 @@ import {
   fromConnection,
   useConnectionForm,
 } from "@/components/dialogs/useConnectionForm"
+import { useWorkspaces } from "@/hooks/use-workspaces"
 import { ApiError } from "@/lib/api/client"
 import { updateConnection } from "@/lib/api/connections"
 import type { ConnectionProfileResponse } from "@/lib/types/connection"
+import { bumpConnectionsRev } from "@/stores/data-revision-store"
 
 interface EditConnectionDialogProps {
   open: boolean
@@ -36,6 +38,7 @@ export function EditConnectionDialog({
   const { form, setForm, validate, hydrate } = useConnectionForm()
   const [error, setError] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const { data: workspaces } = useWorkspaces()
 
   React.useEffect(() => {
     if (open && connection) {
@@ -75,7 +78,9 @@ export function EditConnectionDialog({
         color: result.payload.color,
         description: result.payload.description,
         labels: result.payload.labels,
+        workspaceId: result.payload.workspaceId,
       })
+      bumpConnectionsRev()
       onSuccess?.()
       onOpenChange(false)
     } catch (err) {
@@ -114,6 +119,7 @@ export function EditConnectionDialog({
             setForm={setForm}
             idPrefix="edit-conn"
             showCredentials={false}
+            workspaces={workspaces}
           />
 
           <DialogFooter>
