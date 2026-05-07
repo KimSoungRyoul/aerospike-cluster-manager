@@ -1,70 +1,29 @@
 from __future__ import annotations
 
 import logging
-import time
-from typing import Any, Literal
+from typing import Literal
 
-from aerospike_py import exp
-from aerospike_py.exception import AerospikeError, RecordNotFound
-from aerospike_py.types import WriteMeta
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import Response
 
-from aerospike_cluster_manager_api.constants import (
-    MAX_QUERY_RECORDS,
-    POLICY_QUERY,
-    POLICY_READ,
-    POLICY_WRITE,
-    info_namespace,
-    info_sets,
-)
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
-from aerospike_cluster_manager_api.expression_builder import (
-    InvalidPkPatternError,
-    build_expression,
-    build_pk_filter_expression,
-)
-from aerospike_cluster_manager_api.info_parser import aggregate_node_kv, aggregate_set_records, safe_int
 from aerospike_cluster_manager_api.models.query import FilteredQueryRequest, FilteredQueryResponse
 from aerospike_cluster_manager_api.models.record import (
     AerospikeRecord,
     RecordListResponse,
     RecordWriteRequest,
 )
-from aerospike_cluster_manager_api.utils import (
-    build_predicate,
-    get_with_pk_fallback,
-    resolve_pk,
+from aerospike_cluster_manager_api.services import records_service
+from aerospike_cluster_manager_api.services.records_service import (
+    InvalidPkPattern,
+    PrimaryKeyMissing,
+    SetRequiredForPkLookup,
 )
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/records", tags=["records"])
-
-
-async def _get_set_object_count(client: Any, ns: str, set_name: str) -> int:
-    """Get the approximate object count for a set via info command.
-
-    Fetches the namespace replication-factor to de-duplicate counts
-    across nodes, matching the same approach used in clusters.py.
-    """
-    if not set_name:
-        return 0
-    try:
-        # Resolve replication factor from namespace info (same pattern as clusters.py)
-        ns_all = await client.info_all(info_namespace(ns))
-        ns_stats = aggregate_node_kv(ns_all)
-        replication_factor = safe_int(ns_stats.get("replication-factor"), 1)
-
-        sets_all = await client.info_all(info_sets(ns))
-        agg = aggregate_set_records(sets_all, replication_factor)
-        for s in agg:
-            if s["name"] == set_name:
-                return s["objects"]
-    except (AerospikeError, OSError):
-        logger.debug("Failed to get set object count for %s.%s", ns, set_name, exc_info=True)
-    return 0
 
 
 @router.get(
@@ -87,31 +46,14 @@ async def get_records(
     surfaces as HTTP 422 (``RustPanicError``). Per-record skipping is not
     available without an aerospike-core fork.
     """
-    set_total = await _get_set_object_count(client, ns, set)
-
-    limit = min(pageSize, MAX_QUERY_RECORDS)
-    policy = {**POLICY_QUERY, "max_records": limit}
-    q = client.query(ns, set)
-    # Empty / sparse namespaces can make the underlying scan raise
-    # (issue #259). Treat those as "no records" and return an empty page rather
-    # than the opaque 500 the user sees today. RustPanicError (#280) is *not*
-    # caught here — that's a real per-stream blocker handled by its dedicated
-    # 422 exception handler.
-    try:
-        raw_results = await q.results(policy)
-    except AerospikeError:
-        logger.exception("Query failed for ns=%s set=%s; returning empty page", ns, set)
-        raw_results = []
-
-    records = [record_to_model(r) for r in raw_results]
-
+    result = await records_service.list_records(client, ns, set, page_size=pageSize)
     return RecordListResponse(
-        records=records,
-        total=set_total,
-        page=1,
-        pageSize=pageSize,
-        hasMore=set_total > len(raw_results),
-        totalEstimated=True,
+        records=[record_to_model(r) for r in result.records],
+        total=result.total,
+        page=result.page,
+        pageSize=result.page_size,
+        hasMore=result.has_more,
+        totalEstimated=result.total_estimated,
     )
 
 
@@ -134,8 +76,11 @@ async def get_record_detail(
     (e.g. ``"23404907"``) was stored as STRING but would otherwise be probed
     as INTEGER. Pass an explicit ``pk_type`` to disable the fallback.
     """
-    resolved = resolve_pk(pk, pk_type)
-    raw_result = await get_with_pk_fallback(client, (ns, set, resolved), pk, pk_type, POLICY_READ)
+    try:
+        raw_result = await records_service.get_record(client, ns, set, pk, pk_type)
+    except ValueError as exc:
+        # Explicit pk_type with unparseable pk → 400.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return record_to_model(raw_result)
 
 
@@ -153,18 +98,12 @@ async def put_record(body: RecordWriteRequest, client: AerospikeClient) -> Aeros
     so callers that care should pass an explicit ``pk_type`` to avoid creating
     a record under a particle type that subsequent reads can't find.
     """
-    k = body.key
-    if not k.namespace or not k.set or not k.pk:
-        raise HTTPException(status_code=400, detail="Missing required key fields: namespace, set, pk")
-
-    key_tuple = (k.namespace, k.set, resolve_pk(k.pk, body.pk_type))
-
-    meta: WriteMeta | None = None
-    if body.ttl is not None:
-        meta = WriteMeta(ttl=body.ttl)
-
-    await client.put(key_tuple, body.bins, meta=meta, policy=POLICY_WRITE)
-    result = await client.get(key_tuple, policy=POLICY_READ)
+    try:
+        result = await records_service.put_record(client, body)
+    except PrimaryKeyMissing as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return record_to_model(result)
 
 
@@ -188,7 +127,10 @@ async def delete_record(
     record at the *other* type stays put), and a fallback could mask that
     fact. Pass an explicit ``pk_type`` to be sure of which record gets removed.
     """
-    await client.remove((ns, set, resolve_pk(pk, pk_type)))
+    try:
+        await records_service.delete_record(client, ns, set, pk, pk_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return Response(status_code=204)
 
 
@@ -202,144 +144,21 @@ async def get_filtered_records(
     client: AerospikeClient,
 ) -> FilteredQueryResponse:
     """Scan records with optional expression filters and pagination."""
-    start_time = time.monotonic()
-
-    pk_target = body.pk_pattern or body.primary_key
-
-    # Set is required for any PK-targeted query (exact, prefix, or regex):
-    # an unscoped namespace scan with a regex would dwarf the user's intent
-    # and is what the InfoBanner caveat warns against.
-    if pk_target and not body.set:
-        raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
-
-    # PK lookup short-circuit (exact mode). Falls back to the alternate
-    # particle type on NOT_FOUND when pk_type=auto so numeric-string keys
-    # (stored as STRING) are still found even though auto's heuristic resolves
-    # them as INTEGER. Prefix/regex modes skip this branch and run a scan.
-    if pk_target and body.pk_match_mode == "exact":
-        # Set was already required above for PK-targeted queries.
-        assert body.set is not None
-        resolved = resolve_pk(pk_target, body.pk_type)
-        try:
-            raw_result = await get_with_pk_fallback(
-                client,
-                (body.namespace, body.set, resolved),
-                pk_target,
-                body.pk_type,
-                POLICY_READ,
-            )
-            raw_results = [raw_result]
-        except RecordNotFound:
-            raw_results = []
-
-        elapsed_ms = int((time.monotonic() - start_time) * 1000)
-        records = [record_to_model(r) for r in raw_results]
-        return FilteredQueryResponse(
-            records=records,
-            total=len(records),
-            page=1,
-            pageSize=body.page_size,
-            hasMore=False,
-            executionTimeMs=elapsed_ms,
-            scannedRecords=len(records),
-            returnedRecords=len(records),
-        )
-
-    # Build expressions BEFORE constructing the query — validating user input
-    # up front means a bad pattern surfaces as 400 without ever touching the
-    # client.query path.
-    pk_expr: dict | None = None
     try:
-        if pk_target is not None:
-            if body.pk_match_mode == "prefix":
-                pk_expr = build_pk_filter_expression(pk_target, "prefix")
-            elif body.pk_match_mode == "regex":
-                pk_expr = build_pk_filter_expression(pk_target, "regex")
-    except InvalidPkPatternError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    bin_expr = build_expression(body.filters) if body.filters else None
-
-    # Build query
-    q = client.query(body.namespace, body.set or "")
-
-    if body.predicate:
-        q.where(build_predicate(body.predicate))
-
-    if body.select_bins:
-        q.select(*body.select_bins)
-
-    # Build policy with server-side max_records limit to prevent OOM.
-    #
-    # For paginated filter queries we fetch ONE extra record beyond the page
-    # size so we can detect "is there at least one more record" without an
-    # extra round trip. The fetched +1 record is dropped before responding.
-    # This makes `hasMore` accurate. The true `total` for filter-mode queries
-    # cannot be obtained without a separate count-only scan (which would
-    # double cluster load) — `totalEstimated=True` plus a lower-bound
-    # `total` are reported instead. See issue #284.
-    has_filters = body.filters is not None or body.predicate is not None or pk_expr is not None
-    fetch_limit = min(
-        body.max_records or MAX_QUERY_RECORDS,
-        MAX_QUERY_RECORDS,
-        body.page_size + 1,
-    )
-
-    policy: dict[str, Any] = {**POLICY_QUERY, "max_records": fetch_limit}
-    if bin_expr is not None and pk_expr is not None:
-        policy["filter_expression"] = exp.and_(pk_expr, bin_expr)
-    elif pk_expr is not None:
-        policy["filter_expression"] = pk_expr
-    elif bin_expr is not None:
-        policy["filter_expression"] = bin_expr
-
-    try:
-        raw_results = await q.results(policy)
-    except AerospikeError:
-        # The empty/sparse-namespace failure mode (issue #259) is the reason
-        # this catch exists. Log at exception level so operators can still
-        # find the underlying cause in logs — pattern + filter context goes
-        # in the message so user-supplied PK patterns are reproducible.
-        logger.exception(
-            "Filtered query failed for ns=%s set=%s pk_mode=%s pk_pattern=%r has_filters=%s; returning empty page",
-            body.namespace,
-            body.set,
-            body.pk_match_mode,
-            pk_target,
-            body.filters is not None,
-        )
-        raw_results = []
-
-    elapsed_ms = int((time.monotonic() - start_time) * 1000)
-    fetched = len(raw_results)
-    has_more = fetched > body.page_size
-    if has_more:
-        raw_results = raw_results[: body.page_size]
-    returned = len(raw_results)
-
-    records = [record_to_model(r) for r in raw_results]
-
-    # Determine total and scanned counts.
-    # With server-side max_records, the returned count is capped — it does not
-    # reflect the true number of records scanned by the Aerospike server.
-    # For unfiltered scans we use the info command to get the real set size.
-    if has_filters:
-        set_total = returned + (1 if has_more else 0)  # lower bound
-        scanned = returned  # lower bound; actual server-side scan may be higher
-        total_estimated = True
-    else:
-        set_total = await _get_set_object_count(client, body.namespace, body.set or "")
-        scanned = set_total  # info-based: represents all objects in the set
-        total_estimated = True
+        result = await records_service.filter_records(client, body)
+    except SetRequiredForPkLookup as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except InvalidPkPattern as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return FilteredQueryResponse(
-        records=records,
-        total=set_total,
-        page=1,
-        pageSize=body.page_size,
-        hasMore=has_more,
-        executionTimeMs=elapsed_ms,
-        scannedRecords=scanned,
-        returnedRecords=returned,
-        totalEstimated=total_estimated,
+        records=[record_to_model(r) for r in result.records],
+        total=result.total,
+        page=result.page,
+        pageSize=result.page_size,
+        hasMore=result.has_more,
+        executionTimeMs=result.execution_time_ms,
+        scannedRecords=result.scanned_records,
+        returnedRecords=result.returned_records,
+        totalEstimated=result.total_estimated,
     )

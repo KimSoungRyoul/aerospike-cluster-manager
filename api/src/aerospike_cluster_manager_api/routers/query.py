@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import logging
-import time
 
-from aerospike_py.exception import AerospikeError, RecordNotFound
 from fastapi import APIRouter, HTTPException
 
-from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ
 from aerospike_cluster_manager_api.converters import record_to_model
 from aerospike_cluster_manager_api.dependencies import AerospikeClient
 from aerospike_cluster_manager_api.models.query import QueryRequest, QueryResponse
-from aerospike_cluster_manager_api.utils import build_predicate, get_with_pk_fallback, resolve_pk
+from aerospike_cluster_manager_api.services import query_service
+from aerospike_cluster_manager_api.services.query_service import SetRequiredForPkLookup
 
 logger = logging.getLogger(__name__)
 
@@ -24,67 +22,17 @@ router = APIRouter(prefix="/query", tags=["query"])
 )
 async def execute_query(body: QueryRequest, client: AerospikeClient) -> QueryResponse:
     """Execute a query against Aerospike using primary key lookup, predicate filter, or full scan."""
-    start_time = time.monotonic()
-
-    if body.primaryKey:
-        if not body.set:
-            raise HTTPException(status_code=400, detail="Set is required for primary key lookup")
-
-        # pk_type=auto retries the alternate particle type on NOT_FOUND so
-        # numeric-string keys are resolvable even when the heuristic guesses int.
-        resolved = resolve_pk(body.primaryKey, body.pkType)
-        try:
-            raw_result = await get_with_pk_fallback(
-                client,
-                (body.namespace, body.set, resolved),
-                body.primaryKey,
-                body.pkType,
-                POLICY_READ,
-            )
-            raw_results = [raw_result]
-        except RecordNotFound:
-            raw_results = []
-
-        elapsed_ms = int((time.monotonic() - start_time) * 1000)
-        records = [record_to_model(r) for r in raw_results]
-        return QueryResponse(
-            records=records,
-            executionTimeMs=elapsed_ms,
-            scannedRecords=len(records),
-            returnedRecords=len(records),
-        )
-
-    q = client.query(body.namespace, body.set or "")
-    if body.predicate:
-        q.where(build_predicate(body.predicate))
-    if body.selectBins:
-        q.select(*body.selectBins)
-
-    # Apply server-side max_records limit to prevent OOM.
-    # Note: with max_records the server stops after returning this many matching
-    # records, so scannedRecords reflects the returned count (lower bound), not
-    # the true number of records examined by the server.
-    effective_limit = min(body.maxRecords or MAX_QUERY_RECORDS, MAX_QUERY_RECORDS)
-    policy = {**POLICY_QUERY, "max_records": effective_limit}
-    # See issue #259: empty / sparse namespaces can make the underlying scan raise.
-    # Treat as no records rather than 500.
     try:
-        raw_results = await q.results(policy)
-    except AerospikeError:
-        logger.exception(
-            "Query failed for ns=%s set=%s; returning empty result",
-            body.namespace,
-            body.set,
-        )
-        raw_results = []
-
-    elapsed_ms = int((time.monotonic() - start_time) * 1000)
-
-    records = [record_to_model(r) for r in raw_results]
+        result = await query_service.execute_query(client, body)
+    except SetRequiredForPkLookup as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ValueError as exc:
+        # Explicit pk_type with unparseable pk → 400.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return QueryResponse(
-        records=records,
-        executionTimeMs=elapsed_ms,
-        scannedRecords=len(records),
-        returnedRecords=len(records),
+        records=[record_to_model(r) for r in result.records],
+        executionTimeMs=result.execution_time_ms,
+        scannedRecords=result.scanned_records,
+        returnedRecords=result.returned_records,
     )

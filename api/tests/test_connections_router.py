@@ -289,7 +289,8 @@ class TestTestConnection:
         mock_client.close = AsyncMock()
 
         with patch(
-            "aerospike_cluster_manager_api.routers.connections.aerospike_py.AsyncClient", return_value=mock_client
+            "aerospike_cluster_manager_api.services.connections_service.aerospike_py.AsyncClient",
+            return_value=mock_client,
         ):
             response = await client.post(
                 "/api/connections/test",
@@ -304,7 +305,7 @@ class TestTestConnection:
     async def test_failure(self, client: AsyncClient):
         """Test connection endpoint when connection fails."""
         with patch(
-            "aerospike_cluster_manager_api.routers.connections.aerospike_py.AsyncClient",
+            "aerospike_cluster_manager_api.services.connections_service.aerospike_py.AsyncClient",
             side_effect=Exception("Connection refused"),
         ):
             response = await client.post(
@@ -325,7 +326,8 @@ class TestTestConnection:
         mock_client.close = AsyncMock()
 
         with patch(
-            "aerospike_cluster_manager_api.routers.connections.aerospike_py.AsyncClient", return_value=mock_client
+            "aerospike_cluster_manager_api.services.connections_service.aerospike_py.AsyncClient",
+            return_value=mock_client,
         ):
             response = await client.post(
                 "/api/connections/test",
@@ -345,7 +347,8 @@ class TestTestConnection:
         mock_client.close = AsyncMock()
 
         with patch(
-            "aerospike_cluster_manager_api.routers.connections.aerospike_py.AsyncClient", return_value=mock_client
+            "aerospike_cluster_manager_api.services.connections_service.aerospike_py.AsyncClient",
+            return_value=mock_client,
         ) as mock_cls:
             response = await client.post(
                 "/api/connections/test",

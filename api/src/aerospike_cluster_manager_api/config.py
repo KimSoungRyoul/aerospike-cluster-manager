@@ -4,6 +4,8 @@ import json
 import os
 import re
 
+from aerospike_cluster_manager_api.mcp.access_profile import AccessProfile, parse_profile
+
 
 def _get_int(name: str, default: int) -> int:
     """Parse an integer environment variable with validation."""
@@ -14,6 +16,19 @@ def _get_int(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         raise ValueError(f"Environment variable {name} must be an integer, got: {raw!r}") from None
+
+
+def _get_bool(name: str, default: bool) -> bool:
+    """Parse a boolean environment variable.
+
+    Accepts ``1``/``true``/``yes``/``on`` (case-insensitive, surrounding
+    whitespace ignored) as truthy. Anything else is falsy. Unset returns
+    the supplied default.
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 _DURATION_RE = re.compile(r"^(?P<value>\d+)(?P<unit>[smhd]?)$")
@@ -149,3 +164,43 @@ OIDC_JWKS_CACHE_TTL_SECONDS: int = _parse_duration_seconds(os.getenv("OIDC_JWKS_
 OIDC_EXCLUDE_PATHS: list[str] = _parse_str_list(
     os.getenv("OIDC_EXCLUDE_PATHS", "/api/health,/api/openapi.json,/api/docs")
 ) or ["/api/health", "/api/openapi.json", "/api/docs"]
+
+# ---------------------------------------------------------------------------
+# MCP (Model Context Protocol) server — phase 1
+# ---------------------------------------------------------------------------
+# When enabled, ``main.py`` mounts the FastMCP streamable-http transport at
+# ``ACM_MCP_PATH``. The mount is opt-in so deployments that don't need the
+# AI/agent surface pay no extra import or routing cost. The path is kept
+# outside ``/api/*`` on purpose — REST and MCP serve different consumers
+# and should be reasoned about as independent surfaces. Authentication still
+# applies via the OIDC middleware when ``OIDC_ENABLED`` is true.
+ACM_MCP_ENABLED: bool = _get_bool("ACM_MCP_ENABLED", False)
+ACM_MCP_PATH: str = os.getenv("ACM_MCP_PATH", "/mcp")
+# M2 — validate ACM_MCP_PATH at import time so a misconfigured deployment
+# (e.g. ``ACM_MCP_PATH=mcp`` without leading slash, or ``ACM_MCP_PATH=/``
+# which would shadow every route) fails loudly on process start instead
+# of producing a quietly-broken mount. Canonicalize by trimming the
+# trailing slash so the path-segment check in ``mcp/auth.py`` (M1) and
+# the FastAPI ``app.mount`` call agree on the same string.
+if not ACM_MCP_PATH.startswith("/") or ACM_MCP_PATH == "/":
+    raise ValueError(f"ACM_MCP_PATH must start with '/' and not be '/' alone; got {ACM_MCP_PATH!r}")
+ACM_MCP_PATH = ACM_MCP_PATH.rstrip("/")
+# Optional shared-secret bearer token for the ``/mcp`` surface. When set
+# alongside ``ACM_MCP_ENABLED=true``, the MCPBearerTokenMiddleware enforces
+# ``Authorization: Bearer <token>`` on requests that OIDC has not already
+# authenticated. Empty string (default) disables the bearer leg entirely
+# and defers to OIDC. Used by clients that cannot perform a full OAuth
+# Authorization Code flow (CI agents, headless scripts).
+ACM_MCP_TOKEN: str = os.getenv("ACM_MCP_TOKEN", "")
+# Call-time access gate. ``READ_ONLY`` (default) blocks WRITE tools
+# at the call site even though the registry still advertises them. ``FULL``
+# allows all tools. See ``mcp/access_profile.py`` for the WRITE list.
+ACM_MCP_ACCESS_PROFILE: AccessProfile = parse_profile(os.getenv("ACM_MCP_ACCESS_PROFILE", "read_only"))
+# B2 — escape hatch for the anonymous-MCP-exposure refusal in main.py.
+# Without this flag the API process refuses to start when
+# ``ACM_MCP_ENABLED=true`` AND OIDC is disabled AND ``ACM_MCP_TOKEN`` is
+# empty, because that combination publishes the MCP surface to the
+# entire network with no auth. Operators who are genuinely on a localhost
+# loopback or behind a sealed-off ingress can opt back in here, but the
+# refusal is the default for a reason.
+ACM_MCP_ALLOW_ANONYMOUS: bool = _get_bool("ACM_MCP_ALLOW_ANONYMOUS", False)

@@ -52,6 +52,19 @@ setup_logging(config.LOG_LEVEL, config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
+# ORDERING INVARIANT: this module-global is SET by the MCP mount block
+# below at module-import time (see ``if config.ACM_MCP_ENABLED:`` further
+# down — it assigns ``_mcp_app = build_mcp_app()``), and READ by
+# ``lifespan()`` at FastAPI startup to drive the FastMCP session_manager.
+# The two events happen in different phases of the process lifecycle, so
+# leaving the variable as a module-level binding (rather than a closure
+# or app.state attribute) is intentional. Don't move this declaration
+# below the mount block — Python would still resolve the name at call
+# time, but the explicit ``None`` default is what makes the
+# else-branch in lifespan() correct when MCP is disabled.
+_mcp_app = None  # populated below when ACM_MCP_ENABLED so lifespan can drive its session_manager
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting Aerospike Cluster Manager API")
@@ -62,7 +75,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if config.SSE_ENABLED:
         await collector.start()
 
-    yield
+    # FastMCP's streamable_http_app spawns a session_manager whose async task
+    # group is bootstrapped in its OWN lifespan. Mounted Starlette sub-apps
+    # do NOT share lifespan with the parent FastAPI, so we drive the MCP
+    # session_manager from here directly.
+    if _mcp_app is not None:
+        async with _mcp_app.session_manager.run():
+            yield
+    else:
+        yield
 
     if config.SSE_ENABLED:
         await collector.stop()
@@ -248,12 +269,45 @@ async def security_headers_middleware(request: Request, call_next: RequestRespon
 
 
 # OIDCAuthMiddleware is added BEFORE TraceIDMiddleware so the runtime
-# layering becomes (outermost → innermost): TraceID → OIDC → security_headers
-# → request_logging → CORS → SlowAPI. That way every authenticated request
-# already has a request_id in scope when the JWT verifier logs, and CORS
-# preflight responses are still produced even when the bearer token is
-# missing/invalid (the OIDC dispatch short-circuits OPTIONS so CORSMiddleware
-# downstream answers the preflight).
+# layering becomes (outermost → innermost): TraceID → MCP → OIDC →
+# security_headers → request_logging → CORS → SlowAPI. That way every
+# authenticated request already has a request_id in scope when the JWT
+# verifier logs, and CORS preflight responses are still produced even
+# when the bearer token is missing/invalid (the OIDC dispatch
+# short-circuits OPTIONS so CORSMiddleware downstream answers the
+# preflight).
+# The MCP bearer-token middleware is installed AFTER OIDC in the
+# ``add_middleware`` order so that — given Starlette's reverse-add
+# semantics — it runs BEFORE OIDC at request time. That ordering is
+# critical for the OIDC-OR-bearer gate: a bearer-only token (opaque,
+# not a JWT) must be accepted/rejected by MCP middleware *before* OIDC
+# tries to JWT-verify it and 401s on the way in. On a successful
+# bearer match MCP middleware sets a sentinel ``request.state.user_claims``
+# so the inner OIDCAuthMiddleware defers (it short-circuits when
+# user_claims is already populated). When OIDC is enabled and the
+# bearer doesn't match, MCP middleware falls through and lets OIDC try
+# the header as a JWT — preserving the documented OR semantic.
+# We install only when ``ACM_MCP_ENABLED=true`` — when the mount itself
+# is off, the path doesn't exist and the middleware would be dead weight.
+# B2 — refuse to start when the MCP surface would be unauthenticated.
+# OIDC OR a shared-secret bearer token must be configured, otherwise
+# ``/mcp/*`` would be open to any network peer that can reach the API
+# port. ``ACM_MCP_ALLOW_ANONYMOUS=true`` is the documented escape
+# hatch for localhost-only or trusted-network deployments.
+if (
+    config.ACM_MCP_ENABLED
+    and not config.OIDC_ENABLED
+    and not config.ACM_MCP_TOKEN
+    and not config.ACM_MCP_ALLOW_ANONYMOUS
+):
+    raise RuntimeError(
+        "ACM_MCP_ENABLED=true but neither OIDC nor ACM_MCP_TOKEN is configured. "
+        "Refusing to start an anonymous MCP surface. Set OIDC_ENABLED=true and "
+        "OIDC_ISSUER_URL, OR set ACM_MCP_TOKEN to a shared secret, OR set "
+        "ACM_MCP_ALLOW_ANONYMOUS=true if you have verified the deployment is "
+        "isolated to localhost / a trusted network."
+    )
+
 if config.OIDC_ENABLED:
     app.add_middleware(
         OIDCAuthMiddleware,
@@ -264,6 +318,11 @@ if config.OIDC_ENABLED:
         exclude_paths=config.OIDC_EXCLUDE_PATHS,
         jwks_cache_ttl_seconds=config.OIDC_JWKS_CACHE_TTL_SECONDS,
     )
+
+if config.ACM_MCP_ENABLED:
+    from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+    app.add_middleware(MCPBearerTokenMiddleware)
 
 # TraceIDMiddleware is registered AFTER all other middleware (CORS, SlowAPI,
 # request_logging, security_headers, OIDC) so that — given Starlette's
@@ -430,6 +489,18 @@ for r in _routers:
 
 app.include_router(v1_router)
 app.include_router(api_router)
+
+# ---------------------------------------------------------------------------
+# MCP (Model Context Protocol) — opt-in mount
+# ---------------------------------------------------------------------------
+# Mounted AFTER the REST router includes so the MCP path stays a sibling of
+# /api/* (different consumer, different auth/UX). The import is local so a
+# disabled flag pays no import cost at startup.
+if config.ACM_MCP_ENABLED:
+    from aerospike_cluster_manager_api.mcp.server import build_mcp_app
+
+    _mcp_app = build_mcp_app()
+    app.mount(config.ACM_MCP_PATH, _mcp_app.streamable_http_app())
 
 # FastAPIInstrumentor wraps every route handler with a server span. The
 # wiring is a no-op when OTel is disabled (NoOp tracer). We exclude the
