@@ -4,6 +4,8 @@ import json
 import os
 import re
 
+from aerospike_cluster_manager_api.mcp.access_profile import AccessProfile, parse_profile
+
 
 def _get_int(name: str, default: int) -> int:
     """Parse an integer environment variable with validation."""
@@ -174,3 +176,7 @@ OIDC_EXCLUDE_PATHS: list[str] = _parse_str_list(
 # applies via the OIDC middleware when ``OIDC_ENABLED`` is true.
 ACM_MCP_ENABLED: bool = _get_bool("ACM_MCP_ENABLED", False)
 ACM_MCP_PATH: str = os.getenv("ACM_MCP_PATH", "/mcp")
+# Voyager-style call-time gate. ``READ_ONLY`` (default) blocks WRITE tools
+# at the call site even though the registry still advertises them. ``FULL``
+# allows all tools. See ``mcp/access_profile.py`` for the WRITE list.
+ACM_MCP_ACCESS_PROFILE: AccessProfile = parse_profile(os.getenv("ACM_MCP_ACCESS_PROFILE", "read_only"))
