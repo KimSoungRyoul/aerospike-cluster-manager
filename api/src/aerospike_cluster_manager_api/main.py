@@ -52,6 +52,9 @@ setup_logging(config.LOG_LEVEL, config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
+_mcp_app = None  # populated below when ACM_MCP_ENABLED so lifespan can drive its session_manager
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting Aerospike Cluster Manager API")
@@ -62,7 +65,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if config.SSE_ENABLED:
         await collector.start()
 
-    yield
+    # FastMCP's streamable_http_app spawns a session_manager whose async task
+    # group is bootstrapped in its OWN lifespan. Mounted Starlette sub-apps
+    # do NOT share lifespan with the parent FastAPI, so we drive the MCP
+    # session_manager from here directly.
+    if _mcp_app is not None:
+        async with _mcp_app.session_manager.run():
+            yield
+    else:
+        yield
 
     if config.SSE_ENABLED:
         await collector.stop()
