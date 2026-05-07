@@ -976,10 +976,9 @@ The MCP transport is mounted at `/mcp` on the same port as the REST API (default
 ### Register the endpoint with Claude Code
 
 ```bash
-claude mcp add aerospike-local \
-  --transport http \
-  --url http://localhost:8000/mcp \
-  --header "Authorization: Bearer $ACM_MCP_TOKEN"
+claude mcp add --transport http aerospike-local \
+  http://localhost:8000/mcp \
+  -H "Authorization: Bearer $ACM_MCP_TOKEN"
 ```
 
 Or run the `acm-mcp-init` skill from the ecosystem plugin to register one or more endpoints (multi-cluster ACKO friendly).
