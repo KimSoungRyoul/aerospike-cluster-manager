@@ -958,6 +958,50 @@ claude plugin marketplace add aerospike-ce-ecosystem/aerospike-ce-ecosystem-plug
 claude plugin install aerospike-ce-ecosystem
 ```
 
+## MCP Server
+
+Cluster Manager can expose itself as a [Model Context Protocol](https://modelcontextprotocol.io/) server (Voyager-parity, 21 tools) so Claude Code plugins and external MCP-aware AI clients (Claude Desktop, Cursor) can read and operate clusters directly.
+
+### Enable
+
+```bash
+ACM_MCP_ENABLED=true \
+ACM_MCP_TOKEN=$(openssl rand -hex 16) \
+ACM_MCP_ACCESS_PROFILE=read_only \
+uv run uvicorn aerospike_cluster_manager_api.main:app --reload
+```
+
+The MCP transport is mounted at `/mcp` on the same port as the REST API (default 8000), uses Streamable HTTP, and shares OIDC + OTel + lifespan with the rest of the app.
+
+### Register the endpoint with Claude Code
+
+```bash
+claude mcp add aerospike-local \
+  --transport http \
+  --url http://localhost:8000/mcp \
+  --header "Authorization: Bearer $ACM_MCP_TOKEN"
+```
+
+Or run the `acm-mcp-init` skill from the ecosystem plugin to register one or more endpoints (multi-cluster ACKO friendly).
+
+### Tools (21)
+
+| Category | Tools |
+|----------|-------|
+| Connection (8) | `create_connection`, `get_connection`, `update_connection`, `delete_connection`, `list_connections`, `connect`, `disconnect`, `test_connection` |
+| Cluster info (3) | `list_namespaces`, `list_sets`, `get_nodes` |
+| Record (7) | `get_record`, `record_exists`, `create_record`, `update_record`, `delete_record`, `delete_bin`, `truncate_set` |
+| Query (1) | `query` |
+| Info (2) | `execute_info`, `execute_info_on_node` |
+
+### Access profile
+
+`ACM_MCP_ACCESS_PROFILE=read_only` (default) blocks the 10 mutation tools (`create_*`, `update_*`, `delete_*`, `truncate_set`, `execute_info*`) at call time with `code="access_denied"`. Tools remain visible — clients see the rejection only when they invoke a write. Set to `full` to allow everything.
+
+### Auth
+
+The `/mcp` mount inherits the existing `OIDCAuthMiddleware`. Optionally set `ACM_MCP_TOKEN` for an OR-combined bearer-token gate (useful for headless agents that cannot run the OAuth Authorization Code flow).
+
 ## License
 
 This project is licensed under the [Apache License 2.0](LICENSE).
