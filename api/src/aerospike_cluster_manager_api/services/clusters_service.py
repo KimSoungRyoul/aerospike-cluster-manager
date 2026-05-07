@@ -45,6 +45,7 @@ from aerospike_cluster_manager_api.info_parser import (
     safe_bool,
     safe_int,
 )
+from aerospike_cluster_manager_api.info_verbs import assert_read_only
 from aerospike_cluster_manager_api.models.cluster import (
     ClusterInfo,
     ClusterNode,
@@ -220,6 +221,46 @@ async def execute_info_on_node(client: aerospike_py.AsyncClient, command: str, n
             if err:
                 raise NodeNotFoundError(node_name)
             return resp
+    raise NodeNotFoundError(node_name)
+
+
+async def execute_info_read_only(
+    client: aerospike_py.AsyncClient,
+    command: str,
+    node_name: str | None = None,
+) -> tuple[str, str]:
+    """Run a whitelisted read-only asinfo command.
+
+    Validates the verb against :data:`info_verbs.READ_ONLY_INFO_VERBS`
+    *before* hitting the wire — a bad verb raises
+    :class:`info_verbs.InfoVerbNotAllowed` (mapped to
+    ``code=invalid_argument`` at the MCP boundary). The whitelist is the
+    single source of truth for what ``ACM_MCP_ACCESS_PROFILE=read_only``
+    can call via ``execute_info_read_only``; mutation tools
+    (``execute_info``, ``execute_info_on_node``) remain unrestricted under
+    ``FULL`` access.
+
+    Returns a ``(node_name, response)`` tuple. With ``node_name=None`` we
+    fan out via ``info_all`` and pick the first node that returned a
+    non-error response — the returned ``node_name`` is the real cluster
+    node, so the LLM can re-issue follow-up calls against it. With an
+    explicit ``node_name`` we filter the same fan-out to the named node
+    and raise :class:`NodeNotFoundError` if it didn't respond.
+    """
+    assert_read_only(command)
+    results = await client.info_all(command)
+
+    if node_name is None:
+        for name, err, resp in results:
+            if not err:
+                return (name, resp)
+        raise NodeNotFoundError("(any)")
+
+    for name, err, resp in results:
+        if name == node_name:
+            if err:
+                raise NodeNotFoundError(node_name)
+            return (name, resp)
     raise NodeNotFoundError(node_name)
 
 

@@ -960,7 +960,7 @@ claude plugin install aerospike-ce-ecosystem
 
 ## MCP Server
 
-Cluster Manager can expose itself as a [Model Context Protocol](https://modelcontextprotocol.io/) server (21 tools) so Claude Code plugins and external MCP-aware AI clients (Claude Desktop, Cursor) can read and operate clusters directly.
+Cluster Manager can expose itself as a [Model Context Protocol](https://modelcontextprotocol.io/) server (22 tools) so Claude Code plugins and external MCP-aware AI clients (Claude Desktop, Cursor) can read and operate clusters directly.
 
 ### Enable
 
@@ -983,7 +983,7 @@ claude mcp add --transport http aerospike-local \
 
 Or run the `acm-mcp-init` skill from the ecosystem plugin to register one or more endpoints (multi-cluster ACKO friendly).
 
-### Tools (21)
+### Tools (22)
 
 | Category | Tools |
 |----------|-------|
@@ -991,11 +991,11 @@ Or run the `acm-mcp-init` skill from the ecosystem plugin to register one or mor
 | Cluster info (3) | `list_namespaces`, `list_sets`, `get_nodes` |
 | Record (7) | `get_record`, `record_exists`, `create_record`, `update_record`, `delete_record`, `delete_bin`, `truncate_set` |
 | Query (1) | `query` |
-| Info (2) | `execute_info`, `execute_info_on_node` |
+| Info (3) | `execute_info`, `execute_info_on_node`, `execute_info_read_only` |
 
 ### Access profile
 
-`ACM_MCP_ACCESS_PROFILE=read_only` (default) blocks the 10 mutation tools (`create_*`, `update_*`, `delete_*`, `truncate_set`, `execute_info*`) at call time with `code="access_denied"`. Tools remain visible — clients see the rejection only when they invoke a write. Set to `full` to allow everything.
+`ACM_MCP_ACCESS_PROFILE=read_only` (default) blocks the 10 mutation tools (`create_connection`, `update_connection`, `delete_connection`, `create_record`, `update_record`, `delete_record`, `delete_bin`, `truncate_set`, `execute_info`, `execute_info_on_node`) at call time with `code="access_denied"`. Tools remain visible — clients see the rejection only when they invoke a write. Set to `full` to allow everything. `execute_info_read_only` is the read-only counterpart to `execute_info` and is **not** blocked under `read_only`; it enforces a verb whitelist server-side and returns `code="invalid_argument"` for verbs that aren't on the safe list.
 
 ### Auth
 

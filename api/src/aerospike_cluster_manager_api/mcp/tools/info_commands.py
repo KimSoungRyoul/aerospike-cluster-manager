@@ -1,8 +1,12 @@
-"""MCP info command tools — ``execute_info`` and ``execute_info_on_node``.
+"""MCP info command tools.
 
-Both are classified as **mutation** in :mod:`mcp.access_profile` because
-asinfo can change cluster configuration (``set-config``, ``recluster``,
-etc.). Under ``READ_ONLY`` profile they are blocked at call time.
+* ``execute_info`` / ``execute_info_on_node`` — full asinfo surface,
+  classified as **mutation** because asinfo can change cluster config
+  (``set-config``, ``recluster``, ``truncate-namespace``).
+* ``execute_info_read_only`` — single-verb diagnostic reads, callable
+  under ``ACM_MCP_ACCESS_PROFILE=read_only``. The verb whitelist lives
+  in :mod:`info_verbs`; rejected verbs surface as
+  ``code=invalid_argument``.
 """
 
 from __future__ import annotations
@@ -34,12 +38,11 @@ async def execute_info(conn_id: str, command: str) -> dict[str, Any]:
     WARNING: This tool is gated by ``ACM_MCP_ACCESS_PROFILE`` since some
     asinfo commands write (``set-config``, ``recluster``,
     ``truncate-namespace``). Under ``READ_ONLY`` profile this tool returns
-    ``code=access_denied`` for ALL commands — including read-only ones such
-    as ``namespaces``, ``version``, and ``roster:`` — because the access
-    gate operates on tool name, not command content. Use ``list_namespaces``,
-    ``list_sets``, and ``get_nodes`` for safe diagnostic reads under
-    ``READ_ONLY``. A read-only ``execute_info`` whitelist is a Phase 2
-    design item.
+    ``code=access_denied`` for ALL commands — including read-only ones —
+    because the access gate operates on tool name, not command content.
+    For diagnostic reads under READ_ONLY, use ``execute_info_read_only``
+    (whitelisted verbs only) or the dedicated ``list_namespaces`` /
+    ``list_sets`` / ``get_nodes`` tools.
 
     Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
     ``code=access_denied`` under READ_ONLY.
@@ -56,12 +59,10 @@ async def execute_info_on_node(conn_id: str, command: str, node_name: str) -> di
     WARNING: This tool is gated by ``ACM_MCP_ACCESS_PROFILE`` since some
     asinfo commands write (``set-config``, ``recluster``,
     ``truncate-namespace``). Under ``READ_ONLY`` profile this tool returns
-    ``code=access_denied`` for ALL commands — including read-only ones such
-    as ``namespaces``, ``version``, and ``roster:`` — because the access
-    gate operates on tool name, not command content. Use ``list_namespaces``,
-    ``list_sets``, and ``get_nodes`` for safe diagnostic reads under
-    ``READ_ONLY``. A read-only ``execute_info`` whitelist is a Phase 2
-    design item.
+    ``code=access_denied`` for ALL commands — including read-only ones —
+    because the access gate operates on tool name, not command content.
+    For per-node diagnostic reads under READ_ONLY, use
+    ``execute_info_read_only(command, node_name=...)``.
 
     Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
     ``code=access_denied`` under READ_ONLY.
@@ -69,3 +70,46 @@ async def execute_info_on_node(conn_id: str, command: str, node_name: str) -> di
     client = await _get_client(conn_id)
     response = await clusters_service.execute_info_on_node(client, command, node_name)
     return {"node": node_name, "response": response}
+
+
+@tool(category="info", mutation=False)
+async def execute_info_read_only(
+    conn_id: str,
+    command: str,
+    node_name: str | None = None,
+) -> dict[str, str]:
+    """Run a whitelisted read-only asinfo command — callable under READ_ONLY profile.
+
+    The leading verb is checked against an explicit allowlist
+    (:data:`info_verbs.READ_ONLY_INFO_VERBS` — 24 verbs covering cluster
+    metadata, topology, namespace introspection, statistics/latency, and
+    strong-consistency/rack reads). Verbs outside the allowlist (writes,
+    debug dumps, unknown verbs, XDR commands not available on CE) return
+    ``code=invalid_argument`` along with a hint listing high-signal
+    diagnostic verbs.
+
+    Common reads exposed via this tool: ``namespaces``, ``version``,
+    ``nodes``, ``statistics``, ``latencies``, ``roster:namespace=<ns>``,
+    ``racks:``, ``sets``, ``sindex``, ``namespace/<ns>``,
+    ``health-outliers``, ``health-stats``.
+
+    With ``node_name=None`` (default) the call fans out via ``info_all``
+    and returns the first non-error response — the ``node`` field of the
+    result is the real cluster node (so a follow-up call can target it).
+    With an explicit ``node_name`` the same fan-out is filtered to that
+    node; ``NodeNotFoundError`` (mapped to a stable error code) surfaces
+    when the node doesn't respond.
+
+    Empty-string ``node_name`` is treated as "no node" (same as
+    ``node_name=None``) so JSON callers that pass ``""`` for unset fields
+    don't trigger a confusing ``NodeNotFoundError("")``.
+
+    Returns ``{"node": str, "response": str}``.
+    """
+    client = await _get_client(conn_id)
+    # Coerce the empty-string sentinel that some JSON callers use for
+    # "field not set" — without this, the service would fan out and look
+    # for a node literally named ``""``.
+    effective_node = node_name or None
+    node, response = await clusters_service.execute_info_read_only(client, command, effective_node)
+    return {"node": node, "response": response}

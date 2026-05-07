@@ -30,6 +30,7 @@ from typing import Any
 
 import aerospike_py
 
+from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed
 from aerospike_cluster_manager_api.predicate import UnknownPredicateOperator
 from aerospike_cluster_manager_api.services.clusters_service import (
     NamespaceConfigError,
@@ -129,6 +130,13 @@ def map_aerospike_errors(
         # validation failure on the caller's side. Surfaces as the same
         # ``invalid_argument`` family the SDK reserves for malformed
         # tool arguments.
+        raise MCPToolError(str(e), code="invalid_argument") from e
+    except InfoVerbNotAllowed as e:
+        # Read-only profile attempted an unwhitelisted asinfo verb —
+        # input-validation failure, same wire shape as
+        # UnknownPredicateOperator above. The model should pick a different
+        # verb, not escalate, so ``invalid_argument`` (not ``access_denied``)
+        # is the right signal.
         raise MCPToolError(str(e), code="invalid_argument") from e
     except (
         ConnectionNotFoundError,
