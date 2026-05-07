@@ -212,7 +212,7 @@ class TestPutRecord:
             key=RecordKey.model_construct(namespace="", set="demo", pk="k1"),
             bins={"a": 1},
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(PrimaryKeyMissing):
             await records_service.put_record(client, body)
 
     async def test_missing_set_raises(self):
@@ -221,7 +221,7 @@ class TestPutRecord:
             key=RecordKey.model_construct(namespace="test", set="", pk="k1"),
             bins={"a": 1},
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(PrimaryKeyMissing):
             await records_service.put_record(client, body)
 
     async def test_missing_pk_raises(self):
@@ -230,7 +230,7 @@ class TestPutRecord:
             key=RecordKey.model_construct(namespace="test", set="demo", pk=""),
             bins={"a": 1},
         )
-        with pytest.raises(ValueError):
+        with pytest.raises(PrimaryKeyMissing):
             await records_service.put_record(client, body)
 
 
@@ -591,7 +591,7 @@ class TestFilterRecords:
         )
         await records_service.filter_records(client, body)
 
-        client.get.assert_not_called() if hasattr(client, "get") else None
+        client.get.assert_not_called()
         client.query.assert_called_once_with("test", "demo")
         call = query.results.await_args
         policy = call.args[0]

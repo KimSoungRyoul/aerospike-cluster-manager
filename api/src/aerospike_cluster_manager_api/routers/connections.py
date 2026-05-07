@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
 
-import aerospike_py  # noqa: F401  — re-exported for tests that patch via this module path
 from aerospike_py.exception import AerospikeError, AerospikeTimeoutError, ClusterError
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from starlette.responses import Response
 
 from aerospike_cluster_manager_api.client_manager import client_manager
@@ -54,8 +52,13 @@ async def create_connection(request: Request, body: CreateConnectionRequest) -> 
 
 
 @router.get("/{conn_id}", summary="Get connection", description="Retrieve a single connection profile by its ID.")
-async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfileResponse:
-    """Retrieve a single connection profile by its ID."""
+async def get_connection(conn_id: str = Path()) -> ConnectionProfileResponse:
+    """Retrieve a single connection profile by its ID.
+
+    The service raises :class:`ConnectionNotFoundError` for missing ids, so
+    the dedicated existence-check dependency is redundant — dropping it
+    halves the database round trips on this hot path.
+    """
     try:
         return await connections_service.get_connection(conn_id)
     except ConnectionNotFoundError as exc:
@@ -67,9 +70,15 @@ async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> Co
 )
 async def update_connection(
     body: UpdateConnectionRequest,
-    conn_id: str = Depends(_get_verified_connection),
+    conn_id: str = Path(),
 ) -> ConnectionProfileResponse:
-    """Update an existing connection profile with new settings."""
+    """Update an existing connection profile with new settings.
+
+    The service's :func:`update_connection` raises
+    :class:`ConnectionNotFoundError` when the id is missing, so the
+    existence-check dependency is redundant — drop it to avoid the
+    duplicate ``db.get_connection`` round trip on each PUT.
+    """
     try:
         return await connections_service.update_connection(conn_id, body)
     except ConnectionNotFoundError as exc:
@@ -188,9 +197,10 @@ def _disconnected_health(error: str, error_type: str) -> Response:
     description="Test connectivity to an Aerospike cluster without saving the profile.",
 )
 @limiter.limit("5/minute")
-async def test_connection(request: Request, body: TestConnectionRequest) -> dict[str, Any]:
+async def test_connection(request: Request, body: TestConnectionRequest) -> dict[str, bool | str]:
     """Test connectivity to an Aerospike cluster without saving the profile."""
-    return await connections_service.test_connection(body)
+    result = await connections_service.test_connection(body)
+    return {"success": result.success, "message": result.message}
 
 
 @router.delete(

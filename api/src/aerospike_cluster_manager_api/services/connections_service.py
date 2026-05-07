@@ -19,7 +19,7 @@ import contextlib
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 import aerospike_py
 from aerospike_py.exception import AerospikeError
@@ -58,6 +58,25 @@ class WorkspaceNotFoundError(LookupError):
     def __init__(self, workspace_id: str) -> None:
         super().__init__(f"Workspace '{workspace_id}' not found")
         self.workspace_id = workspace_id
+
+
+# ---------------------------------------------------------------------------
+# Result containers
+# ---------------------------------------------------------------------------
+
+
+class TestConnectionResult(NamedTuple):
+    """Outcome of a non-persisting connectivity probe.
+
+    Mirrors the existing service-surface convention (``QueryResult``,
+    ``ListRecordsResult``) so HTTP and MCP wrappers can map fields to
+    their preferred wire format. ``success`` is a boolean for easy
+    short-circuit checks; ``message`` carries either the success
+    summary or the error text.
+    """
+
+    success: bool
+    message: str
 
 
 # ---------------------------------------------------------------------------
@@ -141,18 +160,23 @@ async def update_connection(conn_id: str, payload: UpdateConnectionRequest) -> C
 async def delete_connection(conn_id: str) -> None:
     """Delete a connection profile and close its cached Aerospike client.
 
-    Idempotent: deleting a missing connection is a no-op (mirrors the
-    router's pre-refactor behaviour, which always returned 204).
+    Idempotent: deleting a missing connection is a no-op. The HTTP router
+    still gates on existence via the ``_get_verified_connection``
+    dependency — so the wire-level ``DELETE`` keeps its 404-on-missing
+    semantics — while MCP tool callers see the idempotent behaviour
+    directly. (The pre-refactor router returned 404 from inside the
+    handler; the new layout pushes that gate up to the dependency.)
     """
     await db.delete_connection(conn_id)
     await client_manager.close_client(conn_id)
 
 
-async def test_connection(req: TestConnectionRequest) -> dict[str, Any]:
+async def test_connection(req: TestConnectionRequest) -> TestConnectionResult:
     """Probe Aerospike connectivity without persisting a profile.
 
-    Returns ``{"success": bool, "message": str}``. Never raises — any error
-    is captured and surfaced as ``success=False``.
+    Returns a :class:`TestConnectionResult`. Never raises — any error is
+    captured and surfaced as ``success=False`` so HTTP/MCP wrappers can
+    forward the wire shape unchanged.
     """
     try:
         hosts = [parse_host_port(h, req.port) for h in req.hosts]
@@ -166,11 +190,11 @@ async def test_connection(req: TestConnectionRequest) -> dict[str, Any]:
         await client.connect()
         try:
             if not client.is_connected():
-                return {"success": False, "message": "Failed to connect"}
-            return {"success": True, "message": "Connected successfully"}
+                return TestConnectionResult(success=False, message="Failed to connect")
+            return TestConnectionResult(success=True, message="Connected successfully")
         finally:
             with contextlib.suppress(AerospikeError, OSError):
                 await client.close()
     except Exception as e:
         logger.exception("Test connection failed")
-        return {"success": False, "message": str(e)}
+        return TestConnectionResult(success=False, message=str(e))

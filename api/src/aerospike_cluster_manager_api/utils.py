@@ -1,47 +1,71 @@
-"""Shared utility functions."""
+"""Shared utility functions — FastAPI adapters around HTTP-free domain logic.
+
+The genuine domain logic lives in dedicated modules so MCP tool wrappers
+can reuse it without dragging FastAPI in:
+
+* :mod:`aerospike_cluster_manager_api.pk` — primary-key resolution and
+  read-with-fallback.
+* :mod:`aerospike_cluster_manager_api.predicate` — predicate-tuple
+  construction.
+
+The functions in this module are thin adapters: they call the domain
+helpers and translate the domain exceptions into
+:class:`fastapi.HTTPException` with the correct HTTP status code.
+"""
 
 from __future__ import annotations
 
-import json
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
-from aerospike_py.exception import RecordNotFound
 from fastapi import HTTPException
+
+from aerospike_cluster_manager_api.pk import (
+    PkType,
+)
+from aerospike_cluster_manager_api.pk import (
+    get_with_pk_fallback as _get_with_pk_fallback_domain,
+)
+from aerospike_cluster_manager_api.pk import (
+    resolve_pk as _resolve_pk_domain,
+)
+from aerospike_cluster_manager_api.predicate import (
+    UnknownPredicateOperator,
+)
+from aerospike_cluster_manager_api.predicate import (
+    build_predicate as _build_predicate_domain,
+)
 
 if TYPE_CHECKING:
     from aerospike_cluster_manager_api.models.query import QueryPredicate
 
 
-# Explicit PK particle type selector. `auto` is a heuristic that tries the most
-# likely type then falls back — see resolve_pk / get_with_pk_fallback below.
-type PkType = Literal["auto", "string", "int", "bytes"]
+# Re-export ``PkType`` for legacy callers that import it from ``utils``.
+__all__ = [
+    "PkType",
+    "auto_detect_pk",
+    "build_predicate",
+    "get_with_pk_fallback",
+    "parse_host_port",
+    "resolve_pk",
+]
 
 
 def build_predicate(pred: QueryPredicate) -> tuple[Any, ...]:
-    """Convert a QueryPredicate model into an Aerospike predicate tuple.
+    """Convert a :class:`QueryPredicate` into an Aerospike predicate tuple.
 
-    Used by both routers/query.py and routers/records.py.
+    Thin FastAPI adapter around
+    :func:`aerospike_cluster_manager_api.predicate.build_predicate`. Used
+    only by HTTP routers — services should call the domain function
+    directly so the HTTP coupling stays at the boundary.
     """
-    from aerospike_py import INDEX_TYPE_LIST, predicates
-
-    op = pred.operator
-    if op == "equals":
-        return predicates.equals(pred.bin, pred.value)
-    if op == "between":
-        return predicates.between(pred.bin, pred.value, pred.value2)
-    if op == "contains":
-        return predicates.contains(pred.bin, INDEX_TYPE_LIST, pred.value)
-    if op == "geo_within_region":
-        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
-        return predicates.geo_within_geojson_region(pred.bin, geo)
-    if op == "geo_contains_point":
-        geo = pred.value if isinstance(pred.value, str) else json.dumps(pred.value)
-        return predicates.geo_contains_geojson_point(pred.bin, geo)
-    raise HTTPException(status_code=400, detail=f"Unknown predicate operator: {op}")
+    try:
+        return _build_predicate_domain(pred)
+    except UnknownPredicateOperator as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def parse_host_port(host_str: str, default_port: int) -> tuple[str, int]:
-    """Parse a host string that may contain an optional ':port' suffix."""
+    """Parse a host string that may contain an optional ``:port`` suffix."""
     if ":" in host_str:
         host, port_str = host_str.rsplit(":", 1)
         try:
@@ -52,48 +76,19 @@ def parse_host_port(host_str: str, default_port: int) -> tuple[str, int]:
 
 
 def resolve_pk(pk: str, pk_type: PkType = "auto") -> str | int | bytes:
-    """Resolve a string primary key into the Aerospike key value of the requested type.
+    """Resolve a string primary key into the typed value Aerospike expects.
 
-    Aerospike keys are digested as RIPEMD-160(set || particle_type_byte || key_bytes),
-    so the particle type must match how the record was originally written. If
-    the caller knows the type, they should pass it explicitly via ``pk_type``.
-
-    Behavior:
-        - "string": return ``pk`` as-is.
-        - "int":    return ``int(pk)`` (raises ValueError if not parseable).
-        - "bytes":  return ``bytes.fromhex(pk)`` (raises ValueError on invalid hex).
-        - "auto":   best-effort heuristic. Treats any digit-only PK (including
-                    negative) as an integer, preserving leading-zero strings. The
-                    heuristic is wrong for numeric-string keys, so callers that
-                    do reads should pair this with ``get_with_pk_fallback``.
-
-    See also ``get_with_pk_fallback`` for the read-side fallback that tries the
-    alternate type when ``auto`` picks wrong.
+    Thin FastAPI adapter around
+    :func:`aerospike_cluster_manager_api.pk.resolve_pk`. Domain
+    :class:`ValueError` from explicit ``int`` / ``bytes`` mismatches is
+    re-raised as :class:`fastapi.HTTPException` (400) so HTTP callers
+    don't have to translate it themselves. Service callers should use
+    the domain helper directly.
     """
-    if pk_type == "string":
-        return pk
-    if pk_type == "int":
-        try:
-            return int(pk)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=f"pk_type=int but pk is not an integer: {pk!r}") from exc
-    if pk_type == "bytes":
-        try:
-            return bytes.fromhex(pk)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=f"pk_type=bytes but pk is not valid hex: {pk!r}") from exc
-
-    # auto: preserve the original heuristic so that true INTEGER-keyed sets
-    # continue to work without requiring the caller to opt in. Read paths should
-    # wrap this with get_with_pk_fallback to recover the NOT_FOUND case where
-    # the heuristic guessed wrong.
     try:
-        as_int = int(pk)
-        if str(as_int) == pk:
-            return as_int
-    except ValueError:
-        pass
-    return pk
+        return _resolve_pk_domain(pk, pk_type)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 # Backward-compat alias — existing callers keep working. Prefer ``resolve_pk``.
@@ -113,35 +108,11 @@ async def get_with_pk_fallback(
     pk_type: PkType,
     policy: dict[str, Any],
 ) -> Any:
-    """Read a record, retrying the alternate PK type if ``auto`` resolved wrong.
+    """Read a record, retrying the alternate PK type if ``auto`` guessed wrong.
 
-    When ``pk_type == "auto"`` and the first attempt raises ``RecordNotFound``,
-    we retry with the alternate string/int particle type (whichever one the
-    heuristic did *not* pick). This makes the record browser work for both
-    INTEGER-keyed and STRING-keyed sets without the caller having to know
-    upfront which one the record was written with.
-
-    Explicit pk types (``string`` / ``int`` / ``bytes``) never fall back — if
-    the caller asserted a type, we propagate the NOT_FOUND as-is so the caller
-    knows the key is genuinely absent under that type.
+    Thin pass-through to
+    :func:`aerospike_cluster_manager_api.pk.get_with_pk_fallback`. The
+    domain function does not raise HTTP-specific exceptions, so this
+    adapter is just a stable import path for legacy router callers.
     """
-    try:
-        return await client.get(key_tuple, policy=policy)
-    except RecordNotFound:
-        if pk_type != "auto":
-            raise
-        # Heuristic picked one type; try the opposite. If the alternate type
-        # isn't applicable (e.g. non-numeric string can't become int), keep
-        # propagating the original RecordNotFound — never leak ValueError.
-        first = key_tuple[2]
-        alt: str | int | None = None
-        if isinstance(first, int):
-            alt = pk_raw  # retry as raw string
-        elif isinstance(first, str):
-            try:
-                alt = int(first)
-            except ValueError:
-                alt = None  # no integer alternative → fall through to re-raise
-        if alt is None:
-            raise
-        return await client.get((key_tuple[0], key_tuple[1], alt), policy=policy)
+    return await _get_with_pk_fallback_domain(client, key_tuple, pk_raw, pk_type, policy)

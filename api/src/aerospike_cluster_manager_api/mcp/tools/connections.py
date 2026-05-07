@@ -29,6 +29,7 @@ Design notes:
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from aerospike_cluster_manager_api.client_manager import client_manager
@@ -45,6 +46,8 @@ from aerospike_cluster_manager_api.services.connections_service import (
     ConnectionNotFoundError,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @tool(category="connection", mutation=True)
 async def create_connection(
@@ -57,11 +60,18 @@ async def create_connection(
     description: str | None = None,
     labels: dict[str, str] | None = None,
     workspace_id: str | None = None,
+    cluster_name: str | None = None,
 ) -> dict[str, Any]:
     """Create a new Aerospike connection profile.
 
     Returns the persisted profile (without the password). Falls back to
     the built-in default workspace when ``workspace_id`` is omitted.
+    ``cluster_name`` is the optional cluster identifier used by the
+    Aerospike client tend (``cluster-name`` policy) — leave unset to
+    discover the cluster name dynamically.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     payload = CreateConnectionRequest(
         name=name,
@@ -73,6 +83,7 @@ async def create_connection(
         description=description,
         labels=labels,
         workspaceId=workspace_id,
+        clusterName=cluster_name,
     )
     result = await connections_service.create_connection(payload)
     return result.model_dump()
@@ -97,10 +108,16 @@ async def update_connection(
     description: str | None = None,
     labels: dict[str, str] | None = None,
     workspace_id: str | None = None,
+    cluster_name: str | None = None,
 ) -> dict[str, Any]:
     """Apply a partial update to a connection profile.
 
     Only fields explicitly supplied (non-``None``) are updated.
+    ``cluster_name`` is the optional cluster identifier (``cluster-name``
+    tend policy); pass it to update or set it.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     update_kwargs: dict[str, Any] = {}
     if name is not None:
@@ -121,6 +138,8 @@ async def update_connection(
         update_kwargs["labels"] = labels
     if workspace_id is not None:
         update_kwargs["workspaceId"] = workspace_id
+    if cluster_name is not None:
+        update_kwargs["clusterName"] = cluster_name
 
     payload = UpdateConnectionRequest(**update_kwargs)
     result = await connections_service.update_connection(conn_id, payload)
@@ -132,6 +151,9 @@ async def delete_connection(conn_id: str) -> dict[str, Any]:
     """Delete a connection profile and close its cached client.
 
     Idempotent — deleting a missing connection is a no-op.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     await connections_service.delete_connection(conn_id)
     return {"deleted": True, "conn_id": conn_id}
@@ -151,6 +173,10 @@ async def connect(conn_id: str) -> dict[str, Any]:
     Returns a small status snapshot so the model can confirm the cluster
     is reachable: number of nodes seen by the client and the namespace
     list visible from a random node.
+
+    Side effect: modifies the shared ``client_manager`` cache. Concurrent
+    or read-only MCP clients sharing the same workspace see the impact
+    even though this tool is declared ``mutation=False``.
     """
     try:
         client = await client_manager.get_client(conn_id)
@@ -177,6 +203,10 @@ async def disconnect(conn_id: str) -> dict[str, Any]:
     """Close and evict the live client for the given connection.
 
     No-op when no live client is currently cached.
+
+    Side effect: modifies the shared ``client_manager`` cache. Concurrent
+    or read-only MCP clients sharing the same workspace see the impact
+    even though this tool is declared ``mutation=False``.
     """
     await client_manager.close_client(conn_id)
     return {"disconnected": True, "conn_id": conn_id}
@@ -193,6 +223,21 @@ async def test_connection(
 
     Returns ``{"success": bool, "message": str}`` — never raises;
     the underlying service layer captures any error as ``success=False``.
+    Failure messages are normalised to a generic ``"connection test
+    failed"`` so we don't leak host/port or driver internals to the model;
+    the original exception text is logged structurally for operators.
     """
     payload = TestConnectionRequest(hosts=hosts, port=port, username=username, password=password)
-    return await connections_service.test_connection(payload)
+    result = await connections_service.test_connection(payload)
+    if not result.success:
+        # M2 hardening: surface a generic message to the LLM, but keep
+        # the operator-visible detail in the structured log so an SRE
+        # debugging a flapping cluster still has the underlying error.
+        logger.warning(
+            "MCP test_connection failure: hosts=%s port=%s detail=%s",
+            hosts,
+            port,
+            result.message,
+        )
+        return {"success": False, "message": "connection test failed"}
+    return {"success": True, "message": result.message}

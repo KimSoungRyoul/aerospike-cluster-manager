@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Literal, NamedTuple
+from typing import Any, NamedTuple
 
 import aerospike_py
 from aerospike_py import Record
@@ -31,30 +31,26 @@ from aerospike_py.exception import AerospikeError, RecordNotFound
 
 from aerospike_cluster_manager_api.constants import MAX_QUERY_RECORDS, POLICY_QUERY, POLICY_READ
 from aerospike_cluster_manager_api.models.query import QueryRequest
+from aerospike_cluster_manager_api.pk import (
+    PkType,
+    SetRequiredForPkLookup,
+    get_with_pk_fallback,
+    resolve_pk,
+)
+from aerospike_cluster_manager_api.predicate import build_predicate
 
 logger = logging.getLogger(__name__)
 
 
-# Explicit PK particle type selector. ``auto`` is a heuristic that tries the
-# most likely type then falls back on RecordNotFound. Same shape as the
-# records_service equivalent.
-PkType = Literal["auto", "string", "int", "bytes"]
-
-
-# ---------------------------------------------------------------------------
-# Domain exceptions
-# ---------------------------------------------------------------------------
-
-
-class SetRequiredForPkLookup(ValueError):
-    """Raised when a PK lookup is run without a ``set`` scope.
-
-    Aerospike addresses records via ``(namespace, set, pk)`` tuples, so a PK
-    lookup without a set is meaningless. Disallowed at the service boundary.
-    """
-
-    def __init__(self) -> None:
-        super().__init__("Set is required for primary key lookup")
+# ``PkType`` and ``SetRequiredForPkLookup`` are re-exported from this module
+# for backward compatibility. The canonical home is
+# :mod:`aerospike_cluster_manager_api.pk`.
+__all__ = [
+    "PkType",
+    "QueryResult",
+    "SetRequiredForPkLookup",
+    "execute_query",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -80,74 +76,6 @@ class QueryResult(NamedTuple):
     execution_time_ms: int
     scanned_records: int
     returned_records: int
-
-
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
-def _resolve_pk(pk: str, pk_type: PkType) -> str | int | bytes:
-    """Resolve a string primary key into the typed value Aerospike expects.
-
-    Mirrors ``utils.resolve_pk`` but raises ``ValueError`` instead of
-    HTTPException so the service stays HTTP-free. The router catches the
-    ``ValueError`` and translates it to HTTP 400.
-    """
-    if pk_type == "string":
-        return pk
-    if pk_type == "int":
-        try:
-            return int(pk)
-        except ValueError as exc:
-            raise ValueError(f"pk_type=int but pk is not an integer: {pk!r}") from exc
-    if pk_type == "bytes":
-        try:
-            return bytes.fromhex(pk)
-        except ValueError as exc:
-            raise ValueError(f"pk_type=bytes but pk is not valid hex: {pk!r}") from exc
-
-    # ``auto``: numeric-string heuristic. Preserves leading-zero strings.
-    try:
-        as_int = int(pk)
-        if str(as_int) == pk:
-            return as_int
-    except ValueError:
-        pass
-    return pk
-
-
-async def _get_with_pk_fallback(
-    client: aerospike_py.AsyncClient,
-    key_tuple: tuple[str, str, str | int | bytes],
-    pk_raw: str,
-    pk_type: PkType,
-    policy: dict[str, Any],
-) -> Record:
-    """Read with retry-on-NOT-FOUND for ``auto`` PK type.
-
-    When ``pk_type == "auto"`` and the first attempt raises
-    ``RecordNotFound``, retry with the alternate string/int particle type
-    (whichever the heuristic did *not* pick). Explicit pk types never fall
-    back — propagate the NOT_FOUND so callers see a genuinely absent key.
-    """
-    try:
-        return await client.get(key_tuple, policy=policy)
-    except RecordNotFound:
-        if pk_type != "auto":
-            raise
-        first = key_tuple[2]
-        alt: str | int | None = None
-        if isinstance(first, int):
-            alt = pk_raw  # retry as raw string
-        elif isinstance(first, str):
-            try:
-                alt = int(first)
-            except ValueError:
-                alt = None
-        if alt is None:
-            raise
-        return await client.get((key_tuple[0], key_tuple[1], alt), policy=policy)
 
 
 # ---------------------------------------------------------------------------
@@ -188,9 +116,9 @@ async def execute_query(client: aerospike_py.AsyncClient, body: QueryRequest) ->
         if not body.set:
             raise SetRequiredForPkLookup()
 
-        resolved = _resolve_pk(body.primaryKey, body.pkType)
+        resolved = resolve_pk(body.primaryKey, body.pkType)
         try:
-            raw_record = await _get_with_pk_fallback(
+            raw_record = await get_with_pk_fallback(
                 client,
                 (body.namespace, body.set, resolved),
                 body.primaryKey,
@@ -212,12 +140,9 @@ async def execute_query(client: aerospike_py.AsyncClient, body: QueryRequest) ->
     # ---- Scan branch ------------------------------------------------------
     q = client.query(body.namespace, body.set or "")
     if body.predicate:
-        # Local import keeps utils.build_predicate's HTTPException-aware
-        # implementation out of the service's signature surface. The router
-        # catches ``HTTPException`` directly; service callers via MCP would
-        # surface the exception as a generic error.
-        from aerospike_cluster_manager_api.utils import build_predicate
-
+        # build_predicate raises ``UnknownPredicateOperator`` (a ``ValueError``)
+        # for unknown operators — the HTTP router catches it via
+        # ``utils.build_predicate``'s adapter, MCP tools via the error mapper.
         q.where(build_predicate(body.predicate))
     if body.selectBins:
         q.select(*body.selectBins)

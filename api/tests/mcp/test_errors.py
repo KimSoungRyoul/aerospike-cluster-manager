@@ -99,6 +99,38 @@ def test_map_record_exists_error_without_context() -> None:
     assert exc_info.value.code == "record_exists"
 
 
+def test_map_backpressure_error() -> None:
+    """``aerospike_py.BackpressureError`` is mapped to a stable
+    ``code="backpressure"`` so client-side wrappers (and operator
+    dashboards) can apply retry-with-backoff without parsing the message.
+    """
+    with pytest.raises(MCPToolError) as exc_info, map_aerospike_errors():
+        raise aerospike_py.BackpressureError("queue saturated")
+
+    err = exc_info.value
+    assert err.code == "backpressure"
+    # Underlying client wording is preserved in the user-facing message.
+    assert "queue saturated" in str(err)
+    assert isinstance(err.__cause__, aerospike_py.BackpressureError)
+
+
+def test_map_unknown_predicate_operator_to_invalid_argument() -> None:
+    """``predicate.UnknownPredicateOperator`` is an input-validation
+    failure — the predicate dispatch table did not recognise the operator.
+    Mapped to ``code="invalid_argument"`` to match the SDK's standard
+    family for malformed tool arguments.
+    """
+    from aerospike_cluster_manager_api.predicate import UnknownPredicateOperator
+
+    with pytest.raises(MCPToolError) as exc_info, map_aerospike_errors():
+        raise UnknownPredicateOperator("frobnicate")
+
+    err = exc_info.value
+    assert err.code == "invalid_argument"
+    assert "frobnicate" in str(err)
+    assert isinstance(err.__cause__, UnknownPredicateOperator)
+
+
 # ---------------------------------------------------------------------------
 # map_aerospike_errors — service-layer domain exceptions
 # ---------------------------------------------------------------------------

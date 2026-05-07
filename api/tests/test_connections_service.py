@@ -203,7 +203,9 @@ class TestTestConnection:
         ):
             result = await connections_service.test_connection(_TestConnectionRequest(hosts=["localhost"], port=3000))
 
-        assert result == {"success": True, "message": "Connected successfully"}
+        # Phase 1: result is now a TestConnectionResult NamedTuple, not a dict.
+        assert result.success is True
+        assert result.message == "Connected successfully"
 
     async def test_not_connected(self, init_test_db):
         mock_client = AsyncMock()
@@ -217,8 +219,8 @@ class TestTestConnection:
         ):
             result = await connections_service.test_connection(_TestConnectionRequest(hosts=["localhost"], port=3000))
 
-        assert result["success"] is False
-        assert "Failed to connect" in result["message"]
+        assert result.success is False
+        assert "Failed to connect" in result.message
 
     async def test_failure(self, init_test_db):
         with patch(
@@ -227,8 +229,8 @@ class TestTestConnection:
         ):
             result = await connections_service.test_connection(_TestConnectionRequest(hosts=["unreachable"], port=3000))
 
-        assert result["success"] is False
-        assert "Connection refused" in result["message"]
+        assert result.success is False
+        assert "Connection refused" in result.message
 
     async def test_passes_credentials(self, init_test_db):
         mock_client = AsyncMock()

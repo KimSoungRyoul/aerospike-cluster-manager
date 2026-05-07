@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Literal, NamedTuple
+from typing import Any, NamedTuple
 
 import aerospike_py
 from aerospike_py import Record, exp
@@ -50,14 +50,40 @@ from aerospike_cluster_manager_api.info_parser import (
 )
 from aerospike_cluster_manager_api.models.query import FilteredQueryRequest
 from aerospike_cluster_manager_api.models.record import RecordWriteRequest
+from aerospike_cluster_manager_api.pk import (
+    PkType,
+    PrimaryKeyMissing,
+    SetRequiredForPkLookup,
+    get_with_pk_fallback,
+    resolve_pk,
+)
+from aerospike_cluster_manager_api.predicate import build_predicate
 
 logger = logging.getLogger(__name__)
 
 
-# Explicit PK particle type selector. ``auto`` is a heuristic that tries the
-# most likely type then falls back on RecordNotFound. See ``utils.resolve_pk``
-# for the resolution rules.
-PkType = Literal["auto", "string", "int", "bytes"]
+# ``PkType``, ``PrimaryKeyMissing``, and ``SetRequiredForPkLookup`` are
+# re-exported from this module for backward compatibility (``mcp.errors``
+# and tests still import them from here). Their canonical home is
+# :mod:`aerospike_cluster_manager_api.pk`.
+__all__ = [
+    "FilterRecordsResult",
+    "InvalidPkPattern",
+    "ListRecordsResult",
+    "PkType",
+    "PrimaryKeyMissing",
+    "SetRequiredForPkLookup",
+    "create_record",
+    "delete_bin",
+    "delete_record",
+    "filter_records",
+    "get_record",
+    "list_records",
+    "put_record",
+    "record_exists",
+    "truncate_set",
+    "update_record",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -70,25 +96,6 @@ class InvalidPkPattern(ValueError):
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
-
-
-class SetRequiredForPkLookup(ValueError):
-    """Raised when a PK-targeted query is run without a ``set`` scope.
-
-    An unscoped namespace scan with a regex would dwarf the user's intent and
-    is disallowed at the service boundary.
-    """
-
-    def __init__(self) -> None:
-        super().__init__("Set is required for primary key lookup")
-
-
-class PrimaryKeyMissing(ValueError):
-    """Raised when a write request omits one of namespace/set/pk."""
-
-    def __init__(self, field: str) -> None:
-        super().__init__(f"Missing required key field: {field}")
-        self.field = field
 
 
 # ---------------------------------------------------------------------------
@@ -137,69 +144,6 @@ class FilterRecordsResult(NamedTuple):
 # ---------------------------------------------------------------------------
 
 
-def _resolve_pk(pk: str, pk_type: PkType) -> str | int | bytes:
-    """Resolve a string primary key into the typed value Aerospike expects.
-
-    Mirrors ``utils.resolve_pk`` but raises ``ValueError`` instead of
-    HTTPException so the service stays HTTP-free. The router catches the
-    ``ValueError`` and translates it to HTTP 400.
-    """
-    if pk_type == "string":
-        return pk
-    if pk_type == "int":
-        try:
-            return int(pk)
-        except ValueError as exc:
-            raise ValueError(f"pk_type=int but pk is not an integer: {pk!r}") from exc
-    if pk_type == "bytes":
-        try:
-            return bytes.fromhex(pk)
-        except ValueError as exc:
-            raise ValueError(f"pk_type=bytes but pk is not valid hex: {pk!r}") from exc
-
-    # ``auto``: numeric-string heuristic. Preserves leading-zero strings.
-    try:
-        as_int = int(pk)
-        if str(as_int) == pk:
-            return as_int
-    except ValueError:
-        pass
-    return pk
-
-
-async def _get_with_pk_fallback(
-    client: aerospike_py.AsyncClient,
-    key_tuple: tuple[str, str, str | int | bytes],
-    pk_raw: str,
-    pk_type: PkType,
-    policy: dict[str, Any],
-) -> Record:
-    """Read with retry-on-NOT-FOUND for ``auto`` PK type.
-
-    When ``pk_type == "auto"`` and the first attempt raises
-    ``RecordNotFound``, retry with the alternate string/int particle type
-    (whichever the heuristic did *not* pick). Explicit pk types never fall
-    back — propagate the NOT_FOUND so callers see a genuinely absent key.
-    """
-    try:
-        return await client.get(key_tuple, policy=policy)
-    except RecordNotFound:
-        if pk_type != "auto":
-            raise
-        first = key_tuple[2]
-        alt: str | int | None = None
-        if isinstance(first, int):
-            alt = pk_raw  # retry as raw string
-        elif isinstance(first, str):
-            try:
-                alt = int(first)
-            except ValueError:
-                alt = None
-        if alt is None:
-            raise
-        return await client.get((key_tuple[0], key_tuple[1], alt), policy=policy)
-
-
 async def _get_set_object_count(client: aerospike_py.AsyncClient, ns: str, set_name: str) -> int:
     """Approximate object count for a set via the namespace/sets info commands.
 
@@ -246,8 +190,8 @@ async def get_record(
         RecordNotFound: the record does not exist (after auto fallback).
         ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
     """
-    resolved = _resolve_pk(pk, pk_type)
-    return await _get_with_pk_fallback(client, (namespace, set_name, resolved), pk, pk_type, POLICY_READ)
+    resolved = resolve_pk(pk, pk_type)
+    return await get_with_pk_fallback(client, (namespace, set_name, resolved), pk, pk_type, POLICY_READ)
 
 
 async def delete_record(
@@ -270,7 +214,7 @@ async def delete_record(
             HTTP semantics they want.
         ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
     """
-    resolved = _resolve_pk(pk, pk_type)
+    resolved = resolve_pk(pk, pk_type)
     await client.remove((namespace, set_name, resolved))
 
 
@@ -291,7 +235,7 @@ async def record_exists(
     Raises:
         ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
     """
-    resolved = _resolve_pk(pk, pk_type)
+    resolved = resolve_pk(pk, pk_type)
     try:
         result = await client.exists((namespace, set_name, resolved), policy=POLICY_READ)
     except RecordNotFound:
@@ -317,7 +261,7 @@ async def create_record(
         RecordExistsError: a record already exists at ``(namespace, set, pk)``.
         ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
     """
-    resolved = _resolve_pk(pk, pk_type)
+    resolved = resolve_pk(pk, pk_type)
     policy = {**POLICY_WRITE, "exists": aerospike_py.POLICY_EXISTS_CREATE_ONLY}
     await client.put((namespace, set_name, resolved), bins, policy=policy)
 
@@ -342,7 +286,7 @@ async def update_record(
         RecordNotFound: no record exists at ``(namespace, set, pk)``.
         ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
     """
-    resolved = _resolve_pk(pk, pk_type)
+    resolved = resolve_pk(pk, pk_type)
     policy = {**POLICY_WRITE, "exists": aerospike_py.POLICY_EXISTS_UPDATE_ONLY}
     await client.put((namespace, set_name, resolved), bins, policy=policy)
 
@@ -366,7 +310,7 @@ async def delete_bin(
         RecordNotFound: the record does not exist.
         ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
     """
-    resolved = _resolve_pk(pk, pk_type)
+    resolved = resolve_pk(pk, pk_type)
     await client.remove_bin((namespace, set_name, resolved), [bin_name])
 
 
@@ -416,7 +360,7 @@ async def put_record(client: aerospike_py.AsyncClient, body: RecordWriteRequest)
     if not k.pk:
         raise PrimaryKeyMissing("pk")
 
-    key_tuple = (k.namespace, k.set, _resolve_pk(k.pk, body.pk_type))
+    key_tuple = (k.namespace, k.set, resolve_pk(k.pk, body.pk_type))
 
     meta: WriteMeta | None = None
     if body.ttl is not None:
@@ -488,9 +432,9 @@ async def filter_records(client: aerospike_py.AsyncClient, body: FilteredQueryRe
     # NOT_FOUND when pk_type='auto'. Prefix/regex skip this branch.
     if pk_target and body.pk_match_mode == "exact":
         assert body.set is not None
-        resolved = _resolve_pk(pk_target, body.pk_type)
+        resolved = resolve_pk(pk_target, body.pk_type)
         try:
-            raw_record = await _get_with_pk_fallback(
+            raw_record = await get_with_pk_fallback(
                 client,
                 (body.namespace, body.set, resolved),
                 pk_target,
@@ -533,10 +477,9 @@ async def filter_records(client: aerospike_py.AsyncClient, body: FilteredQueryRe
     q = client.query(body.namespace, body.set or "")
 
     if body.predicate:
-        # Local import keeps utils.build_predicate's HTTPException-aware
-        # implementation out of the service's signature surface.
-        from aerospike_cluster_manager_api.utils import build_predicate
-
+        # build_predicate raises ``UnknownPredicateOperator`` (a ``ValueError``)
+        # for unknown operators — the HTTP router catches it via
+        # ``utils.build_predicate``'s adapter, MCP tools via the error mapper.
         q.where(build_predicate(body.predicate))
 
     if body.select_bins:

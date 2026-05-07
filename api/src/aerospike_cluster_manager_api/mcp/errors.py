@@ -30,6 +30,7 @@ from typing import Any
 
 import aerospike_py
 
+from aerospike_cluster_manager_api.predicate import UnknownPredicateOperator
 from aerospike_cluster_manager_api.services.clusters_service import (
     NamespaceConfigError,
     NamespaceNotFoundError,
@@ -114,6 +115,21 @@ def map_aerospike_errors(
             f"Record already exists{_record_ident(ns, set_name, key)}",
             code="record_exists",
         ) from e
+    except aerospike_py.BackpressureError as e:
+        # Production-grade signal: client-side concurrent-op queue is
+        # saturated. Surface a stable code so model-side wrappers (and
+        # operator dashboards) can apply retry-with-backoff. The message
+        # carries the underlying client wording so context isn't lost.
+        raise MCPToolError(
+            f"Aerospike client is saturated; retry with backoff: {e}",
+            code="backpressure",
+        ) from e
+    except UnknownPredicateOperator as e:
+        # Predicate dispatch table did not recognise the operator — input
+        # validation failure on the caller's side. Surfaces as the same
+        # ``invalid_argument`` family the SDK reserves for malformed
+        # tool arguments.
+        raise MCPToolError(str(e), code="invalid_argument") from e
     except (
         ConnectionNotFoundError,
         WorkspaceNotFoundError,

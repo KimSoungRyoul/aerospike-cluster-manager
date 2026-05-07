@@ -104,6 +104,12 @@ async def list_sets(client: aerospike_py.AsyncClient, namespace: str) -> list[Se
     Raises ``NamespaceNotFoundError`` if ``namespace`` is not present on the
     cluster.
     """
+    # TODO: drop the existence check (currently 1 extra info round-trip)
+    # once the failure mode of ``info_namespace`` / ``info_sets`` against a
+    # missing namespace is well-defined enough to surface a clean
+    # ``NamespaceNotFoundError`` from the natural error. Today the info
+    # commands return an empty/garbage payload that aggregates to "no sets",
+    # which would silently swallow a typoed namespace.
     existing = await list_namespaces(client)
     if namespace not in existing:
         raise NamespaceNotFoundError(namespace)
