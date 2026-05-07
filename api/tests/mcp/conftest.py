@@ -42,8 +42,8 @@ from aerospike_cluster_manager_api.mcp.tools import (  # noqa: F401
 # Tool count constant — replaces the magic number ``21`` everywhere.
 # ---------------------------------------------------------------------------
 
-EXPECTED_TOOL_COUNT: int = 21
-"""Total number of MCP tools registered by Phase 1.
+EXPECTED_TOOL_COUNT: int = 22
+"""Total number of MCP tools registered by Phase 1 + the read-only info follow-up.
 
 Breakdown:
 * 8 connection tools (create, get, update, delete, list, connect, disconnect,
@@ -51,7 +51,7 @@ Breakdown:
 * 3 cluster info (list_namespaces, list_sets, get_nodes)
 * 7 record (get, exists, create, update, delete, delete_bin, truncate_set)
 * 1 query
-* 2 info commands (execute_info, execute_info_on_node)
+* 3 info commands (execute_info, execute_info_on_node, execute_info_read_only)
 """
 
 

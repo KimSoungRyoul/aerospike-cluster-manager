@@ -131,6 +131,24 @@ def test_map_unknown_predicate_operator_to_invalid_argument() -> None:
     assert isinstance(err.__cause__, UnknownPredicateOperator)
 
 
+def test_map_info_verb_not_allowed_to_invalid_argument() -> None:
+    """``info_verbs.InfoVerbNotAllowed`` shares the same wire family as
+    ``UnknownPredicateOperator`` — the LLM should pick a different verb
+    rather than escalate. ``code="invalid_argument"``, NOT
+    ``access_denied`` (the tool itself is read-only-callable; the verb
+    just isn't on the whitelist).
+    """
+    from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed
+
+    with pytest.raises(MCPToolError) as exc_info, map_aerospike_errors():
+        raise InfoVerbNotAllowed("recluster")
+
+    err = exc_info.value
+    assert err.code == "invalid_argument"
+    assert "recluster" in str(err)
+    assert isinstance(err.__cause__, InfoVerbNotAllowed)
+
+
 # ---------------------------------------------------------------------------
 # map_aerospike_errors — service-layer domain exceptions
 # ---------------------------------------------------------------------------

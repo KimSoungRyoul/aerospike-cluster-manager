@@ -118,3 +118,42 @@ async def test_read_tool_works_under_read_only(read_only_profile: None) -> None:
 
     assert out["key"]["namespace"] == "test"
     assert out["bins"]["name"] == "Alice"
+
+
+async def test_execute_info_read_only_works_under_read_only(read_only_profile: None) -> None:
+    """``execute_info_read_only`` is mutation=False — READ_ONLY callers can
+    invoke it for safe diagnostic reads even though the sibling
+    ``execute_info`` and ``execute_info_on_node`` are blocked. The verb
+    whitelist still applies."""
+    from aerospike_cluster_manager_api.mcp.tools import info_commands as info_tools
+
+    with (
+        patch.object(info_tools.client_manager, "get_client", new=AsyncMock(return_value=object())),
+        patch(
+            "aerospike_cluster_manager_api.mcp.tools.info_commands.clusters_service.execute_info_read_only",
+            new=AsyncMock(return_value=("<random>", "test;bar")),
+        ),
+    ):
+        out = await info_tools.execute_info_read_only(conn_id="x", command="namespaces")
+
+    assert out["node"] == "<random>"
+    assert out["response"] == "test;bar"
+
+
+async def test_execute_info_read_only_unwhitelisted_verb_yields_invalid_argument(
+    read_only_profile: None,
+) -> None:
+    """A write verb in execute_info_read_only goes through the access gate
+    (mutation=False, so it passes), but the service-layer whitelist rejects
+    the verb and surfaces ``invalid_argument`` — distinct from the
+    ``access_denied`` returned by the sibling ``execute_info`` tools."""
+    from aerospike_cluster_manager_api.mcp.tools import info_commands as info_tools
+
+    with (
+        patch.object(info_tools.client_manager, "get_client", new=AsyncMock(return_value=object())),
+        pytest.raises(MCPToolError) as exc_info,
+    ):
+        await info_tools.execute_info_read_only(conn_id="x", command="recluster:")
+
+    assert exc_info.value.code == "invalid_argument"
+    assert "recluster" in str(exc_info.value)

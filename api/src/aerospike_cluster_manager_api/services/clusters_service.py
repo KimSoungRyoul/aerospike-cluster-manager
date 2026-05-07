@@ -223,6 +223,46 @@ async def execute_info_on_node(client: aerospike_py.AsyncClient, command: str, n
     raise NodeNotFoundError(node_name)
 
 
+async def execute_info_read_only(
+    client: aerospike_py.AsyncClient,
+    command: str,
+    node_name: str | None = None,
+) -> tuple[str, str]:
+    """Run a whitelisted read-only asinfo command.
+
+    Validates the verb against :data:`info_verbs.READ_ONLY_INFO_VERBS`
+    *before* hitting the wire — a bad verb raises
+    :class:`info_verbs.InfoVerbNotAllowed` (mapped to
+    ``code=invalid_argument`` at the MCP boundary). The whitelist is the
+    single source of truth for what ``ACM_MCP_ACCESS_PROFILE=read_only``
+    can call via ``execute_info_read_only``; mutation tools
+    (``execute_info``, ``execute_info_on_node``) remain unrestricted under
+    ``FULL`` access.
+
+    Returns a ``(node, response)`` tuple. With ``node_name=None`` we hit a
+    random node (cheaper than ``info_all`` for cluster-uniform reads); with
+    an explicit ``node_name`` we fan out via ``info_all`` then filter, and
+    raise :class:`NodeNotFoundError` if the node didn't respond.
+    """
+    # Local import keeps the service-module surface free of MCP-only
+    # symbols at import time; the check is hot-path-irrelevant.
+    from aerospike_cluster_manager_api.info_verbs import assert_read_only
+
+    assert_read_only(command)
+
+    if node_name is None:
+        response = await client.info_random_node(command)
+        return ("<random>", response)
+
+    results = await client.info_all(command)
+    for name, err, resp in results:
+        if name == node_name:
+            if err:
+                raise NodeNotFoundError(node_name)
+            return (name, resp)
+    raise NodeNotFoundError(node_name)
+
+
 # ---------------------------------------------------------------------------
 # Composed read & write
 # ---------------------------------------------------------------------------

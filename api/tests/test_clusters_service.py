@@ -246,6 +246,60 @@ class TestExecuteInfoOnNode:
 
 
 # ---------------------------------------------------------------------------
+# execute_info_read_only
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteInfoReadOnly:
+    async def test_random_node_path_uses_info_random_node(self):
+        from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed  # noqa: F401
+
+        client = _make_mock_client()
+        client.info_random_node.return_value = "test;bar"
+        node, response = await clusters_service.execute_info_read_only(client, "namespaces")
+        assert node == "<random>"
+        assert response == "test;bar"
+        client.info_random_node.assert_awaited_with("namespaces")
+        # info_all is reserved for the per-node fan-out path; should not fire
+        # when node_name is None.
+        client.info_all.assert_not_called()
+
+    async def test_specific_node_filters_info_all(self):
+        client = _make_mock_client()
+        # ``statistics`` is in the whitelist AND the mock has a fan-out
+        # response for it (node1 + node2). The service should pick node1.
+        node, response = await clusters_service.execute_info_read_only(client, "statistics", node_name="node1")
+        assert node == "node1"
+        assert "cluster_size=2" in response
+
+    async def test_unknown_node_raises(self):
+        client = _make_mock_client()
+        with pytest.raises(NodeNotFoundError):
+            await clusters_service.execute_info_read_only(client, "namespaces", node_name="ghost")
+
+    async def test_unwhitelisted_verb_raises_before_client_call(self):
+        from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed
+
+        client = _make_mock_client()
+        with pytest.raises(InfoVerbNotAllowed) as exc:
+            await clusters_service.execute_info_read_only(client, "set-config:context=service;migrate-threads=2")
+        assert exc.value.verb == "set-config"
+        # Critical: the wire was NOT touched. The whitelist gate fires
+        # before any client call so a malicious verb can't even establish
+        # an info round-trip.
+        client.info_random_node.assert_not_called()
+        client.info_all.assert_not_called()
+
+    async def test_empty_command_raises(self):
+        from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed
+
+        client = _make_mock_client()
+        with pytest.raises(InfoVerbNotAllowed):
+            await clusters_service.execute_info_read_only(client, "")
+        client.info_random_node.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # get_cluster_info (full composition)
 # ---------------------------------------------------------------------------
 
