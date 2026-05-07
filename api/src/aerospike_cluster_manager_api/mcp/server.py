@@ -12,7 +12,14 @@ from aerospike_cluster_manager_api.mcp.registry import register_all
 
 
 def build_mcp_app() -> FastMCP:
-    """Construct the ACM MCP server with all decorated tools registered."""
-    mcp = FastMCP("aerospike-cluster-manager")
+    """Construct the ACM MCP server with all decorated tools registered.
+
+    ``streamable_http_path="/"`` keeps the inner Streamable-HTTP route at
+    the root of the FastMCP sub-app, so when ``main.py`` mounts the sub-app
+    at ``/mcp`` (``ACM_MCP_PATH``) clients can reach the transport at
+    exactly ``/mcp`` rather than the doubled ``/mcp/mcp`` produced by the
+    SDK default.
+    """
+    mcp = FastMCP("aerospike-cluster-manager", streamable_http_path="/")
     register_all(mcp)
     return mcp
