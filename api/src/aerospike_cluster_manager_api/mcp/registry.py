@@ -34,7 +34,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from aerospike_cluster_manager_api import config
-from aerospike_cluster_manager_api.mcp.access_profile import AccessProfile, is_blocked
+from aerospike_cluster_manager_api.mcp.access_profile import WRITE_TOOLS, AccessProfile, is_blocked
 from aerospike_cluster_manager_api.mcp.errors import MCPToolError, map_aerospike_errors
 
 
@@ -53,6 +53,13 @@ class ToolMetadata:
 
 
 _REGISTRY: list[ToolMetadata] = []
+
+# Tracks FastMCP instances that ``register_all`` has already populated,
+# keyed by ``id(mcp)``. If ``build_mcp_app()`` is invoked twice in the
+# same process (e.g. test fixtures, hot reload), re-running
+# ``mcp.add_tool(...)`` would raise FastMCP's "duplicate tool name"
+# error. Skipping the second call is idempotent and cheap.
+_REGISTERED_MCP_IDS: set[int] = set()
 
 
 def tool(
@@ -84,6 +91,24 @@ def tool(
         if any(entry.name == tool_name for entry in _REGISTRY):
             raise ValueError(f"Duplicate tool registration: {tool_name}")
 
+        # M3 — registry-time consistency check. WRITE_TOOLS is the
+        # authoritative list consulted by the call-time access profile
+        # gate; the @tool(mutation=...) flag is purely declarative. If
+        # the two ever drift (someone adds a mutation tool but forgets
+        # to add it to WRITE_TOOLS, or vice versa), the read_only
+        # profile silently fails open. Catching the drift at import
+        # time forces the conflict to surface as a startup error rather
+        # than a security regression discovered in production. The
+        # call-site is_blocked() check below stays as defense-in-depth.
+        expected_mutation = tool_name in WRITE_TOOLS
+        if mutation != expected_mutation:
+            raise ValueError(
+                f"Tool {tool_name!r} mutation flag ({mutation}) disagrees with "
+                f"WRITE_TOOLS membership ({expected_mutation}). "
+                "Update mcp/access_profile.WRITE_TOOLS or the @tool(mutation=...) "
+                "flag so they agree."
+            )
+
         is_async = inspect.iscoroutinefunction(func)
 
         @functools.wraps(func)
@@ -109,10 +134,15 @@ def register_all(mcp: FastMCP) -> int:
     """Wire every accumulated tool into ``mcp`` and return the count.
 
     Called once by :func:`build_mcp_app` (B.6). Invoking it on an empty
-    registry returns ``0`` and leaves ``mcp`` untouched.
+    registry returns ``0`` and leaves ``mcp`` untouched. If the same
+    ``mcp`` instance is passed twice (re-entry guard), the second call
+    is a no-op so we don't trip FastMCP's duplicate-name error.
     """
+    if id(mcp) in _REGISTERED_MCP_IDS:
+        return len(_REGISTRY)
     for entry in _REGISTRY:
         mcp.add_tool(entry.func, name=entry.name)
+    _REGISTERED_MCP_IDS.add(id(mcp))
     return len(_REGISTRY)
 
 
@@ -134,3 +164,4 @@ def _reset_for_tests() -> None:
     :func:`register_all` exactly once from :func:`build_mcp_app`.
     """
     _REGISTRY.clear()
+    _REGISTERED_MCP_IDS.clear()

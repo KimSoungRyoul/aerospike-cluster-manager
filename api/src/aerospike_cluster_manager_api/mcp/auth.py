@@ -14,11 +14,12 @@ OR-combined gate with the existing OIDC middleware:
 
 * If ``ACM_MCP_TOKEN`` is set, the request passes when EITHER:
     - OIDC has already authenticated the request (i.e.
-      ``request.state.user`` is non-None), OR
+      ``request.state.user_claims`` is non-None), OR
     - The ``Authorization`` header carries a matching
       ``Bearer <token>`` value.
   Otherwise the middleware returns ``401 {"detail": "MCP authentication
-  required"}``.
+  required"}`` with a ``WWW-Authenticate: Bearer realm="acm-mcp"``
+  header so RFC-7235-compliant clients know the challenge scheme.
 
 Token comparison uses :func:`secrets.compare_digest` so the wall-clock
 cost is independent of the prefix match length — which closes a timing
@@ -46,6 +47,17 @@ logger = logging.getLogger(__name__)
 
 
 _UNAUTHORIZED_BODY: dict[str, str] = {"detail": "MCP authentication required"}
+_UNAUTHORIZED_HEADERS: dict[str, str] = {"WWW-Authenticate": 'Bearer realm="acm-mcp"'}
+
+
+def _unauthorized() -> JSONResponse:
+    """Build the canonical 401 response for the MCP gate.
+
+    Centralized so both call sites (missing/non-bearer header and
+    bearer token mismatch) emit the same body AND the same
+    ``WWW-Authenticate`` challenge header (M4).
+    """
+    return JSONResponse(_UNAUTHORIZED_BODY, status_code=401, headers=_UNAUTHORIZED_HEADERS)
 
 
 class MCPBearerTokenMiddleware(BaseHTTPMiddleware):
@@ -64,8 +76,14 @@ class MCPBearerTokenMiddleware(BaseHTTPMiddleware):
         call_next: RequestResponseEndpoint,
     ) -> Response:
         # Read path-prefix from config at request time so deployments
-        # that override ACM_MCP_PATH still gate correctly.
-        if not request.url.path.startswith(config.ACM_MCP_PATH):
+        # that override ACM_MCP_PATH still gate correctly. We compare on
+        # path-segment boundaries (M1): exact match against ``base`` OR
+        # path begins with ``base + "/"``. A naive ``startswith(base)``
+        # would let ``/mcp-evil/foo`` slip past the gate when
+        # ACM_MCP_PATH is ``/mcp``.
+        path = request.url.path
+        base = config.ACM_MCP_PATH
+        if path != base and not path.startswith(base.rstrip("/") + "/"):
             return await call_next(request)
 
         token = config.ACM_MCP_TOKEN
@@ -88,12 +106,23 @@ class MCPBearerTokenMiddleware(BaseHTTPMiddleware):
                 "MCP request rejected: missing or non-bearer Authorization header (path=%s)",
                 request.url.path,
             )
-            return JSONResponse(_UNAUTHORIZED_BODY, status_code=401)
+            return _unauthorized()
 
         # ``split(" ", 1)`` after the lower-case prefix check above is
         # safe because the header is known to start with ``bearer <space>``.
         supplied = header.split(" ", 1)[1].strip()
-        if not supplied or not secrets.compare_digest(supplied, token):
+        # ``secrets.compare_digest`` raises TypeError on non-ASCII ``str``
+        # inputs (e.g. ``Bearer café``). Encode to UTF-8 bytes inside a
+        # try/except so a hostile or malformed header can never crash the
+        # middleware — any encoding error is treated as auth failure (B1).
+        # The constant-time guarantee is preserved by feeding both sides
+        # equal-length-handling bytes; ``compare_digest`` itself handles
+        # length mismatches in constant time relative to the longer input.
+        try:
+            ok = secrets.compare_digest(supplied.encode("utf-8"), token.encode("utf-8"))
+        except Exception:
+            ok = False
+        if not supplied or not ok:
             # Do NOT log the supplied or configured token — this branch
             # is the most likely to leak secrets if a future maintainer
             # adds debug logging carelessly.
@@ -101,6 +130,6 @@ class MCPBearerTokenMiddleware(BaseHTTPMiddleware):
                 "MCP request rejected: bearer token mismatch (path=%s)",
                 request.url.path,
             )
-            return JSONResponse(_UNAUTHORIZED_BODY, status_code=401)
+            return _unauthorized()
 
         return await call_next(request)

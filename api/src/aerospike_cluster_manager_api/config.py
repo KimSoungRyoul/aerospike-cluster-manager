@@ -176,6 +176,15 @@ OIDC_EXCLUDE_PATHS: list[str] = _parse_str_list(
 # applies via the OIDC middleware when ``OIDC_ENABLED`` is true.
 ACM_MCP_ENABLED: bool = _get_bool("ACM_MCP_ENABLED", False)
 ACM_MCP_PATH: str = os.getenv("ACM_MCP_PATH", "/mcp")
+# M2 — validate ACM_MCP_PATH at import time so a misconfigured deployment
+# (e.g. ``ACM_MCP_PATH=mcp`` without leading slash, or ``ACM_MCP_PATH=/``
+# which would shadow every route) fails loudly on process start instead
+# of producing a quietly-broken mount. Canonicalize by trimming the
+# trailing slash so the path-segment check in ``mcp/auth.py`` (M1) and
+# the FastAPI ``app.mount`` call agree on the same string.
+if not ACM_MCP_PATH.startswith("/") or ACM_MCP_PATH == "/":
+    raise ValueError(f"ACM_MCP_PATH must start with '/' and not be '/' alone; got {ACM_MCP_PATH!r}")
+ACM_MCP_PATH = ACM_MCP_PATH.rstrip("/")
 # Optional shared-secret bearer token for the ``/mcp`` surface. When set
 # alongside ``ACM_MCP_ENABLED=true``, the MCPBearerTokenMiddleware enforces
 # ``Authorization: Bearer <token>`` on requests that OIDC has not already
@@ -187,3 +196,11 @@ ACM_MCP_TOKEN: str = os.getenv("ACM_MCP_TOKEN", "")
 # at the call site even though the registry still advertises them. ``FULL``
 # allows all tools. See ``mcp/access_profile.py`` for the WRITE list.
 ACM_MCP_ACCESS_PROFILE: AccessProfile = parse_profile(os.getenv("ACM_MCP_ACCESS_PROFILE", "read_only"))
+# B2 — escape hatch for the anonymous-MCP-exposure refusal in main.py.
+# Without this flag the API process refuses to start when
+# ``ACM_MCP_ENABLED=true`` AND OIDC is disabled AND ``ACM_MCP_TOKEN`` is
+# empty, because that combination publishes the MCP surface to the
+# entire network with no auth. Operators who are genuinely on a localhost
+# loopback or behind a sealed-off ingress can opt back in here, but the
+# refusal is the default for a reason.
+ACM_MCP_ALLOW_ANONYMOUS: bool = _get_bool("ACM_MCP_ALLOW_ANONYMOUS", False)

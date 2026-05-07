@@ -52,6 +52,16 @@ setup_logging(config.LOG_LEVEL, config.LOG_FORMAT)
 logger = logging.getLogger(__name__)
 
 
+# ORDERING INVARIANT: this module-global is SET by the MCP mount block
+# below at module-import time (see ``if config.ACM_MCP_ENABLED:`` further
+# down — it assigns ``_mcp_app = build_mcp_app()``), and READ by
+# ``lifespan()`` at FastAPI startup to drive the FastMCP session_manager.
+# The two events happen in different phases of the process lifecycle, so
+# leaving the variable as a module-level binding (rather than a closure
+# or app.state attribute) is intentional. Don't move this declaration
+# below the mount block — Python would still resolve the name at call
+# time, but the explicit ``None`` default is what makes the
+# else-branch in lifespan() correct when MCP is disabled.
 _mcp_app = None  # populated below when ACM_MCP_ENABLED so lifespan can drive its session_manager
 
 
@@ -274,6 +284,20 @@ async def security_headers_middleware(request: Request, call_next: RequestRespon
 # We install only when ``ACM_MCP_ENABLED=true`` — when the mount itself
 # is off, the path doesn't exist and the middleware would be dead weight.
 if config.ACM_MCP_ENABLED:
+    # B2 — refuse to start when the MCP surface would be unauthenticated.
+    # OIDC OR a shared-secret bearer token must be configured, otherwise
+    # ``/mcp/*`` would be open to any network peer that can reach the API
+    # port. ``ACM_MCP_ALLOW_ANONYMOUS=true`` is the documented escape
+    # hatch for localhost-only or trusted-network deployments.
+    if not config.OIDC_ENABLED and not config.ACM_MCP_TOKEN and not config.ACM_MCP_ALLOW_ANONYMOUS:
+        raise RuntimeError(
+            "ACM_MCP_ENABLED=true but neither OIDC nor ACM_MCP_TOKEN is configured. "
+            "Refusing to start an anonymous MCP surface. Set OIDC_ENABLED=true and "
+            "OIDC_ISSUER_URL, OR set ACM_MCP_TOKEN to a shared secret, OR set "
+            "ACM_MCP_ALLOW_ANONYMOUS=true if you have verified the deployment is "
+            "isolated to localhost / a trusted network."
+        )
+
     from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
 
     app.add_middleware(MCPBearerTokenMiddleware)

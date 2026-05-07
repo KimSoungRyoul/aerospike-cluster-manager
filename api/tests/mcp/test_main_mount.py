@@ -23,24 +23,6 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
-async def _reload_main() -> AsyncIterator[None]:
-    """Reload config + main so module-level toggles re-evaluate.
-
-    Used as the body of the helper fixtures below — keeps the env-var
-    setup in the test-side fixture and the reload logic in one place.
-    """
-    from aerospike_cluster_manager_api import config as _config
-    from aerospike_cluster_manager_api import main as _main
-
-    importlib.reload(_config)
-    importlib.reload(_main)
-    yield
-    # Restore default state on the way out so other tests in the suite
-    # see a clean module-level app.
-    importlib.reload(_config)
-    importlib.reload(_main)
-
-
 @pytest.fixture()
 async def app_with_mcp_disabled(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[object]:
     """Reload main with ACM_MCP_ENABLED unset (default False)."""
@@ -59,8 +41,15 @@ async def app_with_mcp_disabled(monkeypatch: pytest.MonkeyPatch) -> AsyncIterato
 
 @pytest.fixture()
 async def app_with_mcp_enabled(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[object]:
-    """Reload main with ACM_MCP_ENABLED=true."""
+    """Reload main with ACM_MCP_ENABLED=true.
+
+    The startup-refusal added in Phase 1 (see ``main.py:286-299``) requires
+    ACM_MCP_ENABLED=true to be paired with one of OIDC, ACM_MCP_TOKEN, or
+    ACM_MCP_ALLOW_ANONYMOUS. We opt for ALLOW_ANONYMOUS here because this
+    fixture is exercising mount semantics, not the auth gate.
+    """
     monkeypatch.setenv("ACM_MCP_ENABLED", "true")
+    monkeypatch.setenv("ACM_MCP_ALLOW_ANONYMOUS", "true")
     from aerospike_cluster_manager_api import config as _config
     from aerospike_cluster_manager_api import main as _main
 
@@ -70,6 +59,7 @@ async def app_with_mcp_enabled(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator
         yield _main.app
     finally:
         monkeypatch.delenv("ACM_MCP_ENABLED", raising=False)
+        monkeypatch.delenv("ACM_MCP_ALLOW_ANONYMOUS", raising=False)
         importlib.reload(_config)
         importlib.reload(_main)
 

@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import importlib
 from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -213,6 +214,150 @@ async def test_missing_authorization_header_yields_401(monkeypatch: pytest.Monke
             resp = await ac.get("/mcp")
             assert resp.status_code == 401
             assert resp.json() == {"detail": "MCP authentication required"}
+            # M4 — RFC-7235 ``WWW-Authenticate`` challenge header so
+            # bearer-aware clients know the scheme + realm.
+            assert resp.headers.get("www-authenticate") == 'Bearer realm="acm-mcp"'
+    finally:
+        _reload_config(monkeypatch, ACM_MCP_TOKEN=None)
+
+
+async def test_401_response_carries_www_authenticate_challenge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both 401 paths (missing/non-bearer header AND wrong-token) emit the
+    same ``WWW-Authenticate: Bearer realm="acm-mcp"`` challenge header so
+    a single client implementation can negotiate against either failure
+    mode."""
+    _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token")
+    try:
+        app = _build_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # Missing header
+            resp = await ac.get("/mcp")
+            assert resp.status_code == 401
+            assert resp.headers.get("www-authenticate") == 'Bearer realm="acm-mcp"'
+            # Wrong token
+            resp = await ac.get("/mcp", headers={"Authorization": "Bearer nope"})
+            assert resp.status_code == 401
+            assert resp.headers.get("www-authenticate") == 'Bearer realm="acm-mcp"'
+    finally:
+        _reload_config(monkeypatch, ACM_MCP_TOKEN=None)
+
+
+async def test_non_ascii_bearer_token_does_not_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """B1 — A header like ``Bearer café`` would crash
+    :func:`secrets.compare_digest` because the function rejects non-ASCII
+    ``str`` inputs. The middleware encodes to UTF-8 inside a try/except
+    and treats encoding failures as auth failure, so the response must
+    be 401 (not 500).
+
+    httpx's ``Headers`` builder normalises header values to ASCII via
+    :func:`str.encode`, which throws on a literal ``café`` argument. We
+    bypass that by driving the ASGI app directly with a synthetic scope
+    whose ``headers`` list contains raw UTF-8-encoded bytes for the
+    Authorization value — that's exactly the byte sequence the
+    middleware's ``request.headers.get(...)`` call would resolve to in
+    a real-world request from a misbehaving client.
+    """
+    from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+    _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token")
+    try:
+        # Minimal ASGI app under test: just the middleware in front of a
+        # 200 endpoint at /mcp. Drive it directly via the ASGI 3 protocol
+        # so we can inject non-ASCII bytes as the Authorization value.
+        app = _build_app()
+        # Compose the same scope httpx would build, but with a non-ASCII
+        # Authorization header encoded as UTF-8 bytes.
+        scope = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "http_version": "1.1",
+            "method": "GET",
+            "scheme": "http",
+            "path": "/mcp",
+            "raw_path": b"/mcp",
+            "query_string": b"",
+            "root_path": "",
+            "headers": [
+                (b"host", b"test"),
+                # Non-ASCII bytes — would crash compare_digest if not
+                # caught defensively.
+                (b"authorization", "Bearer café".encode()),
+            ],
+            "client": ("127.0.0.1", 12345),
+            "server": ("test", 80),
+        }
+
+        # Capture the response status by replaying the ASGI events.
+        sent: list[dict[str, Any]] = []
+
+        async def receive():  # type: ignore[no-untyped-def]
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):  # type: ignore[no-untyped-def]
+            sent.append(message)
+
+        # Sanity check: the middleware class is the dispatcher we expect.
+        assert MCPBearerTokenMiddleware is not None
+        await app(scope, receive, send)  # pyright: ignore[reportArgumentType]
+
+        # The first message should be ``http.response.start`` with the
+        # 401 status code. (Subsequent messages are body chunks.)
+        statuses = [m["status"] for m in sent if m["type"] == "http.response.start"]
+        assert statuses == [401], f"expected 401, got events {sent!r}"
+    finally:
+        _reload_config(monkeypatch, ACM_MCP_TOKEN=None)
+
+
+async def test_empty_bearer_token_yields_401(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``Bearer `` (empty token) must be rejected with 401, not pass through.
+    Even though ``compare_digest`` of two empty strings would return True,
+    the middleware short-circuits empty supplied tokens explicitly."""
+    _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token")
+    try:
+        app = _build_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/mcp",
+                headers={"Authorization": "Bearer "},
+            )
+            assert resp.status_code == 401
+    finally:
+        _reload_config(monkeypatch, ACM_MCP_TOKEN=None)
+
+
+async def test_path_prefix_bypass_attempt_is_not_gated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """M1 — Path comparison is on segment boundaries. A request to
+    ``/mcphax`` (which would pass a naive ``startswith("/mcp")`` check)
+    must NOT be intercepted by the MCP middleware — the bearer gate
+    should only apply to ``/mcp`` and ``/mcp/...`` paths."""
+    from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+    _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token")
+    try:
+        app = FastAPI()
+
+        @app.get("/mcphax")
+        async def evil_route() -> dict:
+            return {"slipped_through": True}
+
+        app.add_middleware(MCPBearerTokenMiddleware)
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            # No bearer header — but ``/mcphax`` is not a sub-path of
+            # ``/mcp`` so the middleware must NOT intercept and 401 it.
+            resp = await ac.get("/mcphax")
+            assert resp.status_code == 200
+            assert resp.json() == {"slipped_through": True}
     finally:
         _reload_config(monkeypatch, ACM_MCP_TOKEN=None)
 
@@ -442,8 +587,15 @@ async def app_with_mcp_enabled_and_token(
 async def app_with_mcp_enabled_no_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncIterator[object]:
-    """Reload main with ACM_MCP_ENABLED=true and ACM_MCP_TOKEN unset."""
+    """Reload main with ACM_MCP_ENABLED=true and ACM_MCP_TOKEN unset.
+
+    Sets ACM_MCP_ALLOW_ANONYMOUS=true so the startup refusal added in
+    Phase 1 (``main.py``) does not abort import — this fixture targets
+    the pass-through behaviour of the bearer middleware when no token
+    is configured.
+    """
     monkeypatch.setenv("ACM_MCP_ENABLED", "true")
+    monkeypatch.setenv("ACM_MCP_ALLOW_ANONYMOUS", "true")
     monkeypatch.delenv("ACM_MCP_TOKEN", raising=False)
     from aerospike_cluster_manager_api import config as _config
     from aerospike_cluster_manager_api import main as _main
@@ -454,6 +606,7 @@ async def app_with_mcp_enabled_no_token(
         yield _main.app
     finally:
         monkeypatch.delenv("ACM_MCP_ENABLED", raising=False)
+        monkeypatch.delenv("ACM_MCP_ALLOW_ANONYMOUS", raising=False)
         importlib.reload(_config)
         importlib.reload(_main)
 
@@ -562,6 +715,93 @@ def test_mcp_bearer_token_middleware_dispatch_signature() -> None:
 
     sig = inspect.signature(MCPBearerTokenMiddleware.dispatch)
     assert list(sig.parameters.keys())[:3] == ["self", "request", "call_next"]
+
+
+# ---------------------------------------------------------------------------
+# Startup refusal — anonymous MCP exposure must be opt-in
+# ---------------------------------------------------------------------------
+
+
+def test_main_refuses_to_start_when_mcp_enabled_without_auth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """B2 — When ``ACM_MCP_ENABLED=true`` is paired with NO OIDC, NO
+    ``ACM_MCP_TOKEN``, and NO ``ACM_MCP_ALLOW_ANONYMOUS=true``, importing
+    ``main.py`` must raise ``RuntimeError``. That refusal is the default
+    safety net against publishing the MCP surface to the network without
+    auth.
+
+    We exercise it via ``importlib.reload(main)`` because the check runs
+    at module import time. The error message must mention the three
+    knobs an operator can toggle to fix the misconfiguration so a deploy
+    failure points to the right knob.
+    """
+    monkeypatch.setenv("ACM_MCP_ENABLED", "true")
+    monkeypatch.delenv("ACM_MCP_TOKEN", raising=False)
+    monkeypatch.delenv("ACM_MCP_ALLOW_ANONYMOUS", raising=False)
+    monkeypatch.delenv("OIDC_ENABLED", raising=False)
+
+    from aerospike_cluster_manager_api import config as _config
+    from aerospike_cluster_manager_api import main as _main
+
+    importlib.reload(_config)
+    try:
+        with pytest.raises(RuntimeError, match="anonymous MCP surface"):
+            importlib.reload(_main)
+    finally:
+        # Reset env so other tests see a clean main.py.
+        monkeypatch.delenv("ACM_MCP_ENABLED", raising=False)
+        importlib.reload(_config)
+        importlib.reload(_main)
+
+
+def test_main_starts_when_mcp_enabled_with_allow_anonymous(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``ACM_MCP_ALLOW_ANONYMOUS=true`` is the documented escape hatch for
+    localhost-only / trusted-network deployments."""
+    monkeypatch.setenv("ACM_MCP_ENABLED", "true")
+    monkeypatch.setenv("ACM_MCP_ALLOW_ANONYMOUS", "true")
+    monkeypatch.delenv("ACM_MCP_TOKEN", raising=False)
+    monkeypatch.delenv("OIDC_ENABLED", raising=False)
+
+    from aerospike_cluster_manager_api import config as _config
+    from aerospike_cluster_manager_api import main as _main
+
+    importlib.reload(_config)
+    try:
+        importlib.reload(_main)  # must NOT raise
+        # The app object exists and has the MCP route.
+        assert hasattr(_main, "app")
+    finally:
+        monkeypatch.delenv("ACM_MCP_ENABLED", raising=False)
+        monkeypatch.delenv("ACM_MCP_ALLOW_ANONYMOUS", raising=False)
+        importlib.reload(_config)
+        importlib.reload(_main)
+
+
+def test_main_starts_when_mcp_enabled_with_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A configured ``ACM_MCP_TOKEN`` is sufficient — the bearer middleware
+    will gate the surface."""
+    monkeypatch.setenv("ACM_MCP_ENABLED", "true")
+    monkeypatch.setenv("ACM_MCP_TOKEN", "any-secret")
+    monkeypatch.delenv("ACM_MCP_ALLOW_ANONYMOUS", raising=False)
+    monkeypatch.delenv("OIDC_ENABLED", raising=False)
+
+    from aerospike_cluster_manager_api import config as _config
+    from aerospike_cluster_manager_api import main as _main
+
+    importlib.reload(_config)
+    try:
+        importlib.reload(_main)
+        assert hasattr(_main, "app")
+    finally:
+        monkeypatch.delenv("ACM_MCP_ENABLED", raising=False)
+        monkeypatch.delenv("ACM_MCP_TOKEN", raising=False)
+        importlib.reload(_config)
+        importlib.reload(_main)
 
 
 # Static reference to silence "imported but unused" — the imports help

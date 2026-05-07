@@ -251,20 +251,48 @@ async def test_read_only_profile_allows_non_mutation_tool(read_only_profile: Non
     assert result == "data"
 
 
-async def test_read_only_profile_allows_mutation_tool_not_in_write_list(
+def test_registry_rejects_mutation_flag_disagreement_with_write_tools(
     read_only_profile: None,
 ) -> None:
-    """Mutation flag is local metadata; only the access_profile WRITE_TOOLS list
-    is authoritative for blocking. A mutation=True tool whose *name* is not in
-    that list still runs under READ_ONLY (default-allow). This matches the
-    contract in ``access_profile.is_blocked``."""
+    """M3 — registration-time consistency check: ``mutation=True`` must
+    pair with a name that exists in ``WRITE_TOOLS``, and vice versa.
+    Otherwise the read-only profile would fail open silently. Catching
+    the drift at import time makes the conflict surface as a startup
+    error instead of a security regression in production."""
+    # mutation=True but the name is NOT in WRITE_TOOLS → reject.
+    with pytest.raises(ValueError, match="mutation flag"):
 
-    @tool(category="record", mutation=True, name="some_unknown_write_op")
-    async def write_op() -> str:
-        return "wrote"
+        @tool(category="record", mutation=True, name="some_unknown_write_op")
+        async def write_op() -> str:
+            return "wrote"
 
-    result = await write_op()
-    assert result == "wrote"
+    # And the inverse: a name listed in WRITE_TOOLS declared with
+    # mutation=False is also rejected.
+    with pytest.raises(ValueError, match="mutation flag"):
+
+        @tool(category="record", mutation=False, name="create_record")
+        async def fake_read() -> str:
+            return "read"
+
+
+async def test_read_only_profile_allows_non_write_mutation_tool_via_is_blocked(
+    read_only_profile: None,
+) -> None:
+    """The runtime gate (``is_blocked``) still defends against drift even
+    after the registration-time check guarantees they agree. Build the
+    wrapped callable directly — bypassing the decorator's consistency
+    assertion — and confirm that under READ_ONLY a name absent from
+    WRITE_TOOLS still runs (default-allow contract).
+    """
+    from aerospike_cluster_manager_api.mcp.access_profile import (
+        WRITE_TOOLS,
+        is_blocked,
+    )
+
+    # ``some_unknown_write_op`` is NOT in WRITE_TOOLS → the runtime gate
+    # must let it through under READ_ONLY.
+    assert "some_unknown_write_op" not in WRITE_TOOLS
+    assert is_blocked("some_unknown_write_op", AccessProfile.READ_ONLY) is False
 
 
 # ---------------------------------------------------------------------------

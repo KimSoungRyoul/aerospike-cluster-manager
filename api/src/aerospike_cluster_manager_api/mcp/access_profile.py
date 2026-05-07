@@ -29,6 +29,12 @@ class AccessProfile(StrEnum):
     READ_ONLY = "read_only"
 
 
+# Kept in sync with ``@tool(mutation=True)`` decorations via the
+# registry-time consistency assertion in ``mcp/registry.py`` (M3). When
+# you add a new mutation tool you MUST update both this set and the
+# decorator on the tool function — the assertion will refuse the import
+# if they disagree, which is the desired behavior (fail loudly rather
+# than silently fail-open under READ_ONLY).
 WRITE_TOOLS: frozenset[str] = frozenset(
     {
         "create_connection",
