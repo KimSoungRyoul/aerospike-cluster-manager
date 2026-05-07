@@ -1,4 +1,4 @@
-"""MCP tools for Aerospike connection profile management (Voyager parity).
+"""MCP tools for Aerospike connection profile management.
 
 This module exposes 8 connection tools that wrap the existing service
 layer (:mod:`aerospike_cluster_manager_api.services.connections_service`)

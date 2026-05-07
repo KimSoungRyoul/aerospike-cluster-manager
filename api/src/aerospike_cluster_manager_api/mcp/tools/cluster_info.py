@@ -1,4 +1,4 @@
-"""MCP tools for Aerospike cluster inspection (Voyager parity).
+"""MCP tools for Aerospike cluster inspection.
 
 This module exposes 3 read-only tools that wrap the existing service layer
 (:mod:`aerospike_cluster_manager_api.services.clusters_service`) and the
@@ -11,8 +11,7 @@ live-client pool (:mod:`aerospike_cluster_manager_api.client_manager`):
 Design notes:
 
 * All 3 tools require an explicit ``conn_id`` — there's no implicit "default
-  cluster" fallback. Voyager parity: every cluster-scoped call names its
-  cluster.
+  cluster" fallback; every cluster-scoped call names its cluster.
 * ``client_manager.get_client`` raises :class:`ValueError` when the profile
   is missing; we re-raise as :class:`ConnectionNotFoundError` so the
   registry's error map produces the stable ``code="ConnectionNotFoundError"``

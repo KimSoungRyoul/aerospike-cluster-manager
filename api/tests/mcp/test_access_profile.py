@@ -1,6 +1,6 @@
 """Tests for the MCP access profile gate.
 
-The access profile is a Voyager-style read-only mode: it lets the MCP
+The access profile is a call-time read-only mode: it lets the MCP
 registry expose all tools to the model, but blocks writes at call time
 when the deployment is configured ``READ_ONLY``. ``execute_info`` and
 ``execute_info_on_node`` are intentionally classified as WRITE because

@@ -83,7 +83,7 @@ def test_mutation_flags_match_design() -> None:
     assert by_name["create_connection"].mutation is True
     assert by_name["update_connection"].mutation is True
     assert by_name["delete_connection"].mutation is True
-    # Read tools (and the connect/disconnect pair, which Voyager treats as
+    # Read tools (and the connect/disconnect pair, which we treat as
     # non-mutation) must not advertise mutation.
     assert by_name["get_connection"].mutation is False
     assert by_name["list_connections"].mutation is False

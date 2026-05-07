@@ -960,7 +960,7 @@ claude plugin install aerospike-ce-ecosystem
 
 ## MCP Server
 
-Cluster Manager can expose itself as a [Model Context Protocol](https://modelcontextprotocol.io/) server (Voyager-parity, 21 tools) so Claude Code plugins and external MCP-aware AI clients (Claude Desktop, Cursor) can read and operate clusters directly.
+Cluster Manager can expose itself as a [Model Context Protocol](https://modelcontextprotocol.io/) server (21 tools) so Claude Code plugins and external MCP-aware AI clients (Claude Desktop, Cursor) can read and operate clusters directly.
 
 ### Enable
 

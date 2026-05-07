@@ -192,7 +192,7 @@ ACM_MCP_PATH = ACM_MCP_PATH.rstrip("/")
 # and defers to OIDC. Used by clients that cannot perform a full OAuth
 # Authorization Code flow (CI agents, headless scripts).
 ACM_MCP_TOKEN: str = os.getenv("ACM_MCP_TOKEN", "")
-# Voyager-style call-time gate. ``READ_ONLY`` (default) blocks WRITE tools
+# Call-time access gate. ``READ_ONLY`` (default) blocks WRITE tools
 # at the call site even though the registry still advertises them. ``FULL``
 # allows all tools. See ``mcp/access_profile.py`` for the WRITE list.
 ACM_MCP_ACCESS_PROFILE: AccessProfile = parse_profile(os.getenv("ACM_MCP_ACCESS_PROFILE", "read_only"))

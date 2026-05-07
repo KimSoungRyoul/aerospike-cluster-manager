@@ -1,4 +1,4 @@
-"""MCP tools for Aerospike record CRUD (Voyager parity).
+"""MCP tools for Aerospike record CRUD.
 
 This module exposes 7 record tools that wrap the existing service layer
 (:mod:`aerospike_cluster_manager_api.services.records_service`) and the
@@ -20,7 +20,7 @@ Design notes:
   so CDT bytes round-trip safely as the documented base64 marker dict.
 * Mutations return small ack dicts so the model can confirm side-effects:
   ``{"created": True, ...}``, ``{"updated": True, ...}``, etc.
-* Keys are ``str | int`` at the MCP boundary — Voyager parity. The service
+* Keys are ``str | int`` at the MCP boundary. The service
   layer's auto pk-type heuristic resolves numeric strings into integers
   automatically, so the model can speak in either form. We always pass
   ``"auto"`` from this module; advanced pk-type semantics stay below the

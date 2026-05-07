@@ -1,6 +1,6 @@
 """MCP access profile gate.
 
-A Voyager-style read-only mode for the MCP surface: the registry exposes
+A call-time read-only mode for the MCP surface: the registry exposes
 all tools to the model, but ``is_blocked`` rejects writes at call time
 when the deployment is configured ``READ_ONLY``. Keeping the gate at the
 call site (rather than at registration time) means the same FastMCP
