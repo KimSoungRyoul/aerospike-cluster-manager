@@ -176,6 +176,13 @@ OIDC_EXCLUDE_PATHS: list[str] = _parse_str_list(
 # applies via the OIDC middleware when ``OIDC_ENABLED`` is true.
 ACM_MCP_ENABLED: bool = _get_bool("ACM_MCP_ENABLED", False)
 ACM_MCP_PATH: str = os.getenv("ACM_MCP_PATH", "/mcp")
+# Optional shared-secret bearer token for the ``/mcp`` surface. When set
+# alongside ``ACM_MCP_ENABLED=true``, the MCPBearerTokenMiddleware enforces
+# ``Authorization: Bearer <token>`` on requests that OIDC has not already
+# authenticated. Empty string (default) disables the bearer leg entirely
+# and defers to OIDC. Used by clients that cannot perform a full OAuth
+# Authorization Code flow (CI agents, headless scripts).
+ACM_MCP_TOKEN: str = os.getenv("ACM_MCP_TOKEN", "")
 # Voyager-style call-time gate. ``READ_ONLY`` (default) blocks WRITE tools
 # at the call site even though the registry still advertises them. ``FULL``
 # allows all tools. See ``mcp/access_profile.py`` for the WRITE list.

@@ -254,6 +254,19 @@ async def security_headers_middleware(request: Request, call_next: RequestRespon
 # preflight responses are still produced even when the bearer token is
 # missing/invalid (the OIDC dispatch short-circuits OPTIONS so CORSMiddleware
 # downstream answers the preflight).
+# The MCP bearer-token middleware is installed BEFORE OIDC in the
+# ``add_middleware`` order so that — given Starlette's reverse-add
+# semantics — it runs AFTER OIDC at request time. That ordering is
+# critical: by the time MCPBearerTokenMiddleware.dispatch() runs, OIDC
+# has already had a chance to set ``request.state.user``, which the MCP
+# middleware reads to short-circuit the bearer check (OIDC-OR-bearer).
+# We install only when ``ACM_MCP_ENABLED=true`` — when the mount itself
+# is off, the path doesn't exist and the middleware would be dead weight.
+if config.ACM_MCP_ENABLED:
+    from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+    app.add_middleware(MCPBearerTokenMiddleware)
+
 if config.OIDC_ENABLED:
     app.add_middleware(
         OIDCAuthMiddleware,
