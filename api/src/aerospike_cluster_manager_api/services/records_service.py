@@ -274,6 +274,124 @@ async def delete_record(
     await client.remove((namespace, set_name, resolved))
 
 
+async def record_exists(
+    client: aerospike_py.AsyncClient,
+    namespace: str,
+    set_name: str,
+    pk: str,
+    pk_type: PkType = "auto",
+) -> bool:
+    """Return True iff a record at ``(namespace, set, pk)`` exists.
+
+    Wraps :meth:`aerospike_py.AsyncClient.exists` — that call returns an
+    ``ExistsResult`` with ``meta=None`` when the record is absent (no
+    exception). We also catch :class:`RecordNotFound` defensively in case a
+    future client revision swaps to the exception form.
+
+    Raises:
+        ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
+    """
+    resolved = _resolve_pk(pk, pk_type)
+    try:
+        result = await client.exists((namespace, set_name, resolved), policy=POLICY_READ)
+    except RecordNotFound:
+        return False
+    return result.meta is not None
+
+
+async def create_record(
+    client: aerospike_py.AsyncClient,
+    namespace: str,
+    set_name: str,
+    pk: str,
+    bins: dict[str, Any],
+    pk_type: PkType = "auto",
+) -> None:
+    """Create a record, failing if one already exists at the same key.
+
+    Uses the ``POLICY_EXISTS_CREATE_ONLY`` write policy so a collision raises
+    :class:`aerospike_py.RecordExistsError` (which the MCP error mapper
+    translates to ``code="record_exists"``).
+
+    Raises:
+        RecordExistsError: a record already exists at ``(namespace, set, pk)``.
+        ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
+    """
+    resolved = _resolve_pk(pk, pk_type)
+    policy = {**POLICY_WRITE, "exists": aerospike_py.POLICY_EXISTS_CREATE_ONLY}
+    await client.put((namespace, set_name, resolved), bins, policy=policy)
+
+
+async def update_record(
+    client: aerospike_py.AsyncClient,
+    namespace: str,
+    set_name: str,
+    pk: str,
+    bins: dict[str, Any],
+    pk_type: PkType = "auto",
+) -> None:
+    """Update an existing record, failing if it does not already exist.
+
+    Uses ``POLICY_EXISTS_UPDATE_ONLY`` so a missing record raises
+    :class:`aerospike_py.RecordNotFound` (translated by the MCP error mapper
+    to ``code="record_not_found"``). The plain ``UPDATE`` policy would
+    *create* the record on a miss — :func:`create_record` is the explicit
+    create path; this primitive is strictly an update.
+
+    Raises:
+        RecordNotFound: no record exists at ``(namespace, set, pk)``.
+        ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
+    """
+    resolved = _resolve_pk(pk, pk_type)
+    policy = {**POLICY_WRITE, "exists": aerospike_py.POLICY_EXISTS_UPDATE_ONLY}
+    await client.put((namespace, set_name, resolved), bins, policy=policy)
+
+
+async def delete_bin(
+    client: aerospike_py.AsyncClient,
+    namespace: str,
+    set_name: str,
+    pk: str,
+    bin_name: str,
+    pk_type: PkType = "auto",
+) -> None:
+    """Remove a single bin from an existing record.
+
+    Wraps :meth:`aerospike_py.AsyncClient.remove_bin`, which sets the named
+    bin(s) to nil on the server. Removing the last bin from a record makes
+    the whole record disappear server-side — that's standard Aerospike
+    behaviour and not something we paper over here.
+
+    Raises:
+        RecordNotFound: the record does not exist.
+        ValueError: ``pk_type`` was explicit but ``pk`` could not be parsed.
+    """
+    resolved = _resolve_pk(pk, pk_type)
+    await client.remove_bin((namespace, set_name, resolved), [bin_name])
+
+
+async def truncate_set(
+    client: aerospike_py.AsyncClient,
+    namespace: str,
+    set_name: str,
+    before_lut: int | None = None,
+) -> None:
+    """Truncate every record in ``namespace.set_name`` (optionally up to a LUT).
+
+    ``before_lut`` is the cutoff in nanoseconds since CITRUS epoch (the
+    aerospike-py ``truncate`` API's ``nanos`` parameter). When omitted, the
+    truncate covers all records currently in the set. Pass an explicit
+    nanosecond value to truncate only records whose last-update-time is
+    below that threshold.
+
+    Internally this becomes the ``truncate-namespace:namespace=...;set=...
+    [;lut=...]`` info command — aerospike-py's :meth:`AsyncClient.truncate`
+    issues it for us so we don't have to format the wire string by hand.
+    """
+    nanos = before_lut if before_lut is not None else 0
+    await client.truncate(namespace, set_name, nanos)
+
+
 async def put_record(client: aerospike_py.AsyncClient, body: RecordWriteRequest) -> Record:
     """Write a record (create or update) and return the persisted state.
 

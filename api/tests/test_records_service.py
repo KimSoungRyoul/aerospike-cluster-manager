@@ -10,11 +10,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import aerospike_py
 import pytest
 from aerospike_py import exp
-from aerospike_py.exception import AerospikeError, RecordNotFound
+from aerospike_py.exception import AerospikeError, RecordExistsError, RecordNotFound
 
-from aerospike_cluster_manager_api.constants import POLICY_QUERY, POLICY_READ
+from aerospike_cluster_manager_api.constants import POLICY_QUERY, POLICY_READ, POLICY_WRITE
 from aerospike_cluster_manager_api.expression_builder import build_pk_filter_expression
 from aerospike_cluster_manager_api.models.query import (
     BinDataType,
@@ -231,6 +232,192 @@ class TestPutRecord:
         )
         with pytest.raises(ValueError):
             await records_service.put_record(client, body)
+
+
+# ---------------------------------------------------------------------------
+# record_exists
+# ---------------------------------------------------------------------------
+
+
+class TestRecordExists:
+    async def test_returns_true_when_meta_present(self):
+        client = AsyncMock()
+        client.exists = AsyncMock(
+            return_value=SimpleNamespace(key=("test", "demo", "k1", b"\x00"), meta=SimpleNamespace(gen=1, ttl=0))
+        )
+
+        result = await records_service.record_exists(client, "test", "demo", "k1", "string")
+
+        assert result is True
+        client.exists.assert_awaited_once_with(("test", "demo", "k1"), policy=POLICY_READ)
+
+    async def test_returns_false_when_meta_is_none(self):
+        client = AsyncMock()
+        client.exists = AsyncMock(return_value=SimpleNamespace(key=("test", "demo", "k1", b"\x00"), meta=None))
+
+        result = await records_service.record_exists(client, "test", "demo", "missing", "string")
+
+        assert result is False
+
+    async def test_auto_resolves_numeric_string_to_int(self):
+        client = AsyncMock()
+        client.exists = AsyncMock(return_value=SimpleNamespace(key=("test", "demo", 42, b"\x00"), meta=None))
+
+        await records_service.record_exists(client, "test", "demo", "42", "auto")
+
+        # auto: "42" -> int 42
+        client.exists.assert_awaited_once_with(("test", "demo", 42), policy=POLICY_READ)
+
+    async def test_record_not_found_treated_as_false(self):
+        # Some aerospike-py builds may raise RecordNotFound rather than
+        # returning meta=None for a missing record. The service treats both
+        # signals as "absent" so the MCP tool can answer with exists=False.
+        client = AsyncMock()
+        client.exists = AsyncMock(side_effect=RecordNotFound("nope"))
+
+        result = await records_service.record_exists(client, "test", "demo", "missing", "string")
+
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# create_record (CREATE_ONLY policy)
+# ---------------------------------------------------------------------------
+
+
+class TestCreateRecord:
+    async def test_writes_with_create_only_policy(self):
+        client = AsyncMock()
+        client.put = AsyncMock(return_value=None)
+
+        await records_service.create_record(client, "test", "demo", "k1", {"name": "Alice"}, "string")
+
+        client.put.assert_awaited_once()
+        put_call = client.put.await_args
+        # key tuple
+        assert put_call.args[0] == ("test", "demo", "k1")
+        # bins
+        assert put_call.args[1] == {"name": "Alice"}
+        # policy carries CREATE_ONLY
+        policy = put_call.kwargs.get("policy") or {}
+        assert policy.get("exists") == aerospike_py.POLICY_EXISTS_CREATE_ONLY
+        # base read/write policy keys are still applied
+        for k, v in POLICY_WRITE.items():
+            assert policy[k] == v
+
+    async def test_auto_resolves_numeric_string_to_int(self):
+        client = AsyncMock()
+        client.put = AsyncMock(return_value=None)
+
+        await records_service.create_record(client, "test", "demo", "42", {"a": 1}, "auto")
+
+        put_call = client.put.await_args
+        assert put_call.args[0] == ("test", "demo", 42)
+
+    async def test_record_exists_propagates(self):
+        client = AsyncMock()
+        client.put = AsyncMock(side_effect=RecordExistsError("already exists"))
+
+        with pytest.raises(RecordExistsError):
+            await records_service.create_record(client, "test", "demo", "k1", {"a": 1}, "string")
+
+
+# ---------------------------------------------------------------------------
+# update_record (UPDATE policy — must exist)
+# ---------------------------------------------------------------------------
+
+
+class TestUpdateRecord:
+    async def test_writes_with_update_only_policy(self):
+        client = AsyncMock()
+        client.put = AsyncMock(return_value=None)
+
+        await records_service.update_record(client, "test", "demo", "k1", {"name": "Bob"}, "string")
+
+        client.put.assert_awaited_once()
+        put_call = client.put.await_args
+        assert put_call.args[0] == ("test", "demo", "k1")
+        assert put_call.args[1] == {"name": "Bob"}
+        policy = put_call.kwargs.get("policy") or {}
+        # UPDATE_ONLY guarantees the record must already exist; UPDATE alone
+        # would create it.
+        assert policy.get("exists") == aerospike_py.POLICY_EXISTS_UPDATE_ONLY
+        for k, v in POLICY_WRITE.items():
+            assert policy[k] == v
+
+    async def test_auto_resolves_numeric_string_to_int(self):
+        client = AsyncMock()
+        client.put = AsyncMock(return_value=None)
+
+        await records_service.update_record(client, "test", "demo", "42", {"a": 1}, "auto")
+
+        put_call = client.put.await_args
+        assert put_call.args[0] == ("test", "demo", 42)
+
+    async def test_record_not_found_propagates(self):
+        client = AsyncMock()
+        client.put = AsyncMock(side_effect=RecordNotFound("absent"))
+
+        with pytest.raises(RecordNotFound):
+            await records_service.update_record(client, "test", "demo", "missing", {"a": 1}, "string")
+
+
+# ---------------------------------------------------------------------------
+# delete_bin
+# ---------------------------------------------------------------------------
+
+
+class TestDeleteBin:
+    async def test_calls_remove_bin(self):
+        client = AsyncMock()
+        client.remove_bin = AsyncMock(return_value=None)
+
+        await records_service.delete_bin(client, "test", "demo", "k1", "old_bin", "string")
+
+        client.remove_bin.assert_awaited_once()
+        call = client.remove_bin.await_args
+        assert call.args[0] == ("test", "demo", "k1")
+        # The bin name list is passed through.
+        assert call.args[1] == ["old_bin"]
+
+    async def test_auto_resolves_numeric_string_to_int(self):
+        client = AsyncMock()
+        client.remove_bin = AsyncMock(return_value=None)
+
+        await records_service.delete_bin(client, "test", "demo", "42", "x", "auto")
+
+        call = client.remove_bin.await_args
+        assert call.args[0] == ("test", "demo", 42)
+
+    async def test_record_not_found_propagates(self):
+        client = AsyncMock()
+        client.remove_bin = AsyncMock(side_effect=RecordNotFound("nope"))
+
+        with pytest.raises(RecordNotFound):
+            await records_service.delete_bin(client, "test", "demo", "missing", "x", "string")
+
+
+# ---------------------------------------------------------------------------
+# truncate_set
+# ---------------------------------------------------------------------------
+
+
+class TestTruncateSet:
+    async def test_calls_client_truncate_with_zero_when_no_lut(self):
+        client = AsyncMock()
+        client.truncate = AsyncMock(return_value=None)
+
+        await records_service.truncate_set(client, "test", "demo")
+
+        client.truncate.assert_awaited_once_with("test", "demo", 0)
+
+    async def test_passes_before_lut_in_nanos(self):
+        client = AsyncMock()
+        client.truncate = AsyncMock(return_value=None)
+
+        await records_service.truncate_set(client, "test", "demo", before_lut=1_700_000_000_000_000_000)
+
+        client.truncate.assert_awaited_once_with("test", "demo", 1_700_000_000_000_000_000)
 
 
 # ---------------------------------------------------------------------------
