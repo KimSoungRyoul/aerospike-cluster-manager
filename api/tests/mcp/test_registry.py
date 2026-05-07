@@ -34,9 +34,25 @@ from aerospike_cluster_manager_api.services.connections_service import (
 
 
 @pytest.fixture(autouse=True)
-def _isolate_registry() -> None:
-    """Clear the module-level registry before every test."""
+def _isolate_registry():
+    """Snapshot, clear, run, then restore the module-level registry.
+
+    Other test files (``test_record_tools``, ``test_query_tool``,
+    ``test_info_tools``, ``test_auto_discovery``) rely on the global
+    registry being populated by import-time ``@tool`` decorators. Once the
+    tool modules are imported their decorators do **not** re-run, so a
+    plain ``_reset_for_tests()`` call would leave the registry empty for
+    subsequent test files when pytest runs the whole suite. Snapshot/
+    restore preserves cross-file isolation.
+    """
+    from aerospike_cluster_manager_api.mcp import registry as _registry
+
+    saved = list(_registry._REGISTRY)
     _reset_for_tests()
+    try:
+        yield
+    finally:
+        _registry._REGISTRY[:] = saved
 
 
 @pytest.fixture

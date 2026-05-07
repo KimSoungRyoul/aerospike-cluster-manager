@@ -374,16 +374,18 @@ class TestTestConnectionTool:
 
 def test_reset_for_tests_helper_clears_connection_tools() -> None:
     # Importing the tools module first ensures the decorator side-effects ran.
+    from aerospike_cluster_manager_api.mcp import registry as _registry
     from aerospike_cluster_manager_api.mcp.tools import connections as _connections  # noqa: F401
 
     assert any(entry.category == "connection" for entry in registered_tools())
-    _reset_for_tests()
-    assert registered_tools() == []
-    # Re-import the module so the registry returns to a populated state for
-    # any subsequent test-collection pass that runs in the same process.
-    import importlib
-
-    import aerospike_cluster_manager_api.mcp.tools.connections as _mod
-
-    importlib.reload(_mod)
+    saved = list(_registry._REGISTRY)
+    try:
+        _reset_for_tests()
+        assert registered_tools() == []
+    finally:
+        # Restore the full snapshot — reloading just the connections module
+        # would only repopulate 8 of the 21 tools because the other tool
+        # modules are already imported (cached) and their decorators do not
+        # re-run. Snapshot/restore is symmetrical and order-independent.
+        _registry._REGISTRY[:] = saved
     assert any(entry.category == "connection" for entry in registered_tools())
