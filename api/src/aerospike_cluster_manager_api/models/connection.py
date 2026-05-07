@@ -91,13 +91,13 @@ class CreateConnectionRequest(BaseModel):
 class UpdateConnectionRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    name: str | None = Field(None, min_length=1, max_length=255)
-    hosts: list[str] | None = Field(None, min_length=1)
-    port: int | None = Field(None, ge=1, le=65535)
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    hosts: list[str] | None = Field(default=None, min_length=1)
+    port: int | None = Field(default=None, ge=1, le=65535)
     clusterName: str | None = None
     username: str | None = None
     password: str | None = None
-    color: str | None = Field(None, pattern=r"^#[0-9a-fA-F]{6}$")
+    color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
     description: str | None = None
     labels: dict[str, str] | None = None
     workspaceId: str | None = None
