@@ -16,6 +16,19 @@ def _get_int(name: str, default: int) -> int:
         raise ValueError(f"Environment variable {name} must be an integer, got: {raw!r}") from None
 
 
+def _get_bool(name: str, default: bool) -> bool:
+    """Parse a boolean environment variable.
+
+    Accepts ``1``/``true``/``yes``/``on`` (case-insensitive, surrounding
+    whitespace ignored) as truthy. Anything else is falsy. Unset returns
+    the supplied default.
+    """
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 _DURATION_RE = re.compile(r"^(?P<value>\d+)(?P<unit>[smhd]?)$")
 
 
@@ -149,3 +162,15 @@ OIDC_JWKS_CACHE_TTL_SECONDS: int = _parse_duration_seconds(os.getenv("OIDC_JWKS_
 OIDC_EXCLUDE_PATHS: list[str] = _parse_str_list(
     os.getenv("OIDC_EXCLUDE_PATHS", "/api/health,/api/openapi.json,/api/docs")
 ) or ["/api/health", "/api/openapi.json", "/api/docs"]
+
+# ---------------------------------------------------------------------------
+# MCP (Model Context Protocol) server — phase 1
+# ---------------------------------------------------------------------------
+# When enabled, ``main.py`` mounts the FastMCP streamable-http transport at
+# ``ACM_MCP_PATH``. The mount is opt-in so deployments that don't need the
+# AI/agent surface pay no extra import or routing cost. The path is kept
+# outside ``/api/*`` on purpose — REST and MCP serve different consumers
+# and should be reasoned about as independent surfaces. Authentication still
+# applies via the OIDC middleware when ``OIDC_ENABLED`` is true.
+ACM_MCP_ENABLED: bool = _get_bool("ACM_MCP_ENABLED", False)
+ACM_MCP_PATH: str = os.getenv("ACM_MCP_PATH", "/mcp")

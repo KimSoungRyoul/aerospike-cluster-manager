@@ -431,6 +431,18 @@ for r in _routers:
 app.include_router(v1_router)
 app.include_router(api_router)
 
+# ---------------------------------------------------------------------------
+# MCP (Model Context Protocol) — opt-in mount
+# ---------------------------------------------------------------------------
+# Mounted AFTER the REST router includes so the MCP path stays a sibling of
+# /api/* (different consumer, different auth/UX). The import is local so a
+# disabled flag pays no import cost at startup.
+if config.ACM_MCP_ENABLED:
+    from aerospike_cluster_manager_api.mcp.server import build_mcp_app
+
+    _mcp_app = build_mcp_app()
+    app.mount(config.ACM_MCP_PATH, _mcp_app.streamable_http_app())
+
 # FastAPIInstrumentor wraps every route handler with a server span. The
 # wiring is a no-op when OTel is disabled (NoOp tracer). We exclude the
 # health and docs endpoints from instrumentation because they're high-volume
