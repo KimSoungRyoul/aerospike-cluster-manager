@@ -55,7 +55,7 @@ def _build_app(
     ``app.add_middleware(MCPBearerTokenMiddleware)`` — same call site as
     ``main.py``. When ``install_oidc_stub`` is true an additional
     middleware is wired up that simulates OIDC by setting
-    ``request.state.user`` to a dummy claim dict on every request — this
+    ``request.state.user_claims`` to a dummy claim dict on every request — this
     lets us exercise the OIDC-OR-bearer leg without spinning up a real
     JWKS server.
     """
@@ -81,13 +81,14 @@ def _build_app(
     app.add_middleware(MCPBearerTokenMiddleware)
 
     if install_oidc_stub:
-        # Tiny OIDC stand-in: writes ``request.state.user`` so the MCP
-        # middleware sees an authenticated request without us having to
-        # mint real JWTs.
+        # Tiny OIDC stand-in: writes ``request.state.user_claims`` so the
+        # MCP middleware sees an authenticated request without us having
+        # to mint real JWTs. (Matches the attribute name set by the real
+        # ``OIDCAuthMiddleware`` in ``middleware/oidc_auth.py``.)
         class _OIDCStub(BaseHTTPMiddleware):
             async def dispatch(self, request, call_next):
                 if oidc_authenticated:
-                    request.state.user = {"sub": "stub-user"}
+                    request.state.user_claims = {"sub": "stub-user"}
                 return await call_next(request)
 
         app.add_middleware(_OIDCStub)
@@ -266,7 +267,7 @@ async def test_bearer_scheme_is_case_insensitive(monkeypatch: pytest.MonkeyPatch
 async def test_oidc_authenticated_passes_even_with_wrong_bearer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """If OIDC has authenticated the request (request.state.user is set),
+    """If OIDC has authenticated the request (request.state.user_claims set),
     the bearer header is ignored — OIDC alone is enough."""
     _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token")
     try:

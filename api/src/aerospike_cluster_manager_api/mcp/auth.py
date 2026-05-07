@@ -76,8 +76,9 @@ class MCPBearerTokenMiddleware(BaseHTTPMiddleware):
             # — that's the operator's choice.
             return await call_next(request)
 
-        # OR-leg #1: already authenticated via OIDC.
-        if getattr(request.state, "user", None) is not None:
+        # OR-leg #1: already authenticated via OIDC. The OIDC middleware
+        # writes ``request.state.user_claims`` on success.
+        if getattr(request.state, "user_claims", None) is not None:
             return await call_next(request)
 
         # OR-leg #2: bearer header matches the configured token.
