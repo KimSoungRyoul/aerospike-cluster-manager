@@ -1,33 +1,31 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
-import uuid
-from datetime import UTC, datetime
 from typing import Any
 
-import aerospike_py
+import aerospike_py  # noqa: F401  — re-exported for tests that patch via this module path
 from aerospike_py.exception import AerospikeError, AerospikeTimeoutError, ClusterError
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from starlette.responses import Response
 
-from aerospike_cluster_manager_api import db
 from aerospike_cluster_manager_api.client_manager import client_manager
 from aerospike_cluster_manager_api.constants import INFO_BUILD, INFO_EDITION, INFO_NAMESPACES
-from aerospike_cluster_manager_api.dependencies import VerifiedConnectionProfile, _get_verified_connection
+from aerospike_cluster_manager_api.dependencies import _get_verified_connection
 from aerospike_cluster_manager_api.info_parser import parse_kv_pairs, parse_list, safe_int
 from aerospike_cluster_manager_api.models.connection import (
-    ConnectionProfile,
     ConnectionProfileResponse,
     ConnectionStatus,
     CreateConnectionRequest,
     TestConnectionRequest,
     UpdateConnectionRequest,
 )
-from aerospike_cluster_manager_api.models.workspace import DEFAULT_WORKSPACE_ID
 from aerospike_cluster_manager_api.rate_limit import limiter
-from aerospike_cluster_manager_api.utils import parse_host_port
+from aerospike_cluster_manager_api.services import connections_service
+from aerospike_cluster_manager_api.services.connections_service import (
+    ConnectionNotFoundError,
+    WorkspaceNotFoundError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,45 +37,29 @@ async def list_connections(
     workspace_id: str | None = Query(default=None, description="Filter by workspace id."),
 ) -> list[ConnectionProfileResponse]:
     """Retrieve all saved Aerospike connection profiles, optionally filtered by workspace."""
-    if workspace_id is not None:
-        ws = await db.get_workspace(workspace_id)
-        if not ws:
-            raise HTTPException(status_code=404, detail=f"Workspace '{workspace_id}' not found")
-    profiles = await db.get_all_connections(workspace_id)
-    return [ConnectionProfileResponse.from_profile(p) for p in profiles]
+    try:
+        return await connections_service.list_connections(workspace_id)
+    except WorkspaceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("", status_code=201, summary="Create connection", description="Create a new Aerospike connection profile.")
 @limiter.limit("10/minute")
 async def create_connection(request: Request, body: CreateConnectionRequest) -> ConnectionProfileResponse:
     """Create a new Aerospike connection profile."""
-    workspace_id = body.workspaceId or DEFAULT_WORKSPACE_ID
-    if not await db.get_workspace(workspace_id):
-        raise HTTPException(status_code=404, detail=f"Workspace '{workspace_id}' not found")
-    now = datetime.now(UTC).isoformat()
-    conn = ConnectionProfile(
-        id=f"conn-{uuid.uuid4().hex[:12]}",
-        name=body.name,
-        hosts=body.hosts,
-        port=body.port,
-        clusterName=body.clusterName,
-        username=body.username,
-        password=body.password,
-        color=body.color,
-        description=body.description,
-        labels=body.labels or {},
-        workspaceId=workspace_id,
-        createdAt=now,
-        updatedAt=now,
-    )
-    await db.create_connection(conn)
-    return ConnectionProfileResponse.from_profile(conn)
+    try:
+        return await connections_service.create_connection(body)
+    except WorkspaceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/{conn_id}", summary="Get connection", description="Retrieve a single connection profile by its ID.")
-async def get_connection(conn: VerifiedConnectionProfile) -> ConnectionProfileResponse:
+async def get_connection(conn_id: str = Depends(_get_verified_connection)) -> ConnectionProfileResponse:
     """Retrieve a single connection profile by its ID."""
-    return ConnectionProfileResponse.from_profile(conn)
+    try:
+        return await connections_service.get_connection(conn_id)
+    except ConnectionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.put(
@@ -88,15 +70,12 @@ async def update_connection(
     conn_id: str = Depends(_get_verified_connection),
 ) -> ConnectionProfileResponse:
     """Update an existing connection profile with new settings."""
-    update_data = body.model_dump(exclude_unset=True, by_alias=False)
-    if "workspaceId" in update_data and update_data["workspaceId"] is not None:
-        target_ws = update_data["workspaceId"]
-        if not await db.get_workspace(target_ws):
-            raise HTTPException(status_code=404, detail=f"Workspace '{target_ws}' not found")
-    conn = await db.update_connection(conn_id, update_data)
-    if not conn:
-        raise HTTPException(status_code=404, detail=f"Connection '{conn_id}' not found")
-    return ConnectionProfileResponse.from_profile(conn)
+    try:
+        return await connections_service.update_connection(conn_id, body)
+    except ConnectionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except WorkspaceNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get(
@@ -179,41 +158,28 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
         )
     except AerospikeTimeoutError as exc:
         logger.warning("Health check timed out for connection '%s'", conn_id, exc_info=True)
-        return Response(
-            content=ConnectionStatus(
-                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType="timeout"
-            ).model_dump_json(),
-            media_type="application/json",
-            headers={"Retry-After": "30"},
-        )
+        return _disconnected_health(str(exc), "timeout")
     except ConnectionRefusedError as exc:
         logger.warning("Connection refused for '%s'", conn_id, exc_info=True)
-        return Response(
-            content=ConnectionStatus(
-                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType="connection_refused"
-            ).model_dump_json(),
-            media_type="application/json",
-            headers={"Retry-After": "30"},
-        )
+        return _disconnected_health(str(exc), "connection_refused")
     except ClusterError as exc:
         logger.warning("Cluster error for connection '%s'", conn_id, exc_info=True)
-        return Response(
-            content=ConnectionStatus(
-                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType="cluster_error"
-            ).model_dump_json(),
-            media_type="application/json",
-            headers={"Retry-After": "30"},
-        )
+        return _disconnected_health(str(exc), "cluster_error")
     except (AerospikeError, OSError) as exc:
         logger.warning("Health check failed for connection '%s'", conn_id, exc_info=True)
         error_type = "auth_error" if isinstance(exc, AerospikeError) and "security" in str(exc).lower() else "unknown"
-        return Response(
-            content=ConnectionStatus(
-                connected=False, nodeCount=0, namespaceCount=0, error=str(exc), errorType=error_type
-            ).model_dump_json(),
-            media_type="application/json",
-            headers={"Retry-After": "30"},
-        )
+        return _disconnected_health(str(exc), error_type)
+
+
+def _disconnected_health(error: str, error_type: str) -> Response:
+    """Build a JSON Response for the ``connected=false`` health-check shape."""
+    return Response(
+        content=ConnectionStatus(
+            connected=False, nodeCount=0, namespaceCount=0, error=error, errorType=error_type
+        ).model_dump_json(),
+        media_type="application/json",
+        headers={"Retry-After": "30"},
+    )
 
 
 @router.post(
@@ -222,28 +188,9 @@ async def get_connection_health(conn_id: str = Depends(_get_verified_connection)
     description="Test connectivity to an Aerospike cluster without saving the profile.",
 )
 @limiter.limit("5/minute")
-async def test_connection(request: Request, body: TestConnectionRequest) -> dict:
+async def test_connection(request: Request, body: TestConnectionRequest) -> dict[str, Any]:
     """Test connectivity to an Aerospike cluster without saving the profile."""
-    try:
-        hosts = [parse_host_port(h, body.port) for h in body.hosts]
-
-        config: dict[str, Any] = {"hosts": hosts}
-        if body.username and body.password:
-            config["user"] = body.username
-            config["password"] = body.password
-
-        client = aerospike_py.AsyncClient(config)
-        await client.connect()
-        try:
-            if not client.is_connected():
-                return {"success": False, "message": "Failed to connect"}
-            return {"success": True, "message": "Connected successfully"}
-        finally:
-            with contextlib.suppress(AerospikeError, OSError):
-                await client.close()
-    except Exception as e:
-        logger.exception("Test connection failed")
-        return {"success": False, "message": str(e)}
+    return await connections_service.test_connection(body)
 
 
 @router.delete(
@@ -255,6 +202,5 @@ async def test_connection(request: Request, body: TestConnectionRequest) -> dict
 @limiter.limit("10/minute")
 async def delete_connection(request: Request, conn_id: str = Depends(_get_verified_connection)) -> Response:
     """Delete a connection profile and close its active client."""
-    await db.delete_connection(conn_id)
-    await client_manager.close_client(conn_id)
+    await connections_service.delete_connection(conn_id)
     return Response(status_code=204)
