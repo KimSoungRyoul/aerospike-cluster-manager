@@ -269,38 +269,44 @@ async def security_headers_middleware(request: Request, call_next: RequestRespon
 
 
 # OIDCAuthMiddleware is added BEFORE TraceIDMiddleware so the runtime
-# layering becomes (outermost → innermost): TraceID → OIDC → security_headers
-# → request_logging → CORS → SlowAPI. That way every authenticated request
-# already has a request_id in scope when the JWT verifier logs, and CORS
-# preflight responses are still produced even when the bearer token is
-# missing/invalid (the OIDC dispatch short-circuits OPTIONS so CORSMiddleware
-# downstream answers the preflight).
-# The MCP bearer-token middleware is installed BEFORE OIDC in the
+# layering becomes (outermost → innermost): TraceID → MCP → OIDC →
+# security_headers → request_logging → CORS → SlowAPI. That way every
+# authenticated request already has a request_id in scope when the JWT
+# verifier logs, and CORS preflight responses are still produced even
+# when the bearer token is missing/invalid (the OIDC dispatch
+# short-circuits OPTIONS so CORSMiddleware downstream answers the
+# preflight).
+# The MCP bearer-token middleware is installed AFTER OIDC in the
 # ``add_middleware`` order so that — given Starlette's reverse-add
-# semantics — it runs AFTER OIDC at request time. That ordering is
-# critical: by the time MCPBearerTokenMiddleware.dispatch() runs, OIDC
-# has already had a chance to set ``request.state.user``, which the MCP
-# middleware reads to short-circuit the bearer check (OIDC-OR-bearer).
+# semantics — it runs BEFORE OIDC at request time. That ordering is
+# critical for the OIDC-OR-bearer gate: a bearer-only token (opaque,
+# not a JWT) must be accepted/rejected by MCP middleware *before* OIDC
+# tries to JWT-verify it and 401s on the way in. On a successful
+# bearer match MCP middleware sets a sentinel ``request.state.user_claims``
+# so the inner OIDCAuthMiddleware defers (it short-circuits when
+# user_claims is already populated). When OIDC is enabled and the
+# bearer doesn't match, MCP middleware falls through and lets OIDC try
+# the header as a JWT — preserving the documented OR semantic.
 # We install only when ``ACM_MCP_ENABLED=true`` — when the mount itself
 # is off, the path doesn't exist and the middleware would be dead weight.
-if config.ACM_MCP_ENABLED:
-    # B2 — refuse to start when the MCP surface would be unauthenticated.
-    # OIDC OR a shared-secret bearer token must be configured, otherwise
-    # ``/mcp/*`` would be open to any network peer that can reach the API
-    # port. ``ACM_MCP_ALLOW_ANONYMOUS=true`` is the documented escape
-    # hatch for localhost-only or trusted-network deployments.
-    if not config.OIDC_ENABLED and not config.ACM_MCP_TOKEN and not config.ACM_MCP_ALLOW_ANONYMOUS:
-        raise RuntimeError(
-            "ACM_MCP_ENABLED=true but neither OIDC nor ACM_MCP_TOKEN is configured. "
-            "Refusing to start an anonymous MCP surface. Set OIDC_ENABLED=true and "
-            "OIDC_ISSUER_URL, OR set ACM_MCP_TOKEN to a shared secret, OR set "
-            "ACM_MCP_ALLOW_ANONYMOUS=true if you have verified the deployment is "
-            "isolated to localhost / a trusted network."
-        )
-
-    from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
-
-    app.add_middleware(MCPBearerTokenMiddleware)
+# B2 — refuse to start when the MCP surface would be unauthenticated.
+# OIDC OR a shared-secret bearer token must be configured, otherwise
+# ``/mcp/*`` would be open to any network peer that can reach the API
+# port. ``ACM_MCP_ALLOW_ANONYMOUS=true`` is the documented escape
+# hatch for localhost-only or trusted-network deployments.
+if (
+    config.ACM_MCP_ENABLED
+    and not config.OIDC_ENABLED
+    and not config.ACM_MCP_TOKEN
+    and not config.ACM_MCP_ALLOW_ANONYMOUS
+):
+    raise RuntimeError(
+        "ACM_MCP_ENABLED=true but neither OIDC nor ACM_MCP_TOKEN is configured. "
+        "Refusing to start an anonymous MCP surface. Set OIDC_ENABLED=true and "
+        "OIDC_ISSUER_URL, OR set ACM_MCP_TOKEN to a shared secret, OR set "
+        "ACM_MCP_ALLOW_ANONYMOUS=true if you have verified the deployment is "
+        "isolated to localhost / a trusted network."
+    )
 
 if config.OIDC_ENABLED:
     app.add_middleware(
@@ -312,6 +318,11 @@ if config.OIDC_ENABLED:
         exclude_paths=config.OIDC_EXCLUDE_PATHS,
         jwks_cache_ttl_seconds=config.OIDC_JWKS_CACHE_TTL_SECONDS,
     )
+
+if config.ACM_MCP_ENABLED:
+    from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+    app.add_middleware(MCPBearerTokenMiddleware)
 
 # TraceIDMiddleware is registered AFTER all other middleware (CORS, SlowAPI,
 # request_logging, security_headers, OIDC) so that — given Starlette's

@@ -1,30 +1,40 @@
 """MCP bearer-token middleware (OIDC-OR-bearer).
 
 The middleware sits in front of the MCP mount and applies an
-OR-combined gate with the existing OIDC middleware:
+OR-combined gate with the existing OIDC middleware. It is installed
+OUTSIDE OIDC at request time (added LAST in main.py) so the bearer
+leg runs first and can short-circuit past OIDC.
 
 * It runs ONLY on requests whose ``url.path`` begins with
   ``config.ACM_MCP_PATH`` (default ``/mcp``). Non-MCP paths are
-  passed through unchanged regardless of token settings.
+  passed through unchanged regardless of token settings. Path matching
+  is on segment boundaries (exact match or ``base + "/"``) so a route
+  named ``/mcp-evil/...`` cannot impersonate the MCP surface.
 
 * If ``ACM_MCP_TOKEN`` is unset, the middleware delegates entirely
   to OIDC — it does not 401 on its own. This is the production
   default for deployments that secure the MCP surface via the same
   Keycloak realm as the REST API.
 
-* If ``ACM_MCP_TOKEN`` is set, the request passes when EITHER:
-    - OIDC has already authenticated the request (i.e.
-      ``request.state.user_claims`` is non-None), OR
-    - The ``Authorization`` header carries a matching
-      ``Bearer <token>`` value.
-  Otherwise the middleware returns ``401 {"detail": "MCP authentication
-  required"}`` with a ``WWW-Authenticate: Bearer realm="acm-mcp"``
-  header so RFC-7235-compliant clients know the challenge scheme.
+* If ``ACM_MCP_TOKEN`` is set:
+    - Bearer matches the configured token → set a sentinel
+      ``request.state.user_claims = {"sub": "mcp-bearer", ...}`` so
+      :class:`OIDCAuthMiddleware` defers, and pass through.
+    - Bearer mismatch (or no Authorization header) and OIDC is
+      enabled → fall through to OIDC, which will authenticate the
+      request as a JWT or 401 itself (the OR semantic).
+    - Bearer mismatch (or no Authorization header) and OIDC is
+      disabled → 401 ``{"detail": "MCP authentication required"}``
+      with a ``WWW-Authenticate: Bearer realm="acm-mcp"`` header so
+      RFC-7235-compliant clients know the challenge scheme.
 
 Token comparison uses :func:`secrets.compare_digest` so the wall-clock
 cost is independent of the prefix match length — which closes a timing
-side-channel in naive ``==`` comparisons. The configured and supplied
-tokens are NEVER logged.
+side-channel in naive ``==`` comparisons. Inputs are UTF-8-encoded
+inside a try/except so a hostile or malformed header (non-ASCII bytes,
+encoding errors) can never crash the middleware; any failure is
+treated as auth failure. The configured and supplied tokens are NEVER
+logged.
 
 Wiring lives in :mod:`aerospike_cluster_manager_api.main`. The
 middleware is installed only when ``ACM_MCP_ENABLED=true``; when that
@@ -94,42 +104,56 @@ class MCPBearerTokenMiddleware(BaseHTTPMiddleware):
             # — that's the operator's choice.
             return await call_next(request)
 
-        # OR-leg #1: already authenticated via OIDC. The OIDC middleware
-        # writes ``request.state.user_claims`` on success.
+        # OR-leg #1: already authenticated upstream (rare — usually
+        # OIDC runs INNER to this middleware, but a future stack might
+        # add another auth layer outside us).
         if getattr(request.state, "user_claims", None) is not None:
             return await call_next(request)
 
         # OR-leg #2: bearer header matches the configured token.
         header = request.headers.get("authorization", "")
-        if not header.lower().startswith("bearer "):
-            logger.warning(
-                "MCP request rejected: missing or non-bearer Authorization header (path=%s)",
-                request.url.path,
-            )
-            return _unauthorized()
+        if header.lower().startswith("bearer "):
+            # ``split(" ", 1)`` after the lower-case prefix check above is
+            # safe because the header is known to start with ``bearer <space>``.
+            supplied = header.split(" ", 1)[1].strip()
+            # ``secrets.compare_digest`` raises TypeError on non-ASCII ``str``
+            # inputs (e.g. ``Bearer café``). Encode to UTF-8 bytes inside a
+            # try/except so a hostile or malformed header can never crash the
+            # middleware — any encoding error is treated as auth failure (B1).
+            try:
+                ok = bool(supplied) and secrets.compare_digest(supplied.encode("utf-8"), token.encode("utf-8"))
+            except Exception:
+                ok = False
+            if ok:
+                # Bearer matches — set a sentinel claim so the inner
+                # OIDCAuthMiddleware defers (it short-circuits when
+                # user_claims is already populated) and the request
+                # reaches the MCP mount without OIDC trying to verify
+                # an opaque token as a JWT.
+                request.state.user_claims = {"sub": "mcp-bearer", "_mcp_bearer": True}
+                return await call_next(request)
+            # Bearer-shaped header but mismatch. If OIDC is enabled,
+            # give it a chance to verify the header as a JWT (the
+            # OIDC-OR-bearer semantic). If OIDC is disabled, we are the
+            # only gate, so 401.
+            if not config.OIDC_ENABLED:
+                # Do NOT log the supplied or configured token — this branch
+                # is the most likely to leak secrets if a future maintainer
+                # adds debug logging carelessly.
+                logger.warning(
+                    "MCP request rejected: bearer token mismatch (path=%s)",
+                    request.url.path,
+                )
+                return _unauthorized()
+            # OIDC will run next; let it try (or 401 itself).
+            return await call_next(request)
 
-        # ``split(" ", 1)`` after the lower-case prefix check above is
-        # safe because the header is known to start with ``bearer <space>``.
-        supplied = header.split(" ", 1)[1].strip()
-        # ``secrets.compare_digest`` raises TypeError on non-ASCII ``str``
-        # inputs (e.g. ``Bearer café``). Encode to UTF-8 bytes inside a
-        # try/except so a hostile or malformed header can never crash the
-        # middleware — any encoding error is treated as auth failure (B1).
-        # The constant-time guarantee is preserved by feeding both sides
-        # equal-length-handling bytes; ``compare_digest`` itself handles
-        # length mismatches in constant time relative to the longer input.
-        try:
-            ok = secrets.compare_digest(supplied.encode("utf-8"), token.encode("utf-8"))
-        except Exception:
-            ok = False
-        if not supplied or not ok:
-            # Do NOT log the supplied or configured token — this branch
-            # is the most likely to leak secrets if a future maintainer
-            # adds debug logging carelessly.
-            logger.warning(
-                "MCP request rejected: bearer token mismatch (path=%s)",
-                request.url.path,
-            )
-            return _unauthorized()
-
-        return await call_next(request)
+        # No bearer-shaped Authorization header. Fall through to OIDC if
+        # enabled; otherwise 401 — there is no other auth gate.
+        if config.OIDC_ENABLED:
+            return await call_next(request)
+        logger.warning(
+            "MCP request rejected: missing or non-bearer Authorization header (path=%s)",
+            request.url.path,
+        )
+        return _unauthorized()

@@ -466,6 +466,131 @@ async def test_oidc_anonymous_and_correct_bearer_passes(
 
 
 # ---------------------------------------------------------------------------
+# OIDC-OR-bearer cooperation — bearer match short-circuits OIDC
+# ---------------------------------------------------------------------------
+
+
+async def test_bearer_match_sets_user_claims_sentinel(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A correct bearer match must populate ``request.state.user_claims`` so
+    the inner OIDCAuthMiddleware short-circuits and doesn't try to JWT-verify
+    the opaque token."""
+    _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token")
+    try:
+        from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+        observed: dict = {}
+
+        class _ClaimsCapture(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                # Runs INNER to MCP — by the time we see the request,
+                # MCP middleware should already have set user_claims.
+                observed["user_claims"] = getattr(request.state, "user_claims", None)
+                return await call_next(request)
+
+        app = FastAPI()
+
+        @app.get("/mcp")
+        async def mcp_root() -> dict:
+            return {"ok": True}
+
+        # Inner middleware first, then MCP outer (Starlette reverse-add).
+        app.add_middleware(_ClaimsCapture)
+        app.add_middleware(MCPBearerTokenMiddleware)
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/mcp",
+                headers={"Authorization": "Bearer correct-token"},
+            )
+            assert resp.status_code == 200
+            claims = observed.get("user_claims")
+            assert claims is not None, "user_claims sentinel was not set"
+            assert claims.get("_mcp_bearer") is True
+    finally:
+        _reload_config(monkeypatch, ACM_MCP_TOKEN=None)
+
+
+async def test_oidc_defers_when_user_claims_already_set(monkeypatch: pytest.MonkeyPatch) -> None:
+    """OIDCAuthMiddleware must short-circuit if an outer middleware has
+    already populated request.state.user_claims. This is the OIDC-side leg
+    of the OR semantic — it lets MCP bearer auth bypass JWT verification."""
+    from aerospike_cluster_manager_api.middleware.oidc_auth import OIDCAuthMiddleware
+
+    class _Preauth(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            request.state.user_claims = {"sub": "outer-auth"}
+            return await call_next(request)
+
+    app = FastAPI()
+
+    @app.get("/anything")
+    async def anything() -> dict:
+        return {"ok": True}
+
+    # Inner: OIDC enabled with bogus issuer (would fail JWT verify if
+    # exercised). Outer: pre-auth that sets user_claims.
+    app.add_middleware(
+        OIDCAuthMiddleware,
+        enabled=True,
+        issuer_url="http://127.0.0.1:1/realms/none",
+        audience="acm",
+    )
+    app.add_middleware(_Preauth)
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        resp = await ac.get(
+            "/anything",
+            headers={"Authorization": "Bearer not-a-real-jwt"},
+        )
+        # Pre-fix: OIDC would 401 on the malformed JWT.
+        # Post-fix: OIDC sees user_claims and defers.
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+
+
+async def test_bearer_mismatch_falls_through_to_oidc_when_oidc_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When ACM_MCP_TOKEN is set but doesn't match AND OIDC_ENABLED=true,
+    MCP middleware must NOT 401 — it falls through so OIDC can try to
+    verify the header as a JWT (preserving OIDC-OR-bearer)."""
+    _reload_config(monkeypatch, ACM_MCP_TOKEN="correct-token", OIDC_ENABLED="true")
+    try:
+        from aerospike_cluster_manager_api.mcp.auth import MCPBearerTokenMiddleware
+
+        # Stub "OIDC" that returns 200 unconditionally — represents OIDC
+        # successfully verifying the JWT. This proves MCP middleware
+        # forwarded instead of 401-ing.
+        class _OIDCAcceptAll(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                return await call_next(request)
+
+        app = FastAPI()
+
+        @app.get("/mcp")
+        async def mcp_root() -> dict:
+            return {"ok": True}
+
+        app.add_middleware(_OIDCAcceptAll)
+        app.add_middleware(MCPBearerTokenMiddleware)
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            resp = await ac.get(
+                "/mcp",
+                headers={"Authorization": "Bearer not-the-mcp-token-but-a-real-jwt"},
+            )
+            assert resp.status_code == 200, (
+                "MCP middleware should fall through on bearer mismatch when OIDC is enabled, "
+                "letting the inner OIDC middleware decide"
+            )
+    finally:
+        _reload_config(monkeypatch, ACM_MCP_TOKEN=None, OIDC_ENABLED=None)
+
+
+# ---------------------------------------------------------------------------
 # Path-prefix gating
 # ---------------------------------------------------------------------------
 
