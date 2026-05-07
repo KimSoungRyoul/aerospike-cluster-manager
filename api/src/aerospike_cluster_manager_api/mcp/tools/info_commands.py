@@ -30,6 +30,19 @@ async def execute_info(conn_id: str, command: str) -> dict[str, Any]:
 
     Returns ``{"nodes": [{"node": str, "error_code": int | None, "response":
     str}, ...]}``.
+
+    WARNING: This tool is gated by ``ACM_MCP_ACCESS_PROFILE`` since some
+    asinfo commands write (``set-config``, ``recluster``,
+    ``truncate-namespace``). Under ``READ_ONLY`` profile this tool returns
+    ``code=access_denied`` for ALL commands — including read-only ones such
+    as ``namespaces``, ``version``, and ``roster:`` — because the access
+    gate operates on tool name, not command content. Use ``list_namespaces``,
+    ``list_sets``, and ``get_nodes`` for safe diagnostic reads under
+    ``READ_ONLY``. A read-only ``execute_info`` whitelist is a Phase 2
+    design item.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     client = await _get_client(conn_id)
     results = await clusters_service.execute_info(client, command)
@@ -38,7 +51,21 @@ async def execute_info(conn_id: str, command: str) -> dict[str, Any]:
 
 @tool(category="info", mutation=True)
 async def execute_info_on_node(conn_id: str, command: str, node_name: str) -> dict[str, str]:
-    """Run an asinfo command on a single node and return the response."""
+    """Run an asinfo command on a single node and return the response.
+
+    WARNING: This tool is gated by ``ACM_MCP_ACCESS_PROFILE`` since some
+    asinfo commands write (``set-config``, ``recluster``,
+    ``truncate-namespace``). Under ``READ_ONLY`` profile this tool returns
+    ``code=access_denied`` for ALL commands — including read-only ones such
+    as ``namespaces``, ``version``, and ``roster:`` — because the access
+    gate operates on tool name, not command content. Use ``list_namespaces``,
+    ``list_sets``, and ``get_nodes`` for safe diagnostic reads under
+    ``READ_ONLY``. A read-only ``execute_info`` whitelist is a Phase 2
+    design item.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
+    """
     client = await _get_client(conn_id)
     response = await clusters_service.execute_info_on_node(client, command, node_name)
     return {"node": node_name, "response": response}

@@ -126,6 +126,22 @@ class TestCreateConnection:
         assert exc_info.value.code == "access_denied"
         assert "create_connection" in str(exc_info.value)
 
+    async def test_cluster_name_passed_through(self, init_test_db, full_profile: None) -> None:
+        """Phase 1: ``cluster_name`` parameter is forwarded as
+        ``clusterName=...`` on the underlying ``CreateConnectionRequest`` so
+        the Aerospike client tend (cluster-name policy) sees the operator's
+        chosen identifier.
+        """
+        from aerospike_cluster_manager_api.mcp.tools.connections import create_connection
+
+        result = await create_connection(
+            name="With Cluster Name",
+            hosts=["10.0.0.1"],
+            cluster_name="prod-cluster-east",
+        )
+        assert isinstance(result, dict)
+        assert result["clusterName"] == "prod-cluster-east"
+
 
 # ---------------------------------------------------------------------------
 # get_connection
@@ -186,6 +202,23 @@ class TestUpdateConnection:
         with pytest.raises(MCPToolError) as exc_info:
             await update_connection(conn_id="conn-nonexistent", name="X")
         assert exc_info.value.code == "ConnectionNotFoundError"
+
+    async def test_cluster_name_passed_through(self, init_test_db, full_profile: None) -> None:
+        """Phase 1: ``cluster_name`` parameter on ``update_connection`` is
+        forwarded as ``clusterName=...`` so an operator can change the
+        Aerospike cluster identifier (cluster-name tend policy) without
+        creating a new profile."""
+        from aerospike_cluster_manager_api.mcp.tools.connections import (
+            create_connection,
+            update_connection,
+        )
+
+        created = await create_connection(name="Will Update", hosts=["10.0.0.1"])
+        result = await update_connection(
+            conn_id=created["id"],
+            cluster_name="renamed-cluster",
+        )
+        assert result["clusterName"] == "renamed-cluster"
 
 
 # ---------------------------------------------------------------------------
@@ -330,11 +363,17 @@ class TestConnectDisconnect:
 class TestTestConnectionTool:
     async def test_happy_path_returns_dict_from_service(self, init_test_db, full_profile: None) -> None:
         from aerospike_cluster_manager_api.mcp.tools.connections import test_connection
+        from aerospike_cluster_manager_api.services.connections_service import (
+            # Aliased so pytest does not try to collect this NamedTuple as a
+            # test class.
+            TestConnectionResult as _TCResult,
+        )
 
-        async def _fake(req: Any) -> dict[str, Any]:
+        async def _fake(req: Any) -> _TCResult:
             assert req.hosts == ["10.0.0.1"]
             assert req.port == 3000
-            return {"success": True, "message": "Connected successfully"}
+            # Phase 1: service returns a NamedTuple, not a dict.
+            return _TCResult(success=True, message="Connected successfully")
 
         with patch(
             "aerospike_cluster_manager_api.mcp.tools.connections.connections_service.test_connection",
@@ -342,17 +381,22 @@ class TestTestConnectionTool:
         ):
             result = await test_connection(hosts=["10.0.0.1"], port=3000)
 
+        # The MCP tool wraps the service result back into a JSON-serialisable
+        # dict for transport.
         assert result == {"success": True, "message": "Connected successfully"}
 
     async def test_passes_credentials(self, init_test_db, full_profile: None) -> None:
         from aerospike_cluster_manager_api.mcp.tools.connections import test_connection
+        from aerospike_cluster_manager_api.services.connections_service import (
+            TestConnectionResult as _TCResult,
+        )
 
         captured: dict[str, Any] = {}
 
-        async def _fake(req: Any) -> dict[str, Any]:
+        async def _fake(req: Any) -> _TCResult:
             captured["user"] = req.username
             captured["pass"] = req.password
-            return {"success": True, "message": "ok"}
+            return _TCResult(success=True, message="ok")
 
         with patch(
             "aerospike_cluster_manager_api.mcp.tools.connections.connections_service.test_connection",

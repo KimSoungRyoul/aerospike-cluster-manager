@@ -5,7 +5,8 @@ Coverage:
   ``mutation=False``;
 * happy path: scan returns serialised records + stats envelope;
 * PK lookup branch: ``primary_key`` arg routes through to QueryRequest;
-* predicate coercion: dict input → ``QueryPredicate`` model;
+* predicate inline params: ``predicate_bin``+``predicate_operator``+
+  ``predicate_value``[+``predicate_value2``] → ``QueryPredicate`` model;
 * missing conn_id: ``ConnectionNotFoundError`` → ``MCPToolError``.
 """
 
@@ -16,6 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from aerospike_cluster_manager_api.mcp.errors import MCPToolError
 from aerospike_cluster_manager_api.mcp.registry import registered_tools
+
+from .conftest import patch_mcp_client
 
 
 def _make_record(
@@ -30,13 +33,12 @@ def _make_record(
 
 
 def _patch_get_client(client: MagicMock):
-    from aerospike_cluster_manager_api.mcp.tools import query as query_tool
+    """Backwards-compat shim — delegates to the package-level helper.
 
-    return patch.object(
-        query_tool.client_manager,
-        "get_client",
-        new=AsyncMock(return_value=client),
-    )
+    Kept so the body of each test reads the same as the legacy form;
+    the consolidated implementation lives in :mod:`tests.mcp.conftest`.
+    """
+    return patch_mcp_client("aerospike_cluster_manager_api.mcp.tools.query", client)
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +127,12 @@ class TestQueryTool:
         assert body.primaryKey == "42"
         assert body.pkType == "int"
 
-    async def test_predicate_dict_is_coerced(self) -> None:
+    async def test_predicate_inline_params_are_coerced(self) -> None:
+        """Phase 1: predicates are passed via four inline parameters
+        (``predicate_bin``, ``predicate_operator``, ``predicate_value``,
+        ``predicate_value2``) instead of a single ``dict``. The tool body
+        rebuilds the ``QueryPredicate`` model from those inline args before
+        calling the service layer."""
         from aerospike_cluster_manager_api.mcp.tools.query import query
 
         result_obj = SimpleNamespace(records=[], execution_time_ms=0, scanned_records=0, returned_records=0)
@@ -141,7 +148,10 @@ class TestQueryTool:
                 conn_id="conn-x",
                 namespace="test",
                 set_name="sample_set",
-                predicate={"bin": "age", "operator": "between", "value": 18, "value2": 99},
+                predicate_bin="age",
+                predicate_operator="between",
+                predicate_value=18,
+                predicate_value2=99,
             )
 
         assert exec_mock.await_args is not None
@@ -149,6 +159,64 @@ class TestQueryTool:
         assert body.predicate is not None
         assert body.predicate.bin == "age"
         assert body.predicate.operator == "between"
+        assert body.predicate.value == 18
+        assert body.predicate.value2 == 99
+
+    async def test_truncated_flag_in_envelope(self) -> None:
+        """When the service returns at-or-above the effective limit, the
+        tool surfaces ``truncated=True`` in the envelope so the caller can
+        re-issue with a tighter filter."""
+        from aerospike_cluster_manager_api.mcp.tools.query import query
+
+        # max_records=2 → effective_limit=2; returned_records=2 → truncated.
+        recs = [
+            _make_record(),
+            _make_record(key=("test", "sample_set", "k2", b"\xde\xad")),
+        ]
+        result_obj = SimpleNamespace(records=recs, execution_time_ms=5, scanned_records=2, returned_records=2)
+        mock_client = MagicMock()
+        with (
+            _patch_get_client(mock_client),
+            patch(
+                "aerospike_cluster_manager_api.mcp.tools.query.query_service.execute_query",
+                new=AsyncMock(return_value=result_obj),
+            ),
+        ):
+            out = await query(
+                conn_id="conn-x",
+                namespace="test",
+                set_name="sample_set",
+                max_records=2,
+            )
+
+        assert out["truncated"] is True
+        assert out["returned_records"] == 2
+
+    async def test_truncated_false_when_below_limit(self) -> None:
+        from aerospike_cluster_manager_api.mcp.tools.query import query
+
+        result_obj = SimpleNamespace(
+            records=[_make_record()],
+            execution_time_ms=1,
+            scanned_records=1,
+            returned_records=1,
+        )
+        mock_client = MagicMock()
+        with (
+            _patch_get_client(mock_client),
+            patch(
+                "aerospike_cluster_manager_api.mcp.tools.query.query_service.execute_query",
+                new=AsyncMock(return_value=result_obj),
+            ),
+        ):
+            out = await query(
+                conn_id="conn-x",
+                namespace="test",
+                set_name="sample_set",
+                max_records=10,
+            )
+
+        assert out["truncated"] is False
 
     async def test_missing_conn_id_raises_connection_not_found(self) -> None:
         from aerospike_cluster_manager_api.mcp.tools import query as query_tool

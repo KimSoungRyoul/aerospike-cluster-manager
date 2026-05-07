@@ -24,9 +24,12 @@ def read_only_profile(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _patch_get_client(client: MagicMock):
-    from aerospike_cluster_manager_api.mcp.tools import info_commands
+    """Backwards-compat shim — delegates to the package-level helper in
+    :mod:`tests.mcp.conftest` so the duplicated boilerplate has a single
+    source of truth."""
+    from .conftest import patch_mcp_client
 
-    return patch.object(info_commands.client_manager, "get_client", new=AsyncMock(return_value=client))
+    return patch_mcp_client("aerospike_cluster_manager_api.mcp.tools.info_commands", client)
 
 
 def test_info_tools_module_registers_two_tools() -> None:

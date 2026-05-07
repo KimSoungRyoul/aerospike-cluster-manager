@@ -115,6 +115,9 @@ async def create_record(
     :class:`MCPToolError` with ``code="record_exists"``.
 
     Returns ``{"created": True, "key": {...}}``.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     client = await _get_client(conn_id)
     await records_service.create_record(client, namespace, set_name, str(key), bins)
@@ -135,6 +138,9 @@ async def update_record(
     :class:`MCPToolError` with ``code="record_not_found"``.
 
     Returns ``{"updated": True, "key": {...}}``.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     client = await _get_client(conn_id)
     await records_service.update_record(client, namespace, set_name, str(key), bins)
@@ -152,6 +158,9 @@ async def delete_record(
 
     Returns ``{"deleted": True, "key": {...}}``. Missing records surface as
     :class:`MCPToolError` with ``code="record_not_found"``.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     client = await _get_client(conn_id)
     await records_service.delete_record(client, namespace, set_name, str(key))
@@ -173,6 +182,9 @@ async def delete_bin(
     something the tool papers over.
 
     Returns ``{"bin_deleted": True, "bin": "...", "key": {...}}``.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     client = await _get_client(conn_id)
     await records_service.delete_bin(client, namespace, set_name, str(key), bin_name)
@@ -196,6 +208,9 @@ async def truncate_set(
     omitted, every record currently in the set is cleared.
 
     Returns ``{"truncated": True, "namespace": "...", "set": "..."}``.
+
+    Mutation: requires ``ACM_MCP_ACCESS_PROFILE=full``; returns
+    ``code=access_denied`` under READ_ONLY.
     """
     client = await _get_client(conn_id)
     await records_service.truncate_set(client, namespace, set_name, before_lut=before_lut)

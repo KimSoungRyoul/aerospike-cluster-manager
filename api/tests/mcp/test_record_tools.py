@@ -67,14 +67,15 @@ def _make_record(
 
 
 def _patch_get_client(client: MagicMock):
-    """Return a context manager that replaces ``_get_client`` with the mock."""
-    from aerospike_cluster_manager_api.mcp.tools import records as records_tools
+    """Return a context manager that replaces ``_get_client`` with the mock.
 
-    return patch.object(
-        records_tools.client_manager,
-        "get_client",
-        new=AsyncMock(return_value=client),
-    )
+    Backwards-compat shim — delegates to the package-level helper in
+    :mod:`tests.mcp.conftest` so the duplicated boilerplate has a single
+    source of truth.
+    """
+    from .conftest import patch_mcp_client
+
+    return patch_mcp_client("aerospike_cluster_manager_api.mcp.tools.records", client)
 
 
 # ---------------------------------------------------------------------------
