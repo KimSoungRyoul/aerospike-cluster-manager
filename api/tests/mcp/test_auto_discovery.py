@@ -1,8 +1,9 @@
 """Auto-discovery wiring (Task B.6).
 
-Verifies that ``build_mcp_app()`` returns a FastMCP with all 21 Phase 1
+Verifies that ``build_mcp_app()`` returns a FastMCP with all Phase 1
 tools registered, by importing every ``mcp/tools/*`` submodule before
-calling :func:`register_all`.
+calling :func:`register_all`. The expected count is centralised in
+:data:`tests.mcp.conftest.EXPECTED_TOOL_COUNT`.
 """
 
 from __future__ import annotations
@@ -11,6 +12,8 @@ import pytest
 
 from aerospike_cluster_manager_api.mcp.registry import registered_tools
 from aerospike_cluster_manager_api.mcp.server import build_mcp_app
+
+from .conftest import EXPECTED_TOOL_COUNT
 
 
 def test_build_mcp_app_registers_all_phase1_tools() -> None:
@@ -37,13 +40,13 @@ def test_build_mcp_app_registers_all_phase1_tools() -> None:
     assert "execute_info" in names
     assert "execute_info_on_node" in names
 
-    assert len(names) == 21, f"expected 21 tools, got {len(names)}: {sorted(names)}"
+    assert len(names) == EXPECTED_TOOL_COUNT, f"expected {EXPECTED_TOOL_COUNT} tools, got {len(names)}: {sorted(names)}"
 
 
 @pytest.mark.asyncio
 async def test_build_mcp_app_lists_tools_via_fastmcp() -> None:
-    """FastMCP.list_tools() returns the same 21 entries we registered."""
+    """FastMCP.list_tools() returns the same entries we registered."""
     mcp = build_mcp_app()
     tools = await mcp.list_tools()
     names = {t.name for t in tools}
-    assert len(names) == 21
+    assert len(names) == EXPECTED_TOOL_COUNT
