@@ -428,7 +428,7 @@ def test_reset_for_tests_helper_clears_connection_tools() -> None:
         assert registered_tools() == []
     finally:
         # Restore the full snapshot — reloading just the connections module
-        # would only repopulate 8 of the 21 tools because the other tool
+        # would only repopulate the 8 connection tools because the other tool
         # modules are already imported (cached) and their decorators do not
         # re-run. Snapshot/restore is symmetrical and order-independent.
         _registry._REGISTRY[:] = saved

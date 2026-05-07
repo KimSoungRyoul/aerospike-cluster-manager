@@ -62,14 +62,72 @@ class TestAssertReadOnly:
         # regression net for accidental trims to READ_ONLY_INFO_VERBS.
         assert_read_only(verb)
 
+    def test_whitelist_membership_is_pinned(self) -> None:
+        """Force a deliberate decision when adding/removing a verb.
+
+        The expected set is duplicated here on purpose so silent ADDITIONS
+        to ``READ_ONLY_INFO_VERBS`` (e.g. a refactor accidentally including
+        a write verb) fail loudly here rather than passing the parametrized
+        ``test_every_whitelisted_verb_passes`` (which fans out per-member
+        and would simply add one more green test for a dangerous addition).
+        """
+        expected = frozenset(
+            {
+                # Cluster meta (8)
+                "version",
+                "build",
+                "build-os",
+                "build-time",
+                "node",
+                "service",
+                "services",
+                "services-alumni",
+                # Cluster topology / health (7)
+                "nodes",
+                "cluster-name",
+                "cluster-stable",
+                "cluster-generation",
+                "cluster-info",
+                "health-outliers",
+                "health-stats",
+                # Namespace / set / index (4)
+                "namespaces",
+                "namespace",
+                "sets",
+                "sindex",
+                # Stats (3)
+                "statistics",
+                "latencies",
+                "udf-list",
+                # Strong-consistency / rack (2)
+                "roster",
+                "racks",
+            }
+        )
+        assert expected == READ_ONLY_INFO_VERBS
+        assert len(READ_ONLY_INFO_VERBS) == 24
+
     def test_colon_args_pass_when_verb_whitelisted(self) -> None:
         assert_read_only("roster:namespace=test")
-        assert_read_only("xdr-dc:dc=DC1")
         assert_read_only("latencies:back=10")
+        assert_read_only("namespace:test")
+
+    def test_trailing_semicolon_accepted(self) -> None:
+        # ``namespaces;`` is the canonical asinfo CLI form when piping
+        # multiple commands. The verb extractor strips the trailing ``;``
+        # so the LLM-friendly form passes the whitelist.
+        assert assert_read_only("namespaces;") == "namespaces"
+        assert assert_read_only("version;") == "version"
+
+    def test_assert_returns_parsed_verb(self) -> None:
+        # Forward-compat for telemetry — callers can attach the parsed
+        # verb to OTel span attributes / structured logs.
+        assert assert_read_only("roster:namespace=test") == "roster"
+        assert assert_read_only("sets/test/myset") == "sets"
 
     def test_slash_path_pass_when_verb_whitelisted(self) -> None:
         assert_read_only("sets/test/myset")
-        assert_read_only("bins/test")
+        assert_read_only("namespace/test")
         assert_read_only("sindex/test/idx_name")
 
     @pytest.mark.parametrize(
@@ -99,6 +157,10 @@ class TestAssertReadOnly:
             "dump-fabric:",  # debug dumps deliberately excluded
             "dump-msgs:",
             "eviction",  # excluded conservatively
+            "bins",  # deprecated since Aerospike 7.0, removal in 9.x
+            "bins/test",
+            "xdr-dc",  # XDR not available on CE
+            "dc:dc=DC1",  # XDR not available on CE
         ],
     )
     def test_unknown_or_excluded_verb_blocked(self, command: str) -> None:

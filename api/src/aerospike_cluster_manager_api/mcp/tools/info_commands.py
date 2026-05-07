@@ -81,26 +81,35 @@ async def execute_info_read_only(
     """Run a whitelisted read-only asinfo command — callable under READ_ONLY profile.
 
     The leading verb is checked against an explicit allowlist
-    (:mod:`info_verbs.READ_ONLY_INFO_VERBS`); commands whose verb is not
-    on the list (writes, debug dumps, unknown verbs) return
-    ``code=invalid_argument``. Currently allowed verbs:
-    ``namespaces``, ``namespace``, ``sets``, ``bins``, ``sindex``,
-    ``version``, ``build``, ``build-os``, ``build-time``, ``node``,
-    ``service``, ``services``, ``services-alumni``, ``nodes``,
-    ``cluster-name``, ``cluster-stable``, ``cluster-generation``,
-    ``cluster-info``, ``health-outliers``, ``health-stats``,
-    ``statistics``, ``latencies``, ``udf-list``, ``roster``, ``racks``,
-    ``xdr-dc``, ``dc``.
+    (:data:`info_verbs.READ_ONLY_INFO_VERBS` — 24 verbs covering cluster
+    metadata, topology, namespace introspection, statistics/latency, and
+    strong-consistency/rack reads). Verbs outside the allowlist (writes,
+    debug dumps, unknown verbs, XDR commands not available on CE) return
+    ``code=invalid_argument`` along with a hint listing high-signal
+    diagnostic verbs.
 
-    With ``node_name=None`` (default) the command runs on a random node
-    via ``info_random_node`` — fine for cluster-uniform reads such as
-    ``namespaces`` or ``version``. With an explicit ``node_name`` it fans
-    out via ``info_all`` and filters; raises ``NodeNotFoundError`` if the
-    node didn't respond.
+    Common reads exposed via this tool: ``namespaces``, ``version``,
+    ``nodes``, ``statistics``, ``latencies``, ``roster:namespace=<ns>``,
+    ``racks:``, ``sets``, ``sindex``, ``namespace/<ns>``,
+    ``health-outliers``, ``health-stats``.
 
-    Returns ``{"node": str, "response": str}``. The ``node`` value is
-    ``"<random>"`` when ``node_name`` was omitted.
+    With ``node_name=None`` (default) the call fans out via ``info_all``
+    and returns the first non-error response — the ``node`` field of the
+    result is the real cluster node (so a follow-up call can target it).
+    With an explicit ``node_name`` the same fan-out is filtered to that
+    node; ``NodeNotFoundError`` (mapped to a stable error code) surfaces
+    when the node doesn't respond.
+
+    Empty-string ``node_name`` is treated as "no node" (same as
+    ``node_name=None``) so JSON callers that pass ``""`` for unset fields
+    don't trigger a confusing ``NodeNotFoundError("")``.
+
+    Returns ``{"node": str, "response": str}``.
     """
     client = await _get_client(conn_id)
-    node, response = await clusters_service.execute_info_read_only(client, command, node_name)
+    # Coerce the empty-string sentinel that some JSON callers use for
+    # "field not set" — without this, the service would fan out and look
+    # for a node literally named ``""``.
+    effective_node = node_name or None
+    node, response = await clusters_service.execute_info_read_only(client, command, effective_node)
     return {"node": node, "response": response}

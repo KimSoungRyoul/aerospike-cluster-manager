@@ -251,31 +251,90 @@ class TestExecuteInfoOnNode:
 
 
 class TestExecuteInfoReadOnly:
-    async def test_random_node_path_uses_info_random_node(self):
-        from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed  # noqa: F401
+    """Service-layer tests for the read-only asinfo entry point.
 
+    The whitelist gate is the security-critical primitive — these tests
+    pin both the happy paths and the "no wire round-trip on rejection"
+    invariant.
+    """
+
+    @staticmethod
+    def _client_with_distinct_node_responses() -> AsyncMock:
+        """Build a mock where node1 and node2 return distinct payloads.
+
+        Tests that filter by ``node_name`` MUST use this helper rather
+        than ``_make_mock_client`` — the shared mock returns identical
+        responses for both nodes, which would let a "always returns first
+        result" bug pass the filter assertion silently.
+        """
         client = _make_mock_client()
-        client.info_random_node.return_value = "test;bar"
+
+        def info_all_side_effect(cmd: str):
+            if cmd == "statistics":
+                return [
+                    _info_all_result("node1", "node1_marker;cluster_size=2"),
+                    _info_all_result("node2", "node2_marker;cluster_size=2"),
+                ]
+            if cmd == "namespaces":
+                return [
+                    _info_all_result("node1", "test;bar"),
+                    _info_all_result("node2", "test;bar"),
+                ]
+            return []
+
+        client.info_all.side_effect = info_all_side_effect
+        return client
+
+    async def test_random_node_path_returns_real_node_name(self):
+        # ``node_name=None`` fans out via info_all and returns the FIRST
+        # non-error response — the returned node name is a real cluster
+        # node, so a follow-up call can target it.
+        client = self._client_with_distinct_node_responses()
+        node, response = await clusters_service.execute_info_read_only(client, "statistics")
+        assert node == "node1"
+        assert "node1_marker" in response
+        assert "node2_marker" not in response
+        client.info_all.assert_awaited_with("statistics")
+        # info_random_node is no longer used for the read-only tool —
+        # the change buys real node names back at the cost of one extra
+        # round-trip per call.
+        client.info_random_node.assert_not_called()
+
+    async def test_random_node_path_skips_error_nodes(self):
+        # First node errored — service must skip and return node2.
+        client = _make_mock_client()
+        client.info_all.side_effect = lambda cmd: [
+            ("node1", 1, ""),
+            ("node2", None, "ok"),
+        ]
         node, response = await clusters_service.execute_info_read_only(client, "namespaces")
-        assert node == "<random>"
-        assert response == "test;bar"
-        client.info_random_node.assert_awaited_with("namespaces")
-        # info_all is reserved for the per-node fan-out path; should not fire
-        # when node_name is None.
-        client.info_all.assert_not_called()
+        assert node == "node2"
+        assert response == "ok"
 
     async def test_specific_node_filters_info_all(self):
-        client = _make_mock_client()
-        # ``statistics`` is in the whitelist AND the mock has a fan-out
-        # response for it (node1 + node2). The service should pick node1.
-        node, response = await clusters_service.execute_info_read_only(client, "statistics", node_name="node1")
-        assert node == "node1"
-        assert "cluster_size=2" in response
+        # Distinct per-node markers prove the FILTER works (not just a
+        # "returns results[0]" accident).
+        client = self._client_with_distinct_node_responses()
+        node, response = await clusters_service.execute_info_read_only(client, "statistics", node_name="node2")
+        assert node == "node2"
+        assert "node2_marker" in response
+        assert "node1_marker" not in response
 
     async def test_unknown_node_raises(self):
-        client = _make_mock_client()
+        client = self._client_with_distinct_node_responses()
         with pytest.raises(NodeNotFoundError):
             await clusters_service.execute_info_read_only(client, "namespaces", node_name="ghost")
+
+    async def test_no_responding_nodes_raises(self):
+        # Every node returned an error — random-node path has nothing to
+        # surface, must raise.
+        client = _make_mock_client()
+        client.info_all.side_effect = lambda cmd: [
+            ("node1", 1, ""),
+            ("node2", 1, ""),
+        ]
+        with pytest.raises(NodeNotFoundError):
+            await clusters_service.execute_info_read_only(client, "namespaces")
 
     async def test_unwhitelisted_verb_raises_before_client_call(self):
         from aerospike_cluster_manager_api.info_verbs import InfoVerbNotAllowed
@@ -284,6 +343,9 @@ class TestExecuteInfoReadOnly:
         with pytest.raises(InfoVerbNotAllowed) as exc:
             await clusters_service.execute_info_read_only(client, "set-config:context=service;migrate-threads=2")
         assert exc.value.verb == "set-config"
+        # Wire message guides the LLM to retry with a valid verb.
+        assert "set-config" in str(exc.value)
+        assert "execute_info" in str(exc.value)
         # Critical: the wire was NOT touched. The whitelist gate fires
         # before any client call so a malicious verb can't even establish
         # an info round-trip.
@@ -296,7 +358,7 @@ class TestExecuteInfoReadOnly:
         client = _make_mock_client()
         with pytest.raises(InfoVerbNotAllowed):
             await clusters_service.execute_info_read_only(client, "")
-        client.info_random_node.assert_not_called()
+        client.info_all.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

@@ -131,12 +131,13 @@ async def test_execute_info_read_only_works_under_read_only(read_only_profile: N
         patch.object(info_tools.client_manager, "get_client", new=AsyncMock(return_value=object())),
         patch(
             "aerospike_cluster_manager_api.mcp.tools.info_commands.clusters_service.execute_info_read_only",
-            new=AsyncMock(return_value=("<random>", "test;bar")),
+            new=AsyncMock(return_value=("BB9", "test;bar")),
         ),
     ):
         out = await info_tools.execute_info_read_only(conn_id="x", command="namespaces")
 
-    assert out["node"] == "<random>"
+    # Real cluster node name (no <random> sentinel).
+    assert out["node"] == "BB9"
     assert out["response"] == "test;bar"
 
 

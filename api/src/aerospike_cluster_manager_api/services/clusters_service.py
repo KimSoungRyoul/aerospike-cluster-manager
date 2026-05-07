@@ -45,6 +45,7 @@ from aerospike_cluster_manager_api.info_parser import (
     safe_bool,
     safe_int,
 )
+from aerospike_cluster_manager_api.info_verbs import assert_read_only
 from aerospike_cluster_manager_api.models.cluster import (
     ClusterInfo,
     ClusterNode,
@@ -239,22 +240,22 @@ async def execute_info_read_only(
     (``execute_info``, ``execute_info_on_node``) remain unrestricted under
     ``FULL`` access.
 
-    Returns a ``(node, response)`` tuple. With ``node_name=None`` we hit a
-    random node (cheaper than ``info_all`` for cluster-uniform reads); with
-    an explicit ``node_name`` we fan out via ``info_all`` then filter, and
-    raise :class:`NodeNotFoundError` if the node didn't respond.
+    Returns a ``(node_name, response)`` tuple. With ``node_name=None`` we
+    fan out via ``info_all`` and pick the first node that returned a
+    non-error response — the returned ``node_name`` is the real cluster
+    node, so the LLM can re-issue follow-up calls against it. With an
+    explicit ``node_name`` we filter the same fan-out to the named node
+    and raise :class:`NodeNotFoundError` if it didn't respond.
     """
-    # Local import keeps the service-module surface free of MCP-only
-    # symbols at import time; the check is hot-path-irrelevant.
-    from aerospike_cluster_manager_api.info_verbs import assert_read_only
-
     assert_read_only(command)
+    results = await client.info_all(command)
 
     if node_name is None:
-        response = await client.info_random_node(command)
-        return ("<random>", response)
+        for name, err, resp in results:
+            if not err:
+                return (name, resp)
+        raise NodeNotFoundError("(any)")
 
-    results = await client.info_all(command)
     for name, err, resp in results:
         if name == node_name:
             if err:

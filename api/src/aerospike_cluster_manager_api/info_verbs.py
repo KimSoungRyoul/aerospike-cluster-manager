@@ -8,8 +8,10 @@ needs to inspect the *verb* (the leading token of the command).
 
 This module is the single source of truth for that decision. It lives at
 the package root so the service layer can import it without reaching back
-into ``mcp/``; the service raises :class:`InfoVerbNotAllowed`, the MCP
-error mapper at :mod:`mcp.errors` translates it to ``code=invalid_argument``.
+into ``mcp/``. The service raises :class:`InfoVerbNotAllowed`. The MCP
+error mapper at :mod:`mcp.errors` translates it to ``code=invalid_argument``
+so the LLM sees a "pick a different verb" signal rather than a permission
+denial.
 
 To add a verb:
 
@@ -18,6 +20,10 @@ To add a verb:
    counter mutation beyond standard read paths).
 2. Add it to :data:`READ_ONLY_INFO_VERBS` below in the matching category.
 3. Add a unit test in ``tests/test_info_verbs.py`` so future drift is caught.
+4. Update the literal-equality pin in
+   ``tests/test_info_verbs.py::test_whitelist_membership_is_pinned`` —
+   that pin exists so silent ADDITIONS are caught at review time, not
+   just silent removals.
 """
 
 from __future__ import annotations
@@ -41,23 +47,27 @@ READ_ONLY_INFO_VERBS: frozenset[str] = frozenset(
         "cluster-info",
         "health-outliers",
         "health-stats",
-        # Namespace / set / index (5)
+        # Namespace / set / index (4)
         "namespaces",
         "namespace",
         "sets",
-        "bins",
         "sindex",
         # Stats (3)
         "statistics",
         "latencies",
         "udf-list",
-        # Strong-consistency / rack / XDR (4)
+        # Strong-consistency / rack (2)
         "roster",
         "racks",
-        "xdr-dc",
-        "dc",
     }
 )
+
+
+# Curated hint verbs surfaced in error messages — the high-signal diagnostic
+# reads operators actually want. Hand-picked rather than ``sorted()[:5]``,
+# which would surface ``build-*`` triplicates that don't help the LLM pick a
+# useful alternative.
+_HINT_VERBS: tuple[str, ...] = ("namespaces", "version", "nodes", "statistics", "latencies")
 
 
 class InfoVerbNotAllowed(ValueError):
@@ -70,15 +80,20 @@ class InfoVerbNotAllowed(ValueError):
     """
 
     def __init__(self, verb: str) -> None:
-        # Five-verb hint keeps the wire message short; the full list lives
-        # in the tool docstring and the MCP JSON schema description.
-        sample = ", ".join(sorted(READ_ONLY_INFO_VERBS)[:5])
+        sample = ", ".join(_HINT_VERBS)
         super().__init__(
             f"Verb {verb!r} is not on the read-only asinfo whitelist; "
-            f"pick from: {sample}, ... or use execute_info under "
-            f"ACM_MCP_ACCESS_PROFILE=full."
+            f"pick from: {sample} (full list at info_verbs.READ_ONLY_INFO_VERBS), "
+            f"or use execute_info under ACM_MCP_ACCESS_PROFILE=full."
         )
         self.verb = verb
+
+
+# asinfo wire format treats any of these as "verb stops here". Embedding any
+# of them in a single command frame is unusual but legitimate (`namespaces;`
+# is canonical when piping multiple commands), so we normalise the head
+# rather than rejecting the whole command outright.
+_VERB_TERMINATORS: tuple[str, ...] = (":", "/", ";", "\n", " ", "\t")
 
 
 def extract_verb(command: str) -> str:
@@ -86,15 +101,17 @@ def extract_verb(command: str) -> str:
 
     asinfo commands take three syntactic shapes:
 
-    * bare verb — ``"namespaces"``
+    * bare verb — ``"namespaces"`` or ``"namespaces;"`` (trailing ``;``
+      is the canonical form when piping multiple commands)
     * path-style — ``"sets/test/myset"`` (verb followed by ``/``-separated args)
     * colon-style — ``"roster:namespace=test"`` (verb followed by ``:`` and
       ``;``-separated key=value args)
 
-    We split on the *first* ``:`` then on the *first* ``/`` so both styles
-    yield the verb in the head position. Whitespace is trimmed; an empty
-    or whitespace-only command raises :class:`InfoVerbNotAllowed` with an
-    empty verb so the caller surfaces a sensible error.
+    The verb is everything up to the first occurrence of any character in
+    :data:`_VERB_TERMINATORS` (``:``, ``/``, ``;``, ``\\n``, space, tab).
+    Whitespace is trimmed first; an empty or whitespace-only command
+    raises :class:`InfoVerbNotAllowed` with an empty verb so the caller
+    surfaces a sensible error.
 
     Note: case-sensitive — asinfo itself is case-sensitive
     (``Namespaces`` is not the same verb as ``namespaces``).
@@ -102,15 +119,21 @@ def extract_verb(command: str) -> str:
     cmd = command.strip()
     if not cmd:
         raise InfoVerbNotAllowed("")
-    return cmd.split(":", 1)[0].split("/", 1)[0]
+    head = cmd
+    for sep in _VERB_TERMINATORS:
+        head = head.split(sep, 1)[0]
+    return head
 
 
-def assert_read_only(command: str) -> None:
-    """Raise :class:`InfoVerbNotAllowed` if ``command``'s verb is not whitelisted.
+def assert_read_only(command: str) -> str:
+    """Validate ``command`` against the read-only whitelist.
 
-    Returns ``None`` on success — callers should run the command immediately
-    after this returns.
+    Returns the parsed verb on success — callers can use it for telemetry
+    (OTel span attributes, structured log fields). Raises
+    :class:`InfoVerbNotAllowed` if the verb is not whitelisted; raises
+    immediately, so no wire round-trip happens for a rejected command.
     """
     verb = extract_verb(command)
     if verb not in READ_ONLY_INFO_VERBS:
         raise InfoVerbNotAllowed(verb)
+    return verb

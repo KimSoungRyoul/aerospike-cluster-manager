@@ -36,9 +36,10 @@ def test_build_mcp_app_registers_all_phase1_tools() -> None:
     assert "truncate_set" in names
     # 1 query
     assert "query" in names
-    # 2 info commands
+    # 3 info commands
     assert "execute_info" in names
     assert "execute_info_on_node" in names
+    assert "execute_info_read_only" in names
 
     assert len(names) == EXPECTED_TOOL_COUNT, f"expected {EXPECTED_TOOL_COUNT} tools, got {len(names)}: {sorted(names)}"
 
